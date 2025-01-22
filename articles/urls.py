@@ -1,7 +1,7 @@
 from django.urls import path
-from .views import get_feed, get_some_text
+from .views import get_feed,  create_artice
 
 urlpatterns = [
-    path('feed', get_feed, name='get_feed'),
-    path('some_text', get_some_text, name='get_some_text')
+    path('api/feed', get_feed, name='get_feed'),
+    path('api/article', create_artice, name='create_new_article')
 ]
