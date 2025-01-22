@@ -8,6 +8,20 @@ def get_feed(request):
     articles = Article.objects.all().values('title', 'description', 'rating')
     return Response(list(articles))
 
+@api_view(['GET'])
+def get_article(request, article_id):
+    try:
+        article = Article.objects.get(id=article_id)
+    except Article.DoesNotExist:
+        return Response({"error": "Статья не найдена"}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({
+        "id": article.id,
+        "title": article.title,
+        "description": article.description,
+        "rating": article.rating
+    }, status=status.HTTP_200_OK)
+
 @api_view(['POST'])
 def create_artice(request):
     title = request.data.get('title')
@@ -26,3 +40,12 @@ def create_artice(request):
         "rating": article.rating,
     }, status = status.HTTP_201_CREATED)
 
+@api_view(['DELETE'])
+def delete_article(request, article_id):
+    try:
+        article = Article.objects.get(id=article_id)
+    except Article.DoesNotExist:
+        return Response({"error": "Статья не найдена"}, status=status.HTTP_404_NOT_FOUND)
+
+    article.delete()
+    return Response({"message": "Статья успешно удалена"}, status=status.HTTP_200_OK)
