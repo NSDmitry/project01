@@ -5,6 +5,9 @@ name = "pypi"
 
 [packages]
 django = "*"
+serializers = "*"
+djangorestframework = "*"
+status = "*"
 
 [dev-packages]
 
