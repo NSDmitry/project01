@@ -7,11 +7,3 @@ class Article(models.Model):
 
     def __str__(self):
         return self.title
-
-    def to_json(self):
-        return {
-            'id': self.id,
-            'title': self.title,
-            'description': self.description,
-            'rating': self.rating
-        }
