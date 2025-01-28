@@ -4,7 +4,7 @@ from .models import Article
 from .serializer import ArticleSerializer
 
 @api_view(['GET'])
-def get_feed(request):
+def get_articles(request):
     """Возвращает список всех статей."""
     articles = Article.objects.all()
     serializer = ArticleSerializer(articles, many=True)
