@@ -1,5 +1,6 @@
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
+from rest_framework import status
 from .models import Article
 from .serializer import ArticleSerializer
 
@@ -18,7 +19,8 @@ def get_article(request, article_id):
     except Article.DoesNotExist:
         return Response({"error": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
-    return Response(article.to_json(), status=status.HTTP_200_OK)
+    serializer = ArticleSerializer(article)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 def create_artice(request):
@@ -30,8 +32,8 @@ def create_artice(request):
     if serializer.is_valid():
         article = serializer.save()
         return Response(ArticleSerializer(article).data, status=status.HTTP_201_CREATED)
-
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['DELETE'])
 def delete_article(request, article_id):
