@@ -1,9 +1,7 @@
 from django.urls import path
-from .views import get_articles, create_artice, delete_article, get_article
+from .views import articles, articles_with_id
 
 urlpatterns = [
-    path('api/articles', get_articles, name='get articles'),
-    path('api/article', create_artice, name='create article'),
-    path('api/article/<int:article_id>', get_article, name="get article by id"),
-    path('api/article/<int:article_id>', delete_article, name='delete article by id'),
+    path('api/articles', articles, name='get_articles'), # GET, POST
+    path('api/articles/<int:article_id>', articles_with_id, name="by_id"), # GET, DELETE
 ]
