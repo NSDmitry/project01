@@ -1,5 +1,6 @@
 from sqlite3 import IntegrityError
 import uuid
+import bcrypt
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -18,10 +19,11 @@ def registration(user: User, db: Session = Depends(get_db)):
     Ожидает JSON с полями: id, name, email, password.
     """
 
+    hashed_password = hash_password(user.password)
     user_model = DBUser(
         name=user.name,
         phone_number=user.phone_number,
-        password=user.password,
+        password=hashed_password,
         access_token=str(uuid.uuid4())
     )
 
@@ -49,7 +51,7 @@ def signin(credentials: SignInRequest, db: Session=Depends(get_db)):
             detail="Пользователь с таким номером телефона не найден"
         )
 
-    if db_user.password != credentials.password:
+    if verify_password_bcrypt(credentials.password, db_user.password) is False:
         raise HTTPException(
             status_code=401,
             detail="Пароь не правильный",
@@ -59,3 +61,12 @@ def signin(credentials: SignInRequest, db: Session=Depends(get_db)):
         message="Авторизация успешна",
         access_token=db_user.access_token
     )
+
+def verify_password_bcrypt(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+def hash_password(plain_password: str) -> str:
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(plain_password.encode('utf-8'), salt)
+
+    return hashed.decode('utf-8')
