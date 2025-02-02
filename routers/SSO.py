@@ -1,16 +1,17 @@
-from http.client import HTTPException
 from sqlite3 import IntegrityError
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from DBmodels.DBUser import DBUser
 from models.User import User
+from models.requests.SignInRequest import SignInRequest
+from models.responses.SignInReposponse import SignInResponse
 
 router = APIRouter(prefix="/api/SSO", tags=["SSO"])
 
-@router.post("/")
+@router.post("/signup")
 def registration(user: User, db: Session = Depends(get_db)):
     """
     API-метод для создания пользователя.
@@ -29,7 +30,7 @@ def registration(user: User, db: Session = Depends(get_db)):
         db.commit()
     except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Пользователь с таким номером уже существует")(e)
+        raise HTTPException(status_code=409, detail="Пользователь с таким номером уже существует")
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail="Ошибка запроса")
@@ -37,3 +38,24 @@ def registration(user: User, db: Session = Depends(get_db)):
     return {
         "message": "Пользователь успешно зарегистрирован"
     }
+
+@router.post("/signin", response_model=SignInResponse)
+def signin(credentials: SignInRequest, db: Session=Depends(get_db)):
+    db_user = db.query(DBUser).filter(DBUser.phone_number == credentials.phone_number).first()
+
+    if db_user is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Пользователь с таким номером телефона не найден"
+        )
+
+    if db_user.password != credentials.password:
+        raise HTTPException(
+            status_code=401,
+            detail="Пароь не правильный",
+        )
+
+    return SignInResponse(
+        message="Авторизация успешна",
+        access_token=db_user.access_token
+    )
