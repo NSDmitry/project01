@@ -4,6 +4,7 @@ import bcrypt
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from database import get_db
 from DBmodels.DBUser import DBUser
 from models.User import User
@@ -32,40 +33,60 @@ def registration(user: User, db: Session = Depends(get_db)):
         db.commit()
     except IntegrityError as e:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Пользователь с таким номером уже существует")
+        raise HTTPException(
+            status_code=409,
+            detail="Someone with that phone number has already been registered."
+        )
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Ошибка запроса")
+        raise HTTPException(
+            status_code=500,
+            detail="Server error, please try again"
+        )
 
-    return {
-        "message": "Пользователь успешно зарегистрирован"
-    }
+    return dict(message="The user has been successfully registered")
 
 @router.post("/signin", response_model=SignInResponse)
 def signin(credentials: SignInRequest, db: Session=Depends(get_db)):
+    """
+    API-метод для авторизации пользователя.
+    Ожидает JSON с полями: id, name, email, password.
+    return: SignInResponse(message, access_token)
+    """
     db_user = db.query(DBUser).filter(DBUser.phone_number == credentials.phone_number).first()
 
     if db_user is None:
         raise HTTPException(
             status_code=404,
-            detail="Пользователь с таким номером телефона не найден"
+            detail="The user with this phone number was not found."
         )
 
     if verify_password_bcrypt(credentials.password, db_user.password) is False:
         raise HTTPException(
             status_code=401,
-            detail="Пароь не правильный",
+            detail="The password is not correct",
         )
 
     return SignInResponse(
-        message="Авторизация успешна",
+        message="Successful authorization",
         access_token=db_user.access_token
     )
 
 def verify_password_bcrypt(plain_password: str, hashed_password: str) -> bool:
+    """
+    Сравниение 2х паролей.
+    plain_password: пароль в обычном виде
+    hashed_password: пароль в виде хэша
+    return: эквивалентность паролей
+    """
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 def hash_password(plain_password: str) -> str:
+    """
+    Преобразование обычного пароля в захэшированный
+    plain_password: пароль в обычном виде
+    return: хэшированный пароль
+    """
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(plain_password.encode('utf-8'), salt)
 
