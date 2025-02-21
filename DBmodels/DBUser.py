@@ -1,4 +1,7 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, ARRAY, Table, ForeignKey
+from sqlalchemy.orm import relationship
+from DBmodels.association import user_bookclub
+
 from database import Base
 
 class DBUser(Base):
@@ -9,3 +12,4 @@ class DBUser(Base):
     phone_number = Column(Integer, unique=True, nullable=False)
     password = Column(String, nullable=False)
     access_token = Column(String, unique=True, nullable=False)
+    book_clubs = relationship("DBBookClub", secondary="user_bookclub", back_populates="members")
