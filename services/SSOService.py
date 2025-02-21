@@ -5,24 +5,22 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
 from DBmodels.DBUser import DBUser
-from models.requests.SignInRequest import SignInRequest
-from models.responses.SignInReposponse import SignInResponse
-from models.User import User
-
 
 class SSOService:
-    @staticmethod
-    def register_user(user: User, db: Session):
+    @classmethod
+    def register_user(cls, name: str, phone_number: str, password: str, db: Session):
         """
         Регистрация нового пользователя.
-        :param user: Данные нового пользователя
+        :param name: имя пользователя
+        :param phone_number: номер телефона
+        :param password: пароль пользователя
         :param db: Сессия базы данных
         :return: Сообщение об успешной регистрации
         """
-        hashed_password = SSOService.hash_password(user.password)
+        hashed_password = cls.__hash_password(password)
         user_db_model = DBUser(
-            name=user.name,
-            phone_number=user.phone_number,
+            name=name,
+            phone_number=phone_number,
             password=hashed_password,
             access_token=str(uuid.uuid4())
         )
@@ -39,29 +37,30 @@ class SSOService:
 
         return {"message": "Пользователь успешно зарегистрирован"}
 
-    @staticmethod
-    def signin_user(credentials: SignInRequest, db: Session):
+    @classmethod
+    def signin_user(cls, phone_number: str, password: str, db: Session):
         """
         Авторизация пользователя.
-        :param credentials: Входные данные (телефон, пароль)
+        :param phone_number: номер телефона
+        :param password: пароль пользователя
         :param db: Сессия базы данных
         :return: Токен доступа
         """
-        db_user = db.query(DBUser).filter(DBUser.phone_number == credentials.phone_number).first()
+        db_user = db.query(DBUser).filter(DBUser.phone_number == phone_number).first()
 
         if db_user is None:
             raise HTTPException(status_code=404, detail="Пользователь с таким номером телефона не найден.")
 
-        if not SSOService.verify_password(credentials.password, db_user.password):
+        if not cls.__verify_password(password, db_user.password):
             raise HTTPException(status_code=401, detail="Неверный пароль.")
 
-        return SignInResponse(
-            message="Успешная авторизация",
-            access_token=db_user.access_token
-        )
+        return {
+            "message": "Успешная авторизация",
+            "access_token": db_user.access_token
+        }
 
-    @staticmethod
-    def verify_password(plain_password: str, hashed_password: str) -> bool:
+    @classmethod
+    def __verify_password(cls, plain_password: str, hashed_password: str) -> bool:
         """
         Проверка пароля.
         :param plain_password: Обычный пароль
@@ -70,8 +69,8 @@ class SSOService:
         """
         return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
-    @staticmethod
-    def hash_password(plain_password: str) -> str:
+    @classmethod
+    def __hash_password(cls, plain_password: str) -> str:
         """
         Хеширование пароля.
         :param plain_password: Обычный пароль
