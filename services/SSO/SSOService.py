@@ -1,11 +1,10 @@
 import uuid
 import bcrypt
-from sqlite3 import IntegrityError
 
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-from DBmodels.DBUser import DBUser
+from Repositories.UserRepository import UserRepository
 from services.SSO.Models import SingUpRequestModel, SignInRequestModel, SignInResponseModel
 from services.User.Models import PublicUserResponseModel
 
@@ -20,27 +19,12 @@ class SSOService:
         :return: Сообщение об успешной регистрации
         """
         hashed_password = cls.__hash_password(model.password)
-        user_db_model = DBUser(
-            name=model.name,
-            phone_number=model.phone_number,
-            password=hashed_password,
-            access_token=str(uuid.uuid4())
-        )
-
-        try:
-            db.add(user_db_model)
-            db.commit()
-        except IntegrityError:
-            db.rollback()
-            raise HTTPException(status_code=409, detail="Пользователь с таким номером телефона уже зарегистрирован.")
-        except Exception:
-            db.rollback()
-            raise HTTPException(status_code=500, detail="Ошибка сервера, попробуйте позже.")
+        db_user = UserRepository.create_user(model.name, model.phone_number, hashed_password, str(uuid.uuid4()), db)
 
         return SignInResponseModel(
             message="Пользователь успешно зарегистрирован",
-            access_token=user_db_model.access_token,
-            model=PublicUserResponseModel.from_db_model(db_model=user_db_model)
+            access_token=db_user.access_token,
+            model=PublicUserResponseModel.from_db_model(db_model=db_user)
         )
 
     @classmethod
@@ -51,7 +35,7 @@ class SSOService:
         :param db: Session
         :return: Токен доступа
         """
-        db_user = db.query(DBUser).filter(DBUser.phone_number == model.phone_number).first()
+        db_user = UserRepository.get_user_by_phone_number(model.phone_number, db)
 
         if db_user is None:
             raise HTTPException(status_code=404, detail="Пользователь с таким номером телефона не найден.")
