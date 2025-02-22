@@ -17,3 +17,7 @@ class PublicUserResponseModel(BaseModel):
             name=db_model.name,
             phone_number=db_model.phone_number
         )
+
+class UpdateUserRequestModel(BaseModel):
+    name: str
+    phone_number: int
