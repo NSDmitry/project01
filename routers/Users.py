@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from services.OAuth2PasswordBearer.OAuth2PasswordBearer import oauth2_scheme
-from services.User.UserService import UserSerivce, PublicUserResponseModel
+from services.User.UserService import UserSerivce, PublicUserResponseModel, UpdateUserRequestModel
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -56,3 +56,29 @@ def get_current_user(access_token: str = Depends(oauth2_scheme), db: Session = D
 )
 def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
     return UserSerivce.get_user_by_id(user_id, db)
+
+@router.put(
+    "",
+    response_model=PublicUserResponseModel,
+    summary="Изменить публичные данные о пользователе (имя и номер телефона)",
+    description="""
+    Возвращает измененную модель пользователя
+    
+    **Требуется авторизация** с заголовком:  
+    `Authorization: Bearer <your_token>`
+    
+    **Ответ содержит**:
+    - `id` (int) — ID пользователя.
+    - `name` (str) — Имя пользователя.
+    - `phone_number` (int) — Номер телефона.
+    
+    **Ошибки**:
+    - `404 Not Found` — если пользователь не найден.
+    """,
+    responses={
+        200: {"description": "Информация о пользователе успешно изменена"},
+        404: {"description": "Пользователь не найден"},
+    }
+)
+def change_user_info(model: UpdateUserRequestModel, access_token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    return UserSerivce.update_user_info(access_token=access_token, model=model, db=db)
