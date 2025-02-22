@@ -4,9 +4,10 @@ import bcrypt
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
-from Repositories.UserRepository import UserRepository
+from repositories.UserRepository import UserRepository
 from services.SSO.Models import SingUpRequestModel, SignInRequestModel, SignInResponseModel
 from services.User.Models import PublicUserResponseModel
+from services.User.UserService import UserSerivce
 
 
 class SSOService:
@@ -18,7 +19,12 @@ class SSOService:
         :param db: Session
         :return: Сообщение об успешной регистрации
         """
+
+        UserSerivce.validate_phone_number(model.phone_number, db)
+        UserSerivce.is_unique_phone_number(model.phone_number, db)
+
         hashed_password = cls.__hash_password(model.password)
+
         db_user = UserRepository.create_user(model.name, model.phone_number, hashed_password, str(uuid.uuid4()), db)
 
         return SignInResponseModel(
