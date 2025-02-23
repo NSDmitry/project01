@@ -12,6 +12,7 @@ class CreateBookClubRequestModel(BaseModel):
     description: str
 
 class BookClubResponseModel(BaseModel):
+    id: int
     name: str
     description: str
     owner: PublicUserResponseModel
@@ -22,4 +23,4 @@ class BookClubResponseModel(BaseModel):
         owner = PublicUserResponseModel.from_db_model(db_model=db_model.owner)
         members = [PublicUserResponseModel.from_db_model(db_model=user) for user in db_model.members]
 
-        return BookClubResponseModel(name=db_model.name, description=db_model.description, owner=owner, members=members)
+        return BookClubResponseModel(id=db_model.id, name=db_model.name, description=db_model.description, owner=owner, members=members)

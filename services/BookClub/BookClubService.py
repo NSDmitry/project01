@@ -1,3 +1,5 @@
+from typing import List
+
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
@@ -17,3 +19,10 @@ class BookClubSerivce:
         db_book_club: DBBookClub = BookClubRepository.create_book_blub(owner, model, db)
 
         return BookClubResponseModel.from_db_model(db_book_club)
+
+    @classmethod
+    def get_owned_book_clubs(cls, access_token: str, db: Session = Depends(get_db())) -> List[BookClubResponseModel]:
+        owner: DBUser = UserRepository.get_user_by_access_token(access_token, db)
+        clubs = BookClubRepository.get_owned_book_blubs(owner, db)
+
+        return [BookClubResponseModel.from_db_model(club) for club in clubs]

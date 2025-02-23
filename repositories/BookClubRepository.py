@@ -1,3 +1,5 @@
+from typing import List
+
 from sqlalchemy.orm import Session
 
 from DBmodels import DBUser, DBBookClub
@@ -14,3 +16,9 @@ class BookClubRepository:
         db.refresh(new_book_club)
 
         return new_book_club
+
+    @classmethod
+    def get_owned_book_blubs(cls, owner: DBUser, db: Session) -> List[DBBookClub]:
+        clubs = db.query(DBBookClub).filter(DBBookClub.owner_id == owner.id)
+
+        return clubs
