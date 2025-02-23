@@ -11,3 +11,7 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 @router.post("")
 def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     return BookClubSerivce.create_book_club(model, access_token, db)
+
+@router.get("/owned")
+def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    return BookClubSerivce.get_owned_book_clubs(access_token, db)
