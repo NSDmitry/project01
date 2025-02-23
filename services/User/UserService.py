@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 
 from DBmodels import DBUser
 from repositories.UserRepository import UserRepository
-from services.SSO.Models import SingUpRequestModel
 from services.User.Models import PublicUserResponseModel, UpdateUserRequestModel
 
 
@@ -25,7 +24,7 @@ class UserSerivce:
 
     @classmethod
     def update_user_info(cls, access_token: str, model: UpdateUserRequestModel, db: Session) -> PublicUserResponseModel:
-        UserSerivce.__validate_phone_number(model.phone_number, db)
+        UserSerivce.validate_phone_number(model.phone_number, db)
         db_user: DBUser = UserRepository.update_user_info(access_token, model.name, model.phone_number, db)
 
         return PublicUserResponseModel.from_db_model(db_user)
