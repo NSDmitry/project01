@@ -1,5 +1,6 @@
 from typing import List
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from DBmodels import DBUser, DBBookClub
@@ -22,3 +23,16 @@ class BookClubRepository:
         clubs = db.query(DBBookClub).filter(DBBookClub.owner_id == owner.id)
 
         return clubs
+
+    @classmethod
+    def delete_book_club(cls, owner: DBUser, club_id: int, db: Session):
+        club: DBBookClub = db.query(DBBookClub).filter(DBBookClub.id == club_id).first()
+
+        if club is None:
+            raise HTTPException(status_code=404, detail="Книжный клуб с таким id не найден")
+
+        if club.owner_id != owner.id:
+            raise HTTPException(status_code=401, detail="Пользователь не являеется владельцем книжного клуба")
+
+        db.delete(club)
+        db.commit()

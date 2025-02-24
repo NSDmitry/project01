@@ -15,3 +15,7 @@ def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2
 @router.get("/owned")
 def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     return BookClubSerivce.get_owned_book_clubs(access_token, db)
+
+@router.delete("/{club_id}")
+def delete_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    return BookClubSerivce.delete_book_club(access_token, club_id, db)
