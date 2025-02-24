@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from database import engine, Base
+from database import engine, Base, close_db
 from routers import SSO, Users, BookClub
 
 app = FastAPI()

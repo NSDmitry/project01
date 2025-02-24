@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from services.OAuth2PasswordBearer.OAuth2PasswordBearer import oauth2_scheme
-from services.User.UserService import UserSerivce, PublicUserResponseModel, UpdateUserRequestModel
+from services.User.UserService import UserService, PublicUserResponseModel, UpdateUserRequestModel
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -28,8 +28,8 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def get_current_user(access_token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    return UserSerivce.get_current_user(access_token, db)
+def get_current_user(access_token: str = Depends(oauth2_scheme), user_service: UserService = Depends()):
+    return user_service.get_current_user(access_token)
 
 @router.get(
     "/public",
@@ -54,8 +54,8 @@ def get_current_user(access_token: str = Depends(oauth2_scheme), db: Session = D
         404: {"description": "Пользователь не найден"},
     }
 )
-def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
-    return UserSerivce.get_user_by_id(user_id, db)
+def get_user_by_id(user_id: int, user_service: UserService = Depends()):
+    return user_service.get_user_by_id(user_id)
 
 @router.put(
     "",
@@ -80,5 +80,8 @@ def get_user_by_id(user_id: int, db: Session = Depends(get_db)):
         404: {"description": "Пользователь не найден"},
     }
 )
-def change_user_info(model: UpdateUserRequestModel, access_token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    return UserSerivce.update_user_info(access_token=access_token, model=model, db=db)
+def change_user_info(
+        model: UpdateUserRequestModel,
+        access_token: str = Depends(oauth2_scheme),
+        user_service = Depends()):
+    return user_service.update_user_info(access_token=access_token, model=model)
