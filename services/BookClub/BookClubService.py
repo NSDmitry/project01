@@ -1,35 +1,39 @@
 from typing import List
 
-from fastapi import Depends
-from sqlalchemy.orm import Session
-
 from DBmodels import DBUser, DBBookClub
 from database import get_db
 from repositories.BookClubRepository import BookClubRepository
 from repositories.UserRepository import UserRepository
 from services.BookClub.Models import CreateBookClubRequestModel, BookClubResponseModel, DeleteBookClubResponse
-from services.User.Models import PublicUserResponseModel
-from services.User.UserService import UserSerivce
 
 
 class BookClubSerivce:
-    @classmethod
-    def create_book_club(cls, model: CreateBookClubRequestModel, access_token: str, db: Session = Depends(get_db)) -> BookClubResponseModel:
-        owner: DBUser = UserRepository.get_user_by_access_token(access_token, db)
-        db_book_club: DBBookClub = BookClubRepository.create_book_blub(owner, model, db)
+    user_repository: UserRepository
+    book_club_repository: BookClubRepository
+
+    def __init__(self) -> None:
+        self.user_repository = UserRepository()
+        self.book_club_repository = BookClubRepository()
+
+    def create_book_club(self, model: CreateBookClubRequestModel, access_token: str) -> BookClubResponseModel:
+        owner: DBUser = self.user_repository.get_user_by_access_token(access_token)
+        db_book_club: DBBookClub = self.book_club_repository.create_book_blub(owner, model)
 
         return BookClubResponseModel.from_db_model(db_book_club)
 
-    @classmethod
-    def get_owned_book_clubs(cls, access_token: str, db: Session = Depends(get_db())) -> List[BookClubResponseModel]:
-        owner: DBUser = UserRepository.get_user_by_access_token(access_token, db)
-        clubs = BookClubRepository.get_owned_book_blubs(owner, db)
+    def get_book_clubs(self) -> List[BookClubResponseModel]:
+        db_clubs: List[DBBookClub] = self.book_club_repository.get_book_clubs()
+
+        return [BookClubResponseModel.from_db_model(club) for club in db_clubs]
+
+    def get_owned_book_clubs(self, access_token: str) -> List[BookClubResponseModel]:
+        owner: DBUser = self.user_repository.get_user_by_access_token(access_token)
+        clubs: List[DBBookClub] = self.book_club_repository.get_owned_book_blubs(owner)
 
         return [BookClubResponseModel.from_db_model(club) for club in clubs]
 
-    @classmethod
-    def delete_book_club(cls, access_token: str, book_club_id: int, db: Session = Depends(get_db())) -> DeleteBookClubResponse:
-        owner: DBUser = UserRepository.get_user_by_access_token(access_token, db)
-        BookClubRepository.delete_book_club(owner, book_club_id, db)
+    def delete_book_club(self, access_token: str, book_club_id: int) -> DeleteBookClubResponse:
+        owner: DBUser = self.user_repository.get_user_by_access_token(access_token)
+        self.book_club_repository.delete_book_club(owner, book_club_id)
 
         return DeleteBookClubResponse(message="Книжный клуб успешно удален")

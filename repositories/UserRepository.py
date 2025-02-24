@@ -1,36 +1,38 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, Depends
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from DBmodels import DBUser
+from database import get_db
 from services.OAuth2PasswordBearer.OAuth2PasswordBearer import get_current_user
 
 
 class UserRepository:
-    @classmethod
-    def get_user_by_access_token(cls, access_token: str, db: Session) -> DBUser:
-        return get_current_user(access_token, db)
+    db: Session
 
-    @classmethod
-    def get_user_by_id(cls, user_id: int, db: Session) -> DBUser:
-        db_user: DBUser = db.query(DBUser).filter(DBUser.id == user_id).first()
+    def __init__(self, db: Session = get_db()) -> None:
+        self.db = db
 
-        if db_user is None:
-            raise HTTPException(status_code=404, detail="Пользователь с таким id не найден")
+    def get_user_by_access_token(self, access_token: str) -> DBUser:
+        return get_current_user(access_token)
 
-        return db_user
-
-    @classmethod
-    def get_user_by_phone_number(cls, phone_number: int, db: Session) -> DBUser:
-        db_user: DBUser = db.query(DBUser).filter(DBUser.phone_number == phone_number).first
+    def get_user_by_id(self, user_id: int) -> DBUser:
+        db_user: DBUser = self.db.query(DBUser).filter(DBUser.id == user_id).first()
 
         if db_user is None:
             raise HTTPException(status_code=404, detail="Пользователь с таким id не найден")
 
         return db_user
 
-    @classmethod
-    def create_user(cls, name: str, phone_number: int, password: str, token: str, db: Session) -> DBUser:
+    def get_user_by_phone_number(self, phone_number: int) -> DBUser:
+        db_user: DBUser = self.db.query(DBUser).filter(DBUser.phone_number == phone_number).first()
+
+        if db_user is None:
+            raise HTTPException(status_code=404, detail="Пользователь с таким id не найден")
+
+        return db_user
+
+    def create_user(self, name: str, phone_number: int, password: str, token: str) -> DBUser:
         user_db_model = DBUser(
             name=name,
             phone_number=phone_number,
@@ -39,25 +41,24 @@ class UserRepository:
         )
 
         try:
-            db.add(user_db_model)
-            db.commit()
+            self.db.add(user_db_model)
+            self.db.commit()
         except IntegrityError:
-            db.rollback()
+            self.db.rollback()
             raise HTTPException(status_code=409, detail="Пользователь с таким номером телефона уже зарегистрирован.")
         except Exception:
-            db.rollback()
+            self.db.rollback()
             raise HTTPException(status_code=500, detail="Ошибка сервера, попробуйте позже.")
 
         return user_db_model
 
-    @classmethod
-    def update_user_info(cls, access_token: str, name: str, phone_number: str, db: Session) -> DBUser:
-        db_user = UserRepository.get_user_by_access_token(access_token, db)
+    def update_user_info(self, access_token: str, name: str, phone_number: str) -> DBUser:
+        db_user = self.get_user_by_access_token(access_token)
 
         db_user.name = name
         db_user.phone_number = phone_number
 
-        db.commit()
-        db.refresh(db_user)
+        self.db.commit()
+        self.db.refresh(db_user)
 
         return db_user
