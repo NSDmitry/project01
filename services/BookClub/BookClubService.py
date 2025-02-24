@@ -7,7 +7,7 @@ from DBmodels import DBUser, DBBookClub
 from database import get_db
 from repositories.BookClubRepository import BookClubRepository
 from repositories.UserRepository import UserRepository
-from services.BookClub.Models import CreateBookClubRequestModel, BookClubResponseModel
+from services.BookClub.Models import CreateBookClubRequestModel, BookClubResponseModel, DeleteBookClubResponse
 from services.User.Models import PublicUserResponseModel
 from services.User.UserService import UserSerivce
 
@@ -26,3 +26,10 @@ class BookClubSerivce:
         clubs = BookClubRepository.get_owned_book_blubs(owner, db)
 
         return [BookClubResponseModel.from_db_model(club) for club in clubs]
+
+    @classmethod
+    def delete_book_club(cls, access_token: str, book_club_id: int, db: Session = Depends(get_db())) -> DeleteBookClubResponse:
+        owner: DBUser = UserRepository.get_user_by_access_token(access_token, db)
+        BookClubRepository.delete_book_club(owner, book_club_id, db)
+
+        return DeleteBookClubResponse(message="Книжный клуб успешно удален")
