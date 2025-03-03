@@ -1,23 +1,118 @@
+from typing import List
+
 from fastapi import APIRouter, Depends
 
 from services.BookClub.BookClubService import BookClubSerivce
-from services.BookClub.Models import CreateBookClubRequestModel
+from services.BookClub.Models import CreateBookClubRequestModel, BookClubResponseModel, DeleteBookClubResponse
 from services.OAuth2PasswordBearer.OAuth2PasswordBearer import oauth2_scheme
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 
-@router.post("")
+
+@router.post(
+    "",
+    response_model=BookClubResponseModel,
+    summary="Создание книжного клуба",
+    description=(
+        "Создание книжного клуба.\n\n"
+        "**Требуется авторизация** с заголовком:\n"
+        "`Authorization: Bearer <your_token>`\n\n"
+        "**Параметры запроса**:\n"
+        "- `name` (str) — название книжного клуба\n"
+        "- `description` (str) - описание книжного клуба\n\n"
+        "**Ответ содержит**:\n"
+        "- `id` (int) — ID книжного клуба\n"
+        "- `name` (str) — название книжного клуба\n"
+        "- `description` (str) - описание книжного клуба\n"
+        "- `creation_date` (datetime) - дата создания книжного клуба\n"
+        "- `owner` (PublicUserResponseModel) - создатель книжного клуба\n"
+        "- `members` (List[PublicUserResponseModel]) - участники книжного клуба"
+    ),
+    responses={
+        201: {"description": "Успешный ответ с данными книжного клуба"},
+        400: {"description": "Ошибка валидации названия или описания книжного клуба"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
 def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
-    return service.create_book_club(model, access_token)
+    response: BookClubResponseModel = service.create_book_club(model, access_token)
 
-@router.get("")
+    return response
+
+
+
+@router.get(
+    "",
+    response_model=List[BookClubResponseModel],
+    summary="Получение всех книжных клубов",
+    description=(
+        "**Ответ содержит**:\n"
+        "Массив:\n"
+        "- `id` (int) — ID книжного клуба\n"
+        "- `name` (str) — название книжного клуба\n"
+        "- `description` (str) - описание книжного клуба\n"
+        "- `creation_date` (datetime) - дата создания книжного клуба\n"
+        "- `owner` (PublicUserResponseModel) - создатель книжного клуба\n"
+        "- `members` (List[PublicUserResponseModel]) - участники книжного клуба"
+    ),
+    responses={
+        200: {"description": "Успешный ответ с данными книжных клубов"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
 def get_all_book_clubs(service: BookClubSerivce = Depends()):
-    return service.get_book_clubs()
+    response: List[BookClubResponseModel] = service.get_book_clubs()
 
-@router.get("/owned")
+    return response
+
+@router.get(
+    "/owned",
+    response_model=List[BookClubResponseModel],
+    summary="Получение всех книжных клубов, в которых пользователь владелец",
+    description=(
+        "**Требуется авторизация** с заголовком:\n"
+        "`Authorization: Bearer <your_token>`\n\n"
+        "**Ответ содержит**:\n"
+        "Массив:\n"
+        "- `id` (int) — ID книжного клуба\n"
+        "- `name` (str) — название книжного клуба\n"
+        "- `description` (str) - описание книжного клуба\n"
+        "- `creation_date` (datetime) - дата создания книжного клуба\n"
+        "- `owner` (PublicUserResponseModel) - создатель книжного клуба\n"
+        "- `members` (List[PublicUserResponseModel]) - участники книжного клуба"
+    ),
+    responses={
+        200: {"description": "Успешный ответ с данными книжных клубов"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
 def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
-    return service.get_owned_book_clubs(access_token)
+    response: List[BookClubResponseModel] = service.get_owned_book_clubs(access_token)
 
-@router.delete("/{club_id}")
+    return response
+
+@router.delete(
+    "/{club_id}",
+    response_model=DeleteBookClubResponse,
+    summary="Удаление книжного клуба",
+    description=(
+        "Удаление книжного клуба.\n\n"
+        "**Требуется авторизация** с заголовком:\n"
+        "`Authorization: Bearer <your_token>`\n\n"
+        "**Параметры запроса**:\n"
+        "- `club_id` (int) — ID книжного клуба\n\n"
+        "**Ответ содержит**:\n"
+        "- `message` (str) — сообщение об успешном удалении"
+    ),
+    responses={
+        200: {"description": "Успешный ответ с сообщением об успешном удалении"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
 def delete_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
-    return service.delete_book_club(access_token, club_id)
+    response: DeleteBookClubResponse = service.delete_book_club(access_token, club_id)
+
+    return response
