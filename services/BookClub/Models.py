@@ -18,21 +18,20 @@ class BookClubResponseModel(BaseModel):
     name: str
     description: str
     creation_date: datetime
-    owner: PublicUserResponseModel
-    members: List[PublicUserResponseModel]
+    owner_id: int
+    members_ids: List[int]
 
     @classmethod
     def from_db_model(cls, db_model: DBBookClub) -> BookClubResponseModel:
         owner = PublicUserResponseModel.from_db_model(db_model=db_model.owner)
-        members = [PublicUserResponseModel.from_db_model(db_model=user) for user in db_model.members]
 
         return BookClubResponseModel(
             id=db_model.id,
             name=db_model.name,
             description=db_model.description,
             creation_date=db_model.creation_date,
-            owner=owner,
-            members=members
+            owner_id=owner.id,
+            members_ids=[user.id for user in db_model.members]
         )
 
 class DeleteBookClubResponse(BaseModel):
