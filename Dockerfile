@@ -1,18 +1,18 @@
-# Используем базовый образ Python 3.9.6
+# Используем базовый образ Python
 FROM python:3.9.6
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Устанавливаем зависимости
+# Копируем зависимости и устанавливаем их
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Копируем исходный код приложения
+# Копируем весь код приложения
 COPY . .
 
-# Открываем порт для сервера
+# Открываем порт
 EXPOSE 8000
 
-# Запускаем FastAPI-приложение с Uvicorn
-CMD alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000
+# Указываем команду запуска
+CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"]
