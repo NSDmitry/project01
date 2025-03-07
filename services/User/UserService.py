@@ -31,11 +31,6 @@ class UserService:
 
         return PublicUserResponseModel.from_db_model(db_user)
 
-    def get_user_by_phone_number(self, phone_number: int) -> PublicUserResponseModel:
-        user = self.user_repository.get_user_by_phone_number(phone_number)
-
-        return user
-
     def validate_phone_number(self, phone_number: int):
         phone_str = str(phone_number)
 
@@ -45,7 +40,10 @@ class UserService:
         if len(phone_str) < 10 or len(phone_str) > 15:
             raise HTTPException(status_code=400, detail="Номер телефона должен быть от 10 до 15 символов")
 
-    def is_unique_phone_number(self, phone_number: int) -> bool:
+        if self.__is_unique_phone_number(phone_number) is False:
+            raise HTTPException(status_code=409, detail="Пользователь с таким номером телефона уже зарегистрирован")
+
+    def __is_unique_phone_number(self, phone_number: int) -> bool:
         user = self.user_repository.get_user_by_phone_number(phone_number)
 
         if user:
