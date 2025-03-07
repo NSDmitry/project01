@@ -25,7 +25,6 @@ class SSOService:
         """
 
         self.user_service.validate_phone_number(model.phone_number)
-        self.user_service.is_unique_phone_number(model.phone_number)
 
         hashed_password = self.__hash_password(model.password)
 

@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, Depends
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -9,6 +11,8 @@ from services.OAuth2PasswordBearer.OAuth2PasswordBearer import get_current_user
 
 class UserRepository:
     db: Session
+
+    logger = logging.getLogger(__name__)
 
     def __init__(self, db: Session = get_db()) -> None:
         self.db = db
@@ -27,9 +31,6 @@ class UserRepository:
     def get_user_by_phone_number(self, phone_number: int) -> DBUser:
         db_user: DBUser = self.db.query(DBUser).filter(DBUser.phone_number == phone_number).first()
 
-        if db_user is None:
-            raise HTTPException(status_code=404, detail="Пользователь с таким id не найден")
-
         return db_user
 
     def create_user(self, name: str, phone_number: int, password: str, token: str) -> DBUser:
@@ -40,13 +41,18 @@ class UserRepository:
             access_token=token
         )
 
+        if self.db is None:
+            raise HTTPException(status_code=600, detail="Соединение с базой данных не установлено.")
+
         try:
             self.db.add(user_db_model)
             self.db.commit()
-        except IntegrityError:
+        except IntegrityError as e:
             self.db.rollback()
+            self.logger.error(f"IntegrityError: {str(e)}")  # Логируем ошибку
             raise HTTPException(status_code=409, detail="Пользователь с таким номером телефона уже зарегистрирован.")
-        except Exception:
+        except Exception as e:
+            self.logger.error(f"Exception: {str(e)}")  # Логируем ошибку
             self.db.rollback()
             raise HTTPException(status_code=500, detail="Ошибка сервера, попробуйте позже.")
 
