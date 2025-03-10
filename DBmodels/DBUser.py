@@ -1,5 +1,4 @@
 from sqlalchemy import Column, Integer, String, BigInteger
-from sqlalchemy.orm import relationship
 
 from database import Base
 
@@ -11,5 +10,3 @@ class DBUser(Base):
     phone_number = Column(BigInteger, unique=True, nullable=False)
     password = Column(String, nullable=False)
     access_token = Column(String, unique=True, nullable=False)
-    book_clubs = relationship("DBBookClub", secondary="user_bookclub", back_populates="members")
-    owned_clubs = relationship("DBBookClub", back_populates="owner")
