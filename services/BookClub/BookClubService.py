@@ -37,3 +37,15 @@ class BookClubSerivce:
         self.book_club_repository.delete_book_club(owner, book_club_id)
 
         return DeleteBookClubResponse(message="Книжный клуб успешно удален")
+
+    def join(self, access_token: str, club_id: int) -> BookClubResponseModel:
+        user: DBUser = self.user_repository.get_user_by_access_token(access_token)
+        club: DBBookClub = self.book_club_repository.join_book_club(user=user, club_id=club_id)
+
+        return BookClubResponseModel.from_db_model(club)
+
+    def leave(self, access_token: str, club_id: int) -> BookClubResponseModel:
+        user: DBUser = self.user_repository.get_user_by_access_token(access_token)
+        club: DBBookClub = self.book_club_repository.remove_member(user, club_id)
+
+        return BookClubResponseModel.from_db_model(club)
