@@ -82,3 +82,38 @@ def delete_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), s
     response: DeleteBookClubResponse = service.delete_book_club(access_token, club_id)
 
     return response
+
+@router.post(
+    "/{club_id}/join",
+    response_model=BookClubResponseModel,
+    summary="Вступить в книжный клуб",
+    description=(
+        "**Требуется авторизация** с заголовком:\n"
+        "`Authorization: Bearer <your_token>`\n\n"
+    ),
+    responses={
+        200: {"description": "Модель измененного книжного клуба"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+def join(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
+    return service.join(access_token, club_id)
+
+@router.delete(
+    "/{club_id}/leave",
+    response_model=BookClubResponseModel,
+    summary="Выйти из участников клуба",
+    description=(
+        "**Требуется авторизация** с заголовком:\n"
+        "`Authorization: Bearer <your_token>`\n\n"
+    ),
+    responses={
+        200: {"description": "Модель измененного книжного клуба"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        404: {"description": "Пользователь не участник клуба"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+def join(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
+    return service.leave(access_token, club_id)
