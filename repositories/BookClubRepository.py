@@ -16,7 +16,7 @@ class BookClubRepository:
         self.db = get_db()
 
     def create_book_blub(self, owner: DBUser, model: CreateBookClubRequestModel) -> DBBookClub:
-        new_book_club = DBBookClub(name=model.name, description=model.description, owner_id=owner.id)
+        new_book_club = DBBookClub(name=model.name, description=model.description, owner_id=owner.id, members_ids=[owner.id])
 
         self.db.add(new_book_club)
         self.db.commit()
