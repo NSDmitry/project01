@@ -12,6 +12,9 @@ docker build --platform=linux/amd64 -t project01 .
 docker tag project01 nsdmitrij/project01:latest
 docker push nsdmitrij/project01:latest
 
+На сервер нужно подставить .env файл в зависимости от окружения:
+DATABASE_URL=postgresql://user:password@localhost/dbname - логин, пароль и хост базы данных
+
 Скачать последние контейнеры и запустить на сервере:
 docker-compose pull
 docker-compose up -d
