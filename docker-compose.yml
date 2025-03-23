@@ -1,4 +1,4 @@
-version: "3.8"
+version: "3.3"
 
 services:
   db:
@@ -13,20 +13,25 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   app:
-    build: .
+    image: nsdmitrij/project01:latest
     container_name: project1_app
     depends_on:
       - db
     ports:
       - "8000:8000"
-    environment:
-      DATABASE_URL: postgresql://admin:123123@db:5432/database
-    command: >
-      sh -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
     env_file:
       - .env
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+    working_dir: /app
 
 volumes:
   postgres_data:
