@@ -49,7 +49,7 @@ class BookClubRepository:
             raise HTTPException(status_code=404, detail="Книжный клуб с таким id не найден")
 
         if club.owner_id != owner.id:
-            raise HTTPException(status_code=401, detail="Пользователь не являеется владельцем книжного клуба")
+            raise HTTPException(status_code=403, detail="Пользователь не является владельцем книжного клуба")
 
         self.db.delete(club)
         self.db.commit()
