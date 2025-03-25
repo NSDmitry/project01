@@ -8,7 +8,7 @@ router = APIRouter(prefix="/api/SSO", tags=["SSO"])
 @router.post(
     "/signup",
     response_model=SignInResponseModel,
-    summary="Регистрация пользователя по номеру телефона и паролю",
+    summary="SSO: Регистрация пользователя (номер телефона и пароль)",
     responses={
         200: {"description": "Успешный ответ с данными пользователя"},
         400: {"description": "Ошибка валидации номера телефона или пароля"},
@@ -22,7 +22,7 @@ def sign_up(model: SingUpRequestModel, sso_service: SSOService = Depends()):
 @router.post(
     "/signin",
     response_model = SignInResponseModel,
-    summary = "Авторизация пользователя по номеру телефона и паролю",
+    summary = "SSO: Авторизация пользователя (номер телефона и пароль)",
     responses = {
         200: {"description": "Успешный ответ с данными пользователя"},
         201: {"description": "Неверный пароль"},
