@@ -75,6 +75,7 @@ def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), service: Bo
     responses={
         200: {"description": "Успешный ответ с сообщением об успешном удалении"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не является владельцем книжного клуба"},
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
