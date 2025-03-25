@@ -1,4 +1,4 @@
-name: Docker Image CI
+nsdmitrijname: Docker Image CI
 
 on:
   push:
@@ -16,8 +16,8 @@ jobs:
     - name: Login to DockerHub
       uses: docker/login-action@v3
       with:
-        username: "NSDmitrij"
-        password: "dckr_pat_5oDOAoKgd4UwQpOYUiKLs0dbB2w"
+        username: "nsdmitrij"
+        password: "D32nodejs7g6p"
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
