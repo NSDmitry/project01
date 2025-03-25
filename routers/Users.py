@@ -32,6 +32,7 @@ def get_current_user(access_token: str = Depends(oauth2_scheme), user_service: U
     responses={
         200: {"description": "Успешный ответ с данными пользователя"},
         404: {"description": "Пользователь не найден"},
+        500: {"description": "Внутренняя ошибка сервера"},
     }
 )
 def get_user_by_id(user_id: int, user_service: UserService = Depends()):
@@ -44,6 +45,7 @@ def get_user_by_id(user_id: int, user_service: UserService = Depends()):
     responses={
         200: {"description": "Информация о пользователе успешно изменена"},
         404: {"description": "Пользователь не найден"},
+        500: {"description": "Внутренняя ошибка сервера"},
     }
 )
 def change_user_info(
