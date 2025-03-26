@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.core.OAuth2PasswordBearer import get_current_user
-from app.db.models.DBUser import DBUser
+from app.db.models.db_user import DBUser
 
 
 class UserRepository:

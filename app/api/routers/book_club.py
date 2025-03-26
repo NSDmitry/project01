@@ -2,7 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends
 
-from app.api.services.BookClubService import BookClubSerivce
+from app.api.services.book_club_service import BookClubSerivce
 from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel, DeleteBookClubResponse
 from app.core.OAuth2PasswordBearer import oauth2_scheme
 
