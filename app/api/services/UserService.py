@@ -1,9 +1,8 @@
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
 
-from DBmodels import DBUser
-from repositories.UserRepository import UserRepository
-from services.User.Models import PublicUserResponseModel, UpdateUserRequestModel
+from app.db.models.DBUser import DBUser
+from app.db.repositories.UserRepository import UserRepository
+from app.schemas.public_user_schema import PublicUserResponseModel, UpdateUserRequestModel
 
 
 class UserService:

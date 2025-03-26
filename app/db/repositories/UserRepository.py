@@ -1,12 +1,12 @@
 import logging
 
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from DBmodels import DBUser
-from database import get_db
-from services.OAuth2PasswordBearer.OAuth2PasswordBearer import get_current_user
+from app.db.database import get_db
+from app.core.OAuth2PasswordBearer import get_current_user
+from app.db.models.DBUser import DBUser
 
 
 class UserRepository:

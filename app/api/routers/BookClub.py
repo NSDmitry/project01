@@ -2,9 +2,9 @@ from typing import List
 
 from fastapi import APIRouter, Depends
 
-from services.BookClub.BookClubService import BookClubSerivce
-from services.BookClub.Models import CreateBookClubRequestModel, BookClubResponseModel, DeleteBookClubResponse
-from services.OAuth2PasswordBearer.OAuth2PasswordBearer import oauth2_scheme
+from app.api.services.BookClubService import BookClubSerivce
+from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel, DeleteBookClubResponse
+from app.core.OAuth2PasswordBearer import oauth2_scheme
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 

@@ -1,10 +1,12 @@
 from typing import List
 
-from DBmodels import DBUser, DBBookClub
-from database import get_db
-from repositories.BookClubRepository import BookClubRepository
-from repositories.UserRepository import UserRepository
-from services.BookClub.Models import CreateBookClubRequestModel, BookClubResponseModel, DeleteBookClubResponse
+from app.db.models.DBUser import DBUser
+from app.db.models.DBBookClub import DBBookClub
+
+from app.db.repositories.BookClubRepository import BookClubRepository
+from app.db.repositories.UserRepository import UserRepository
+
+from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel, DeleteBookClubResponse
 
 
 class BookClubSerivce:

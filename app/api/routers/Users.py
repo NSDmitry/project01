@@ -1,9 +1,7 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
-from database import get_db
-from services.OAuth2PasswordBearer.OAuth2PasswordBearer import oauth2_scheme
-from services.User.UserService import UserService, PublicUserResponseModel, UpdateUserRequestModel
+from app.core.OAuth2PasswordBearer import oauth2_scheme
+from app.api.services.UserService import UserService, PublicUserResponseModel, UpdateUserRequestModel
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 

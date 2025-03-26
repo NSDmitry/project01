@@ -3,10 +3,10 @@ import bcrypt
 
 from fastapi import HTTPException
 
-from repositories.UserRepository import UserRepository
-from services.SSO.Models import SingUpRequestModel, SignInRequestModel, SignInResponseModel
-from services.User.Models import PublicUserResponseModel
-from services.User.UserService import UserService
+from app.db.repositories.UserRepository import UserRepository
+from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, SignInResponseModel
+from app.schemas.public_user_schema import PublicUserResponseModel
+from app.api.services.UserService import UserService
 
 
 class SSOService:
