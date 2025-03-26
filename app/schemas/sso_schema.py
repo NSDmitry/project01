@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from services.User.Models import PublicUserResponseModel
+from app.schemas.public_user_schema import PublicUserResponseModel
 
 
 class SingUpRequestModel(BaseModel):

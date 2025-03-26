@@ -15,7 +15,7 @@ load_dotenv()
 database_url = os.getenv("DATABASE_URL")
 
 # ⬇️ Импортируй здесь Base из своего проекта
-from database import Base  # убедись, что путь корректный
+from app.db.database import Base  # убедись, что путь корректный
 
 # Alembic config
 config = context.config

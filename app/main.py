@@ -1,6 +1,6 @@
 from fastapi import FastAPI
-from database import engine, Base, close_db
-from routers import SSO, Users, BookClub
+from app.db.database import engine, Base
+from app.api.routers import SSO, Users, BookClub
 
 app = FastAPI()
 

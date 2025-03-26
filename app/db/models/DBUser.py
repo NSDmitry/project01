@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, BigInteger
 
-from database import Base
+from app.db.database import Base
 
 class DBUser(Base):
     __tablename__ = "users"

@@ -4,9 +4,10 @@ from fastapi import HTTPException
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.orm import Session
 
-from DBmodels import DBUser, DBBookClub
-from database import get_db
-from services.BookClub.Models import CreateBookClubRequestModel
+from app.db.database import get_db
+from app.db.models.DBUser import DBUser
+from app.db.models.DBBookClub import DBBookClub
+from app.schemas.book_club_schema import CreateBookClubRequestModel
 
 
 class BookClubRepository:

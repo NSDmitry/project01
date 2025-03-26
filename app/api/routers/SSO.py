@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
-from services.SSO.Models import SingUpRequestModel, SignInRequestModel, SignInResponseModel
-from services.SSO.SSOService import SSOService
+from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, SignInResponseModel
+from app.api.services.SSOService import SSOService
 
 router = APIRouter(prefix="/api/SSO", tags=["SSO"])
 

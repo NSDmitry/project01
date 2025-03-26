@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from DBmodels import DBUser
+from app.db.models.DBUser import DBUser
 
 
 class PublicUserResponseModel(BaseModel):
