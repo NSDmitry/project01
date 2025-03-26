@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.core.OAuth2PasswordBearer import oauth2_scheme
-from app.api.services.UserService import UserService, PublicUserResponseModel, UpdateUserRequestModel
+from app.api.services.user_service import UserService, PublicUserResponseModel, UpdateUserRequestModel
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 

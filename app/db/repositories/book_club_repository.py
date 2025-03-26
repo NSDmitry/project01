@@ -5,8 +5,8 @@ from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.db.models.DBUser import DBUser
-from app.db.models.DBBookClub import DBBookClub
+from app.db.models.db_user import DBUser
+from app.db.models.db_book_club import DBBookClub
 from app.schemas.book_club_schema import CreateBookClubRequestModel
 
 

@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 
-from app.db.models.DBUser import DBUser
-from app.db.repositories.UserRepository import UserRepository
+from app.db.models.db_user import DBUser
+from app.db.repositories.user_repository import UserRepository
 from app.schemas.public_user_schema import PublicUserResponseModel, UpdateUserRequestModel
 
 

@@ -5,7 +5,7 @@ from typing import List
 from pydantic import BaseModel
 from datetime import datetime
 
-from app.db.models.DBBookClub import DBBookClub
+from app.db.models.db_book_club import DBBookClub
 
 class CreateBookClubRequestModel(BaseModel):
     name: str

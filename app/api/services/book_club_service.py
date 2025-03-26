@@ -1,10 +1,10 @@
 from typing import List
 
-from app.db.models.DBUser import DBUser
-from app.db.models.DBBookClub import DBBookClub
+from app.db.models.db_user import DBUser
+from app.db.models.db_book_club import DBBookClub
 
-from app.db.repositories.BookClubRepository import BookClubRepository
-from app.db.repositories.UserRepository import UserRepository
+from app.db.repositories.book_club_repository import BookClubRepository
+from app.db.repositories.user_repository import UserRepository
 
 from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel, DeleteBookClubResponse
 
