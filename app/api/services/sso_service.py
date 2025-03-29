@@ -53,7 +53,7 @@ class SSOService:
         return SignInResponseModel(
             message="Успешная авторизация",
             access_token=db_user.access_token,
-            model=PublicUserResponseModel.from_db_model(db_user)
+            model=PublicUserResponseModel(**db_user.to_dict())
         )
 
     def __verify_password(self, plain_password: str, hashed_password: str) -> bool:
