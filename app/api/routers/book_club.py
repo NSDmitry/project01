@@ -46,6 +46,22 @@ def get_all_book_clubs(service: BookClubSerivce = Depends()):
     return response
 
 @router.get(
+    "/{club_id}",
+    response_model=BookClubResponseModel,
+    summary="Получение книжного клуба по id",
+    description=(
+        "Получение книжного клуба по id."
+    ),
+    responses = {
+        200: {"description": "Успешный ответ с данными книжного клуба"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+def get_book_club(club_id: int, service: BookClubSerivce = Depends()):
+    return service.get_book_club(club_id)
+
+@router.get(
     "/owned",
     response_model=List[BookClubResponseModel],
     summary="Получение всех книжных клубов, в которых пользователь владелец",
