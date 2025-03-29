@@ -28,6 +28,11 @@ class BookClubSerivce:
 
         return [BookClubResponseModel(**club.to_dict()) for club in db_clubs]
 
+    def get_book_club(self, club_id: int) -> BookClubResponseModel:
+        db_club: DBBookClub = self.book_club_repository.get_book_club(club_id)
+
+        return BookClubResponseModel(**db_club.to_dict())
+
     def get_owned_book_clubs(self, access_token: str) -> List[BookClubResponseModel]:
         owner: DBUser = self.user_repository.get_user_by_access_token(access_token)
         clubs: List[DBBookClub] = self.book_club_repository.get_owned_book_blubs(owner)
