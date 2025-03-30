@@ -95,9 +95,7 @@ def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), service: Bo
     },
 )
 def delete_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
-    response: DeleteBookClubResponse = service.delete_book_club(access_token, club_id)
-
-    return response
+    return service.delete_book_club(access_token, club_id)
 
 @router.post(
     "/{club_id}/join",
