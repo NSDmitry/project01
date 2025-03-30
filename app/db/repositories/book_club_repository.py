@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.orm import Session
 
+from app.core.errors.errors import NotFound, Forbidden, Conflict
 from app.db.database import get_db
 from app.db.models.db_user import DBUser
 from app.db.models.db_book_club import DBBookClub
@@ -39,7 +40,7 @@ class BookClubRepository:
         club = self.db.query(DBBookClub).filter(DBBookClub.id == club_id).first()
 
         if club is None:
-            raise HTTPException(status_code=404, detail="Книжный клуб с таким id не найден")
+            raise NotFound("Книжный клуб с таким id не найден")
 
         return club
 
@@ -47,10 +48,10 @@ class BookClubRepository:
         club: DBBookClub = self.db.query(DBBookClub).filter(DBBookClub.id == club_id).first()
 
         if club is None:
-            raise HTTPException(status_code=404, detail="Книжный клуб с таким id не найден")
+            raise NotFound("Книжный клуб с таким id не найден")
 
         if club.owner_id != owner.id:
-            raise HTTPException(status_code=403, detail="Пользователь не является владельцем книжного клуба")
+            raise Forbidden("Пользователь не является владельцем книжного клуба")
 
         self.db.delete(club)
         self.db.commit()
@@ -64,7 +65,7 @@ class BookClubRepository:
             self.db.commit()
             self.db.refresh(club)
         else:
-            raise HTTPException(status_code=500, detail="Пользователь уже учатсник клуба")
+            raise Conflict(errors=["Пользователь уже является участником клуба, повторное добавлние не требуется"])
 
         return club
 
@@ -72,7 +73,7 @@ class BookClubRepository:
         club: DBBookClub = self.get_book_club(club_id=club_id)
 
         if user.id not in club.members_ids:
-            raise HTTPException(status_code=404, detail="Пользователь не участник клуба")
+            raise Conflict(errors=["Пользователь не состоит в клубе"])
 
         club.members_ids.remove(user.id)
         flag_modified(club, "members_ids")

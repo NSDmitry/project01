@@ -11,8 +11,3 @@ class SingUpRequestModel(BaseModel):
 class SignInRequestModel(BaseModel):
     phone_number: int
     password: str
-
-class SignInResponseModel(BaseModel):
-    message: str
-    access_token: str
-    model: PublicUserResponseModel

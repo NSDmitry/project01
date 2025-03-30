@@ -1,11 +1,12 @@
 import uuid
 import bcrypt
 
-from fastapi import HTTPException
-
+from app.core.errors.APIExeption import APIException
+from app.core.errors.errors import NotFound, Unauthorized
+from app.core.models.response_model import ResponseModel
 from app.db.repositories.user_repository import UserRepository
-from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, SignInResponseModel
-from app.schemas.public_user_schema import PublicUserResponseModel
+from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel
+from app.schemas.public_user_schema import PublicUserResponseModel, PrivateUserResponseModel
 from app.api.services.user_service import UserService
 
 
@@ -17,7 +18,7 @@ class SSOService:
         self.user_service = UserService()
         self.user_repository = UserRepository()
 
-    def sign_up(self, model: SingUpRequestModel) -> SignInResponseModel:
+    def sign_up(self, model: SingUpRequestModel) -> ResponseModel[PrivateUserResponseModel]:
         """
         Регистрация нового пользователя.
         :param model: SingUpRequestModel
@@ -30,13 +31,10 @@ class SSOService:
 
         db_user = self.user_repository.create_user(model.name, model.phone_number, hashed_password, str(uuid.uuid4()))
 
-        return SignInResponseModel(
-            message="Пользователь успешно зарегистрирован",
-            access_token=db_user.access_token,
-            model=PublicUserResponseModel.from_db_model(db_model=db_user)
-        )
+        return ResponseModel.success_response(PrivateUserResponseModel(**db_user.to_dict()))
 
-    def sign_in(self, model: SignInRequestModel) -> SignInResponseModel:
+
+    def sign_in(self, model: SignInRequestModel) -> ResponseModel[PrivateUserResponseModel] :
         """
         Авторизация пользователя.
         :param model: SignInRequestModel
@@ -45,16 +43,12 @@ class SSOService:
         db_user = self.user_repository.get_user_by_phone_number(model.phone_number)
 
         if db_user is None:
-            raise HTTPException(status_code=404, detail="Пользователь с таким номером телефона не найден.")
+            raise NotFound(errors=["Пользователь не найден"])
 
         if not self.__verify_password(model.password, db_user.password):
-            raise HTTPException(status_code=401, detail="Неверный пароль.")
+            raise Unauthorized(errors=["Неверный пароль"])
 
-        return SignInResponseModel(
-            message="Успешная авторизация",
-            access_token=db_user.access_token,
-            model=PublicUserResponseModel(**db_user.to_dict())
-        )
+        return ResponseModel.success_response(PrivateUserResponseModel(**db_user.to_dict()))
 
     def __verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """
