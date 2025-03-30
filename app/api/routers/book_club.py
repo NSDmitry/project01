@@ -31,8 +31,6 @@ def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2
 
     return response
 
-
-
 @router.get(
     "",
     response_model=ResponseModel[List[BookClubResponseModel]],
@@ -44,22 +42,6 @@ def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2
 )
 def get_all_book_clubs(service: BookClubSerivce = Depends()):
     return service.get_book_clubs()
-
-@router.get(
-    "/{club_id}",
-    response_model=ResponseModel[BookClubResponseModel],
-    summary="Получение книжного клуба по id",
-    description=(
-        "Получение книжного клуба по id."
-    ),
-    responses = {
-        200: {"description": "Успешный ответ с данными книжного клуба"},
-        404: {"description": "Книжный клуб с таким id не найден"},
-        500: {"description": "Внутренняя ошибка сервера"},
-    }
-)
-def get_book_club(club_id: int, service: BookClubSerivce = Depends()):
-    return service.get_book_club(club_id)
 
 @router.get(
     "/owned",
@@ -76,9 +58,23 @@ def get_book_club(club_id: int, service: BookClubSerivce = Depends()):
     },
 )
 def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
-    response: List[BookClubResponseModel] = service.get_owned_book_clubs(access_token)
+    return service.get_owned_book_clubs(access_token)
 
-    return response
+@router.get(
+    "/{club_id}",
+    response_model=ResponseModel[BookClubResponseModel],
+    summary="Получение книжного клуба по id",
+    description=(
+        "Получение книжного клуба по id."
+    ),
+    responses = {
+        200: {"description": "Успешный ответ с данными книжного клуба"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+def get_book_club(club_id: int, service: BookClubSerivce = Depends()):
+    return service.get_book_club(club_id)
 
 @router.delete(
     "/{club_id}",

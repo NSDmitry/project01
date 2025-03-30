@@ -30,6 +30,12 @@ class DiscussionService:
         return ResponseModel.success_response([DisscussionResponseModel(**discussion.to_dict()) for discussion in discussions])
 
     def create_discussion(self, access_token: str, model: DiscussionCreateRequestModel) -> ResponseModel[DisscussionResponseModel]:
+        """
+        Создание обсуждения в книжном клубе.
+        :param access_token: токен доступа
+        :param model: DiscussionCreateRequestModel
+        :return: ResponseModel[DisscussionResponseModel]
+        """
         db_user = self.user_repository.get_user_by_access_token(access_token)
         db_book_club = self.book_club_repository.get_book_club(model.club_id)
 
@@ -41,6 +47,13 @@ class DiscussionService:
         return ResponseModel.success_response(DisscussionResponseModel(**db_disscussion.to_dict()))
 
     def delete_discussion(self, access_token: str, discussion_id: int) -> ResponseModel:
+        """
+        Удаление обсуждения.
+        :param access_token:
+        :param discussion_id:
+        :return:
+        """
+
         db_user = self.user_repository.get_user_by_access_token(access_token)
         db_disscussion = self.discussion_repository.get_discussion(discussion_id)
 
@@ -50,3 +63,27 @@ class DiscussionService:
         self.discussion_repository.delete_discussion(discussion_id)
 
         return ResponseModel.success_response(message="Обсуждение успешно удалено")
+
+    def update_discussion(
+        self,
+        access_token: str,
+        discussion_id: int,
+        model: DiscussionCreateRequestModel
+    ) -> ResponseModel[DisscussionResponseModel]:
+        """
+        Обновление обсуждения.
+        :param access_token:
+        :param discussion_id:
+        :param model:
+        :return:
+        """
+        db_user = self.user_repository.get_user_by_access_token(access_token)
+        db_disscussion = self.discussion_repository.get_discussion(discussion_id)
+        db_club = self.book_club_repository.get_book_club(db_disscussion.club_id)
+
+        if db_disscussion.author_id != db_user.id or db_user.id != db_club.owner_id:
+            raise Conflict(errors=["Изменять обсуждение может только автор обсуждения, или владелец клуба"])
+
+        db_disscussion = self.discussion_repository.update_discussion(db_disscussion, model)
+
+        return ResponseModel.success_response(DisscussionResponseModel(**db_disscussion.to_dict()))

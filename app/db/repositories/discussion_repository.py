@@ -48,3 +48,12 @@ class DiscussionRepository:
             self.db.commit()
 
         return discussion
+
+    def update_discussion(self, discussion: DBDiscussion, model: DiscussionCreateRequestModel) -> DBDiscussion:
+        discussion.title = model.title
+        discussion.content = model.content
+
+        self.db.commit()
+        self.db.refresh(discussion)
+
+        return discussion
