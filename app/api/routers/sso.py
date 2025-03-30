@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends
 
-from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, SignInResponseModel
+from app.core.models.response_model import ResponseModel
+from app.schemas.public_user_schema import PrivateUserResponseModel
+from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel
 from app.api.services.sso_service import SSOService
 
 router = APIRouter(prefix="/api/SSO", tags=["SSO"])
 
 @router.post(
     "/signup",
-    response_model=SignInResponseModel,
+    response_model=ResponseModel[PrivateUserResponseModel],
     summary="SSO: Регистрация пользователя (номер телефона и пароль)",
     responses={
         200: {"description": "Успешный ответ с данными пользователя"},
@@ -21,7 +23,7 @@ def sign_up(model: SingUpRequestModel, sso_service: SSOService = Depends()):
 
 @router.post(
     "/signin",
-    response_model = SignInResponseModel,
+    response_model = ResponseModel[PrivateUserResponseModel],
     summary = "SSO: Авторизация пользователя (номер телефона и пароль)",
     responses = {
         200: {"description": "Успешный ответ с данными пользователя"},

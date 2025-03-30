@@ -16,6 +16,3 @@ class BookClubResponseModel(BaseModel):
     created_at: datetime
     owner_id: int
     members_ids: List[int]
-
-class DeleteBookClubResponse(BaseModel):
-    message: str

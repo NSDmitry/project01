@@ -3,14 +3,15 @@ from typing import List
 from fastapi import APIRouter, Depends
 
 from app.api.services.book_club_service import BookClubSerivce
-from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel, DeleteBookClubResponse
+from app.core.models.response_model import ResponseModel
+from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel
 from app.core.OAuth2PasswordBearer import oauth2_scheme
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 
 @router.post(
     "",
-    response_model=BookClubResponseModel,
+    response_model=ResponseModel[BookClubResponseModel],
     summary="Создание книжного клуба",
     description=(
         "Создание книжного клуба.\n\n"
@@ -33,7 +34,7 @@ def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2
 
 @router.get(
     "",
-    response_model=List[BookClubResponseModel],
+    response_model=ResponseModel[List[BookClubResponseModel]],
     summary="Получение всех книжных клубов",
     responses={
         200: {"description": "Успешный ответ с данными книжных клубов"},
@@ -41,13 +42,11 @@ def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2
     },
 )
 def get_all_book_clubs(service: BookClubSerivce = Depends()):
-    response: List[BookClubResponseModel] = service.get_book_clubs()
-
-    return response
+    return service.get_book_clubs()
 
 @router.get(
     "/{club_id}",
-    response_model=BookClubResponseModel,
+    response_model=ResponseModel[BookClubResponseModel],
     summary="Получение книжного клуба по id",
     description=(
         "Получение книжного клуба по id."
@@ -63,7 +62,7 @@ def get_book_club(club_id: int, service: BookClubSerivce = Depends()):
 
 @router.get(
     "/owned",
-    response_model=List[BookClubResponseModel],
+    response_model=ResponseModel[List[BookClubResponseModel]],
     summary="Получение всех книжных клубов, в которых пользователь владелец",
     description=(
         "**Требуется авторизация** с заголовком:\n"
@@ -82,7 +81,7 @@ def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), service: Bo
 
 @router.delete(
     "/{club_id}",
-    response_model=DeleteBookClubResponse,
+    response_model=ResponseModel,
     summary="Удаление книжного клуба",
     description=(
         "**Требуется авторизация** с заголовком:\n"
@@ -102,7 +101,7 @@ def delete_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), s
 
 @router.post(
     "/{club_id}/join",
-    response_model=BookClubResponseModel,
+    response_model=ResponseModel[BookClubResponseModel],
     summary="Вступить в книжный клуб",
     description=(
         "**Требуется авторизация** с заголовком:\n"
@@ -119,7 +118,7 @@ def join(club_id: int, access_token: str = Depends(oauth2_scheme), service: Book
 
 @router.delete(
     "/{club_id}/leave",
-    response_model=BookClubResponseModel,
+    response_model=ResponseModel[BookClubResponseModel],
     summary="Выйти из участников клуба",
     description=(
         "**Требуется авторизация** с заголовком:\n"

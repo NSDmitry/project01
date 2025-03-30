@@ -1,5 +1,6 @@
 from fastapi import HTTPException
 
+from app.core.errors.errors import UnprocessableEntity, Conflict, NotFound
 from app.db.models.db_user import DBUser
 from app.db.repositories.user_repository import UserRepository
 from app.schemas.public_user_schema import PublicUserResponseModel, UpdateUserRequestModel
@@ -20,7 +21,7 @@ class UserService:
         db_user: DBUser = self.user_repository.get_user_by_id(user_id)
 
         if db_user is None:
-            raise HTTPException(status_code=404, detail="Пользователь с таким id не найден")
+            raise NotFound(errors=["Пользователь с таким id не найден"])
 
         return PublicUserResponseModel.from_db_model(db_model=db_user)
 
@@ -34,13 +35,13 @@ class UserService:
         phone_str = str(phone_number)
 
         if not phone_str.isdigit():
-            raise HTTPException(status_code=400, detail="Номер должен содержать только символы")
+            raise UnprocessableEntity(errors=["Номер должен содержать только цифры"])
 
         if len(phone_str) < 10 or len(phone_str) > 15:
-            raise HTTPException(status_code=400, detail="Номер телефона должен быть от 10 до 15 символов")
+            raise UnprocessableEntity(errors=["Номер телефона должен быть от 10 до 15 символов"])
 
         if self.__is_unique_phone_number(phone_number) is False:
-            raise HTTPException(status_code=409, detail="Пользователь с таким номером телефона уже зарегистрирован")
+            raise Conflict(errors=["Пользователь с таким номером телефона уже зарегистрирован"])
 
     def __is_unique_phone_number(self, phone_number: int) -> bool:
         user = self.user_repository.get_user_by_phone_number(phone_number)
