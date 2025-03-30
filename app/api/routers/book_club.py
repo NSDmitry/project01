@@ -18,6 +18,7 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
         "**Требуется авторизация** с заголовком:\n"
         "`Authorization: Bearer <your_token>`\n\n"
     ),
+    status_code=201,
     responses={
         201: {"description": "Успешный ответ с данными книжного клуба"},
         400: {"description": "Ошибка валидации названия или описания книжного клуба"},

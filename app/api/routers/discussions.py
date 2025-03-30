@@ -32,8 +32,9 @@ def get_disscussions(club_id: int, service: DiscussionService = Depends()):
         "**Требуется авторизация** с заголовком:\n"
         "`Authorization: Bearer <your_token>`\n\n"
     ),
+    status_code=201,
     responses={
-        200: {"description": "Успешный ответ с данными обсуждения"},
+        201: {"description": "Успешный ответ с данными обсуждения"},
         400: {"description": "Ошибка валидации данных обсуждения"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
         404: {"description": "Книжный клуб с таким id не найден"},

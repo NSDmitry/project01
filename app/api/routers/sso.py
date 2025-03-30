@@ -11,8 +11,9 @@ router = APIRouter(prefix="/api/SSO", tags=["SSO"])
     "/signup",
     response_model=ResponseModel[PrivateUserResponseModel],
     summary="SSO: Регистрация пользователя (номер телефона и пароль)",
+    status_code=201,
     responses={
-        200: {"description": "Успешный ответ с данными пользователя"},
+        201: {"description": "Успешный ответ с данными пользователя"},
         400: {"description": "Ошибка валидации номера телефона или пароля"},
         409: {"description": "Пользователь с таким номером телефона уже зарегистрирован"},
         500: {"description": "Внутренняя ошибка сервера"},
@@ -27,7 +28,7 @@ def sign_up(model: SingUpRequestModel, sso_service: SSOService = Depends()):
     summary = "SSO: Авторизация пользователя (номер телефона и пароль)",
     responses = {
         200: {"description": "Успешный ответ с данными пользователя"},
-        201: {"description": "Неверный пароль"},
+        401: {"description": "Неверный пароль"},
         404: {"description": "Пользователь не найден"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
