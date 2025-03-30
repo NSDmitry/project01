@@ -39,3 +39,14 @@ class DiscussionService:
         db_disscussion = self.discussion_repository.create_discussion(db_user.id, model)
 
         return ResponseModel.success_response(DisscussionResponseModel(**db_disscussion.to_dict()))
+
+    def delete_discussion(self, access_token: str, discussion_id: int) -> ResponseModel:
+        db_user = self.user_repository.get_user_by_access_token(access_token)
+        db_disscussion = self.discussion_repository.get_discussion(discussion_id)
+
+        if db_disscussion.author_id != db_user.id:
+            raise Conflict(errors=["Удалять обсуждения может только автор обсуждения"])
+
+        self.discussion_repository.delete_discussion(discussion_id)
+
+        return ResponseModel.success_response(message="Обсуждение успешно удалено")

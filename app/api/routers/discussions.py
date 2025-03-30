@@ -48,3 +48,23 @@ def create_discussion(
     service: DiscussionService = Depends()
 ):
     return service.create_discussion(access_token=access_token, model=model)
+
+@router.delete(
+    "/{discussion_id}",
+    response_model=ResponseModel,
+    summary="Удаление обсуждения",
+    status_code=200,
+    responses={
+        200: {"description": "Обсуждение успешно удалено"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        404: {"description": "Обсуждение с таким id не найдено"},
+        409: {"description": "Удалять обсуждения может только автор обсуждения"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+def delete_discussion(
+    discussion_id: int,
+    access_token: str = Depends(oauth2_scheme),
+    service: DiscussionService = Depends()
+):
+    return service.delete_discussion(access_token=access_token, discussion_id=discussion_id)
