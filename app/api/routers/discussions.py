@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends
 from app.api.services.discussion_service import DiscussionService
 from app.core.OAuth2PasswordBearer import oauth2_scheme
 from app.core.models.response_model import ResponseModel
-from app.schemas.discussions_schema import DisscussionResponseModel, DiscussionCreateRequestModel
+from app.schemas.discussions_schema import DisscussionResponseModel, DiscussionCreateRequestModel, \
+    DiscussionUpdateRequestModel
 
 router = APIRouter(prefix="/api/disscussions", tags=["discussions"])
 
@@ -68,3 +69,23 @@ def delete_discussion(
     service: DiscussionService = Depends()
 ):
     return service.delete_discussion(access_token=access_token, discussion_id=discussion_id)
+
+@router.put(
+    "/{discussion_id}",
+    response_model=ResponseModel[DisscussionResponseModel],
+    status_code=200,
+    responses={
+        200: {"description": "Обсуждение успешно обновлено"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        404: {"description": "Обсуждение с таким id не найдено"},
+        409: {"description": "Удалять обсуждения может только автор обсуждения, или владелец клуба"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+def update_discussion(
+    discussion_id: int,
+    model: DiscussionUpdateRequestModel,
+    access_token: str = Depends(oauth2_scheme),
+    service: DiscussionService = Depends()
+):
+    return service.update_discussion(access_token=access_token, discussion_id=discussion_id, model=model)

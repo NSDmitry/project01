@@ -19,11 +19,11 @@ class BookClubSerivce:
         self.user_repository = UserRepository()
         self.book_club_repository = BookClubRepository()
 
-    def create_book_club(self, model: CreateBookClubRequestModel, access_token: str) -> BookClubResponseModel:
+    def create_book_club(self, model: CreateBookClubRequestModel, access_token: str) -> ResponseModel[BookClubResponseModel]:
         owner: DBUser = self.user_repository.get_user_by_access_token(access_token)
         db_book_club: DBBookClub = self.book_club_repository.create_book_blub(owner, model)
 
-        return BookClubResponseModel(**db_book_club.to_dict())
+        return ResponseModel.success_response(BookClubResponseModel(**db_book_club.to_dict()))
 
     def get_book_clubs(self) -> ResponseModel[List[BookClubResponseModel]]:
         db_clubs: List[DBBookClub] = self.book_club_repository.get_book_clubs()

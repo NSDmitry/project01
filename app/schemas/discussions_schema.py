@@ -16,3 +16,7 @@ class DiscussionCreateRequestModel(BaseModel):
     title: str
     content: str
     club_id: int
+
+class DiscussionUpdateRequestModel(BaseModel):
+    title: str
+    content: str
