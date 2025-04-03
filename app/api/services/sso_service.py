@@ -5,7 +5,7 @@ from app.core.errors.APIExeption import APIException
 from app.core.errors.errors import NotFound, Unauthorized
 from app.core.models.response_model import ResponseModel
 from app.db.repositories.user_repository import UserRepository
-from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel
+from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
 from app.schemas.public_user_schema import PublicUserResponseModel, PrivateUserResponseModel
 from app.api.services.user_service import UserService
 
@@ -47,6 +47,21 @@ class SSOService:
 
         if not self.__verify_password(model.password, db_user.password):
             raise Unauthorized(errors=["Неверный пароль"])
+
+        return ResponseModel.success_response(PrivateUserResponseModel(**db_user.to_dict()))
+
+    def telegram_sing_in(self, model: TelegramSignInRequestModel) -> ResponseModel[PrivateUserResponseModel]:
+        db_user = self.user_repository.get_user_by_telegram_id(model.telegram_id)
+
+        hashed_password = self.__hash_password(str(uuid.uuid4()))
+
+        if db_user is None:
+            db_user = self.user_repository.create_user_by_telegram(
+                model.telegram_id,
+                hashed_password,
+                model.name,
+                str(uuid.uuid4())
+            )
 
         return ResponseModel.success_response(PrivateUserResponseModel(**db_user.to_dict()))
 

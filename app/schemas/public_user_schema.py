@@ -12,9 +12,11 @@ class PublicUserResponseModel(BaseModel):
 class PrivateUserResponseModel(BaseModel):
     id: int
     name: str
-    phone_number: int
+    phone_number: int | None
     created_at: datetime
     access_token: str
+    is_telegram_user: bool
+    telegram_id: int | None
 
 class UpdateUserRequestModel(BaseModel):
     name: str

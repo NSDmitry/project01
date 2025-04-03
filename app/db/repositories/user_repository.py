@@ -58,6 +58,32 @@ class UserRepository:
 
         return user_db_model
 
+    def get_user_by_telegram_id(self, telegram_id: int) -> DBUser:
+        db_user: DBUser = self.db.query(DBUser).filter(DBUser.telegram_id == telegram_id).first()
+
+        return db_user
+
+    def create_user_by_telegram(self, telegram_id: int, password: str, name: str, token: str) -> DBUser:
+        user_db_model = DBUser(
+            name=name,
+            password=password,
+            telegram_id=telegram_id,
+            access_token=token,
+            is_telegram_user=True
+        )
+
+        if self.db is None:
+            raise HTTPException(status_code=600, detail="Соединение с базой данных не установлено.")
+
+        try:
+            self.db.add(user_db_model)
+            self.db.commit()
+        except IntegrityError as e:
+            self.db.rollback()
+            self.logger.error(f"IntegrityError: {str(e)}")
+
+        return user_db_model
+
     def update_user_info(self, access_token: str, name: str, phone_number: str) -> DBUser:
         db_user = self.get_user_by_access_token(access_token)
 
