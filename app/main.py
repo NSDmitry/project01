@@ -3,6 +3,7 @@ from fastapi import FastAPI, Request
 from app.core.errors.APIExeption import APIException
 from app.db.database import engine, Base
 from app.api.routers import sso, users, book_club, discussions
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
@@ -12,6 +13,15 @@ app.include_router(sso.router)
 app.include_router(users.router)
 app.include_router(book_club.router)
 app.include_router(discussions.router)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.exception_handler(APIException)
 def api_exception_handler(request: Request, exc: APIException):
