@@ -53,17 +53,19 @@ class SSOService:
     def telegram_sing_in(self, model: TelegramSignInRequestModel) -> ResponseModel[PrivateUserResponseModel]:
         db_user = self.user_repository.get_user_by_telegram_id(model.telegram_id)
 
-        hashed_password = self.__hash_password(str(uuid.uuid4()))
+        if db_user:
+            return ResponseModel.success_response(PrivateUserResponseModel(**db_user.to_dict()))
+        else:
+            hashed_password = self.__hash_password(str(uuid.uuid4()))
 
-        if db_user is None:
-            db_user = self.user_repository.create_user_by_telegram(
+            new_user = self.user_repository.create_user_by_telegram(
                 model.telegram_id,
                 hashed_password,
                 model.name,
                 str(uuid.uuid4())
             )
-
-        return ResponseModel.success_response(PrivateUserResponseModel(**db_user.to_dict()))
+            
+            return ResponseModel.success_response(PrivateUserResponseModel(**new_user.to_dict()))
 
     def __verify_password(self, plain_password: str, hashed_password: str) -> bool:
         """

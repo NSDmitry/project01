@@ -72,9 +72,6 @@ class UserRepository:
             is_telegram_user=True
         )
 
-        if self.db is None:
-            raise HTTPException(status_code=600, detail="Соединение с базой данных не установлено.")
-
         try:
             self.db.add(user_db_model)
             self.db.commit()
