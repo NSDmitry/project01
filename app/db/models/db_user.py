@@ -13,13 +13,3 @@ class DBUser(Base, DBBaseModel):
     access_token = Column(String, unique=True, nullable=False)
     telegram_id = Column(BigInteger, unique=True, nullable=True)
     is_telegram_user = Column(Boolean, default=False)
-
-
-
-    # id: int
-    # name: str
-    # phone_number: int | None
-    # created_at: datetime
-    # access_token: str
-    # is_telegram_user: bool
-    # telegram_id: int | None
