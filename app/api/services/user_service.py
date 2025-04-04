@@ -15,7 +15,7 @@ class UserService:
     def get_current_user(self, access_token: str) -> PublicUserResponseModel:
         db_user: DBUser = self.user_repository.get_user_by_access_token(access_token)
 
-        return PublicUserResponseModel.from_db_model(db_model=db_user)
+        return PublicUserResponseModel(**db_user.to_dict())
 
     def get_user_by_id(self, user_id: int) -> PublicUserResponseModel:
         db_user: DBUser = self.user_repository.get_user_by_id(user_id)
@@ -23,13 +23,13 @@ class UserService:
         if db_user is None:
             raise NotFound(errors=["Пользователь с таким id не найден"])
 
-        return PublicUserResponseModel.from_db_model(db_model=db_user)
+        return PublicUserResponseModel(**db_user.to_dict())
 
     def update_user_info(self, access_token: str, model: UpdateUserRequestModel) -> PublicUserResponseModel:
         self.validate_phone_number(model.phone_number)
         db_user: DBUser = self.user_repository.update_user_info(access_token, model.name, model.phone_number)
 
-        return PublicUserResponseModel.from_db_model(db_user)
+        return PublicUserResponseModel(**db_user.to_dict())
 
     def validate_phone_number(self, phone_number: int):
         phone_str = str(phone_number)

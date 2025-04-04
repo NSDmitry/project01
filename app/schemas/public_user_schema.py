@@ -9,7 +9,7 @@ from typing import Optional
 class PublicUserResponseModel(BaseModel):
     id: int
     name: str
-    phone_number: int
+    phone_number: Optional[int]
 
 class PrivateUserResponseModel(BaseModel):
     id: int
