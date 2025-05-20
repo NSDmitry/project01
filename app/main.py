@@ -29,6 +29,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from prometheus_fastapi_instrumentator import Instrumentator
+Instrumentator().instrument(app).expose(app)
+
 @app.exception_handler(APIException)
 def api_exception_handler(request: Request, exc: APIException):
     return exc.as_response()
