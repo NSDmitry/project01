@@ -27,10 +27,13 @@ def post_json(client: TestClient, url: str, json_data: Dict):
     """
     return client.post(url, json=json_data)
 
-def sign_up_user(client: TestClient, payload: Dict):
+def sign_up_user(client: TestClient, payload=None):
     """
     Зарегистрировать пользователя через /signup
     """
+    if payload is None:
+        payload = make_sign_up_payload()
+
     return post_json(client, "/api/SSO/signup", payload)
 
 def sign_in_user(client: TestClient, payload: Dict):

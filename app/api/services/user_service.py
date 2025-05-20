@@ -34,6 +34,9 @@ class UserService:
     def validate_phone_number(self, phone_number: int):
         phone_str = str(phone_number)
 
+        if phone_number is None:
+            raise UnprocessableEntity(errors=["Номер телефона не может быть пустым"])
+
         if not phone_str.isdigit():
             raise UnprocessableEntity(errors=["Номер должен содержать только цифры"])
 
