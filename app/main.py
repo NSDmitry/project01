@@ -30,7 +30,12 @@ app.add_middleware(
 )
 
 from prometheus_fastapi_instrumentator import Instrumentator
-Instrumentator().instrument(app).expose(app)
+ins = Instrumentator().instrument(app)
+ins.expose(
+    app,
+    include_in_schema=False,
+    endpoint="/metrics",
+)
 
 @app.exception_handler(APIException)
 def api_exception_handler(request: Request, exc: APIException):
