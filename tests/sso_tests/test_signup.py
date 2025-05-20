@@ -20,7 +20,7 @@ class TestSignUp:
         assert data["name"] == payload["name"]
 
     # Тест на проверку, что нельзя зарегистрировать пользователя с уже существующим номером телефона
-    def test_sing_up_exist(self, client: TestClient):
+    def test_sign_up_exist(self, client: TestClient):
         user_payload = make_sign_up_payload()
         sign_up_user(client, user_payload)
 
