@@ -20,5 +20,5 @@ class APIException(Exception):
             content=ResponseModel.error_response(
                 message=self.message,
                 errors=self.errors
-            ).dict()
+            ).model_dump()
         )
