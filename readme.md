@@ -1,24 +1,16 @@
-Запуск проекта локально:
-1. pipenv shell
-2. uvicorn main:app --reload
+запуск проекта:
+- поднять контейнер с базой данных (можно через docker-compose db up -d)
+- нужно создать файл .env с переменной DATABASE_URL, которая ссылается на базу данных
+- выполнить команду alembic upgrade head
+- запустить через uvicorn app.main:app --reload --log-level debug
 
-Для миграции:
-alembic revision --autogenerate -m ""
-alembic upgrade head
+запуск тестов:
+- нужно создать файл .env.test с переменной DATABASE_URL, которая ссылается на тестовую базу данных (контейнер нужно поднять заранее)
+- выполнить команду IS_TEST=true pytest -v -s
 
+миграция базы:
+- alembic revision --autogenerate -m "description"
+- alembic upgrade head
 
-Собрать и задеплоить образ из директории:
-docker build --platform=linux/amd64 -t project01 .
-docker tag project01 nsdmitrij/project01:latest
-docker push nsdmitrij/project01:latest
-
-На сервер нужно подставить .env файл в зависимости от окружения:
-DATABASE_URL=postgresql://user:password@localhost/dbname - логин, пароль и хост базы данных
-
-Скачать последние контейнеры и запустить на сервере:
-docker-compose pull
-docker-compose up -d
-
-Если не запускается:
-docker-compose down
-docker rm project01
+полезное:
+- формат перемнной в .env DATABASE_URL=postgresql://user:password@host/dbname - логин, пароль, хост и имя базы

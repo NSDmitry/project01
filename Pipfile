@@ -12,7 +12,8 @@ requests = "*"
 pydantic = "*"
 psycopg2-binary = "*"
 python-dotenv = "*"
-pip install prometheus-fastapi-instrumentator = "*"
+prometheus-fastapi-instrumentator = "*"
+pydantic-settings = "*"
 
 [dev-packages]
 

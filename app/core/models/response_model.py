@@ -1,12 +1,12 @@
 from typing import Generic, TypeVar, Optional, List
 
 from pydantic import Field
-from pydantic.generics import GenericModel
+from pydantic import BaseModel
 
 T = TypeVar('T')
 
 
-class ResponseModel(GenericModel, Generic[T]):
+class ResponseModel(BaseModel, Generic[T]):
     success: bool
     message: str
     data: Optional[T] = None
@@ -21,7 +21,7 @@ class ResponseModel(GenericModel, Generic[T]):
         return cls(success=False, message=message, errors=errors or [])
 
     def to_dict(self) -> dict:
-        return self.dict()
+        return self.model_dump()
 
     def to_json(self, **kwargs) -> str:
         return self.json(**kwargs)
