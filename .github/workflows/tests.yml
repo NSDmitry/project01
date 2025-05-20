@@ -23,7 +23,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Start Postgres with Docker Compose
-        run: docker-compose -f docker-compose.test.yml up -d
+        run: docker compose -f docker-compose.test.yml up -d
 
       - name: Wait for Postgres to be ready
         run: |
@@ -41,4 +41,4 @@ jobs:
 
       - name: Shutdown Docker Compose
         if: always()
-        run: docker-compose -f docker-compose.test.yml down
+        run: docker compose -f docker-compose.test.yml down
