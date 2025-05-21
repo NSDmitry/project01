@@ -39,3 +39,4 @@ archive.zip
 
 # Локальные среды
 .env
+.env.test
