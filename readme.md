@@ -14,3 +14,4 @@
 
 полезное:
 - формат перемнной в .env DATABASE_URL=postgresql://user:password@host/dbname - логин, пароль, хост и имя базы
+- поля для .env - DATABASE_URL, ORIGIN_URLS
