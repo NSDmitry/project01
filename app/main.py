@@ -15,11 +15,9 @@ app.include_router(users.router)
 app.include_router(book_club.router)
 app.include_router(discussions.router)
 
-origins = [settings.origin_urls]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=settings.origin_urls,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
