@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from tests.utils.sso_utils import make_sign_up_payload, sign_up_user, sign_in_user, make_sign_in_payload
+from tests.utils.sso_utils import make_sign_up_payload, sign_up_user
 
 class TestSignUp:
     # Тест на регистрацию пользователя
