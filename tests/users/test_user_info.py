@@ -10,6 +10,7 @@ class TestUserInfo:
         response = current_user(client, auth_data)
 
         assert response.status_code == 200, f"Ошибка: {response.json()}"
+        assert response.json()["id"] == auth_data.user_id, f"ИД пользователя не совпадает с ожидаемым"
 
     def test_unauthorized_access(self, client: TestClient):
         # Попытка получить информацию о пользователе без авторизации
@@ -34,7 +35,7 @@ class TestUserInfo:
         user_id = auth_data.user_id
         public_response = public_user_info(client, user_id)
 
-        assert "acess_token" not in public_response.json(), "Публичная информация не должна содержать access_token"
+        assert "access_token" not in public_response.json(), "Публичная информация не должна содержать access_token"
         assert "name" in public_response.json(), "Публичная информация должна содержать имя пользователя"
         assert "phone_number" in public_response.json(), "Публичная информация должна содержать номер телефона пользователя"
         assert "id" in public_response.json(), "Публичная информация должна содержать ID пользователя"

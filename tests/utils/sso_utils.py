@@ -52,7 +52,7 @@ def sign_in_user(client: TestClient, payload: Dict):
 
 def register_and_login_user(client: TestClient) -> AuthenticatedUser:
     """
-    Регистрирует и авторизует пользователя, возвращает access_token и headers для авторизованных запросов.
+    Регистрирует и авторизует пользователя, возвращает AuthenticatedUser
     """
     # Создаём payload с уникальным номером
     signup_payload = make_sign_up_payload()
