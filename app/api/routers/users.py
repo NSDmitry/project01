@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Body
 
 from app.core.OAuth2PasswordBearer import oauth2_scheme
 from app.api.services.user_service import UserService, PublicUserResponseModel, UpdateUserRequestModel
@@ -47,7 +47,7 @@ def get_user_by_id(user_id: int, user_service: UserService = Depends()):
     }
 )
 def change_user_info(
-        model: UpdateUserRequestModel,
+        model: UpdateUserRequestModel = Body(...),
         access_token: str = Depends(oauth2_scheme),
-        user_service = Depends()):
+        user_service: UserService = Depends()):
     return user_service.update_user_info(access_token=access_token, model=model)
