@@ -2,12 +2,13 @@ from fastapi import APIRouter, Depends, Body
 
 from app.core.OAuth2PasswordBearer import oauth2_scheme
 from app.api.services.user_service import UserService, PublicUserResponseModel, UpdateUserRequestModel
+from app.core.models.response_model import ResponseModel
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 @router.get(
     "/current",
-    response_model=PublicUserResponseModel,
+    response_model=ResponseModel[PublicUserResponseModel],
     summary="Получение публичной информации о текущем пользвателе",
     description=
     """
@@ -25,7 +26,7 @@ def get_current_user(access_token: str = Depends(oauth2_scheme), user_service: U
 
 @router.get(
     "/public",
-    response_model=PublicUserResponseModel,
+    response_model=ResponseModel[PublicUserResponseModel],
     summary="Получить публичную инфо о пользователе по ID",
     responses={
         200: {"description": "Успешный ответ с данными пользователя"},
@@ -38,7 +39,7 @@ def get_user_by_id(user_id: int, user_service: UserService = Depends()):
 
 @router.put(
     "",
-    response_model=PublicUserResponseModel,
+    response_model=ResponseModel[PublicUserResponseModel],
     summary="Изменить публичные данные о пользователе (имя и номер телефона)",
     responses={
         200: {"description": "Информация о пользователе успешно изменена"},
