@@ -2,7 +2,6 @@ from fastapi.testclient import TestClient
 
 from tests.APIRouter import APIRouter
 from tests.utils.sso_utils import AuthenticatedUser, sign_up_user
-from tests.utils.users_utils import current_user, public_user_info
 
 class TestUserInfo:
     # Тест на получение информации о пользователе
@@ -34,7 +33,7 @@ class TestUserInfo:
         auth_data: AuthenticatedUser = sign_up_user(client)
 
         user_id = auth_data.user_id
-        public_response = public_user_info(client, user_id)
+        public_response = APIRouter.Users.public_user_info(client, user_id)
 
         assert "access_token" not in public_response.json(), "Публичная информация не должна содержать access_token"
         assert "name" in public_response.json(), "Публичная информация должна содержать имя пользователя"
