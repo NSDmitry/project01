@@ -37,3 +37,7 @@ class APIRouter:
         @staticmethod
         def get_owned_book_clubs(client: TestClient, headers: Dict):
             return client.get("/api/bookclubs/owned", headers=headers)
+
+        @staticmethod
+        def get_book_club_by_id(client: TestClient, club_id: int):
+            return client.get(f"/api/bookclubs/{club_id}")
