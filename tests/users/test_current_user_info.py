@@ -10,7 +10,7 @@ class TestUserInfo:
         response = APIRouter.Users.current_user(client, auth_data.headers)
 
         assert response.status_code == 200, f"Ошибка: {response.json()}"
-        assert response.json()["id"] == auth_data.user_id, f"Id пользователя не совпадает с ожидаемым"
+        assert response.json()["data"]["id"] == auth_data.user_id, f"Id пользователя не совпадает с ожидаемым"
 
     def test_unauthorized_access(self, client: TestClient):
         # Попытка получить информацию о пользователе без авторизации
