@@ -24,3 +24,16 @@ class APIRouter:
         @staticmethod
         def change_current_user_info(client: TestClient, payload: Dict, headers: Dict):
             return client.put("/api/users", json=payload, headers=headers)
+
+    class BookClubs:
+        @staticmethod
+        def get_all_book_clubs(client: TestClient):
+            return client.get("/api/bookclubs")
+
+        @staticmethod
+        def create_book_club(client: TestClient, payload: Dict, headers: Dict):
+            return client.post("/api/bookclubs", json=payload, headers=headers)
+
+        @staticmethod
+        def get_owned_book_clubs(client: TestClient, headers: Dict):
+            return client.get("/api/bookclubs/owned", headers=headers)
