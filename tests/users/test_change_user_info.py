@@ -11,7 +11,6 @@ class TestChangeUserInfo:
         user_name = "username"
         phone_number = SSOMockFactory.generate_random_phone_number()
 
-        SSOMockFactory.make_sign_up_payload(user_name, phone_number)
         auth_data = SSOTestFlow.sign_up_user(client)
 
         new_user_name = "new username"
@@ -33,7 +32,6 @@ class TestChangeUserInfo:
         user_name = "username"
         phone_number = SSOMockFactory.generate_random_phone_number()
 
-        SSOMockFactory.make_sign_up_payload(user_name, phone_number)
         auth_data = SSOTestFlow.sign_up_user(client)
 
         new_phone_number = SSOMockFactory.generate_random_phone_number()
@@ -52,7 +50,6 @@ class TestChangeUserInfo:
         user_name = "username"
         phone_number = SSOMockFactory.generate_random_phone_number()
 
-        SSOMockFactory.make_sign_up_payload(user_name, phone_number)
         auth_data = SSOTestFlow.sign_up_user(client)
 
         new_user_name = "new username"

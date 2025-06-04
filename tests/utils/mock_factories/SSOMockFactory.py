@@ -17,5 +17,5 @@ class SSOMockFactory:
         }
 
     @staticmethod
-    def generate_random_phone_number() -> int:
+    def generate_random_phone_number() -> str:
         return "79" + str(uuid.uuid4().int)[0:9]
