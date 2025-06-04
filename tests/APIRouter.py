@@ -20,3 +20,7 @@ class APIRouter:
         @staticmethod
         def public_user_info(client: TestClient, user_id: int):
             return client.get(f"/api/users/public?user_id={user_id}")
+
+        @staticmethod
+        def change_current_user_info(client: TestClient, payload: Dict, headers: Dict):
+            return client.put("/api/users", json=payload, headers=headers)
