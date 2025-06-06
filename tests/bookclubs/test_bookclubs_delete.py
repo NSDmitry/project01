@@ -17,7 +17,7 @@ class TestBookclubsDelete:
         assert delete_response.json()["message"] == "Книжный клуб успешно удален", \
             "Сообщение об успешном удалении клуба не совпадает с ожидаемым"
 
-        get_club_by_id_response = APIRouter.BookClubs.get_book_club_by_id(client, club_id)
+        get_club_by_id_response = APIRouter.BookClubs.get_book_club_by_id(client, club_id, headers=auth_data.headers)
 
         assert get_club_by_id_response.status_code == 404, \
             f"Клуб должен быть удален, но он все еще существует: {get_club_by_id_response.json()}"

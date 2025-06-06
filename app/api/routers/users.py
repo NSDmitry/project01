@@ -28,13 +28,18 @@ def get_current_user(access_token: str = Depends(oauth2_scheme), user_service: U
     "/public",
     response_model=ResponseModel[PublicUserResponseModel],
     summary="Получить публичную инфо о пользователе по ID",
+    description=
+    """
+    **Требуется авторизация** с заголовком:  
+    `Authorization: Bearer <your_token>`
+    """,
     responses={
         200: {"description": "Успешный ответ с данными пользователя"},
         404: {"description": "Пользователь не найден"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def get_user_by_id(user_id: int, user_service: UserService = Depends()):
+def get_user_by_id(user_id: int, access_token: str = Depends(oauth2_scheme), user_service: UserService = Depends()):
     return user_service.get_user_by_id(user_id)
 
 @router.put(
