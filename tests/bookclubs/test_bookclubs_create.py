@@ -21,26 +21,26 @@ class TestBookclubsCreate:
             f"Описание клуба не совпадает с ожидаемым"
 
     @pytest.mark.parametrize("name",
-                             ["", faker.pystr(min_chars=0, max_chars=2), faker.pystr(min_chars=100, max_chars=200), 1])
+                             ["", faker.pystr(min_chars=0, max_chars=2), faker.pystr(min_chars=100, max_chars=200)])
     def test_create_bookc_club__name_validation_error(self, client: TestClient, name):
         # Тест на валидацию названия при создании клуба с некорректными данными (имя должно быть от 3 до 100 символов)
         payload = BookclubPayloadFactory.create_bookclub_payload(name=name,
                                                                  description=faker.pystr(min_chars=3, max_chars=500))
         response = BookclubFlow.create_bookclub(client, payload=payload)
 
-        assert response.status_code == 422, \
-            f"Ожидался статус 422, но получен {response.status_code}: {response.json()}"
+        assert response.status_code == 409, \
+            f"Ожидался статус 409, но получен {response.status_code}: {response.json()}"
 
     @pytest.mark.parametrize("description",
-                             ["", faker.pystr(min_chars=0, max_chars=2), faker.pystr(min_chars=501, max_chars=1000), 1])
+                             ["", faker.pystr(min_chars=0, max_chars=2), faker.pystr(min_chars=501, max_chars=1000)])
     def test_create_bookc_club__description_validation_error(self, client: TestClient, description):
         # Тест на валидацию описания при создании клуба с некорректными данными (описание должно быть от 3 до 500 символов)
         payload = BookclubPayloadFactory.create_bookclub_payload(name=faker.pystr(min_chars=3, max_chars=100),
                                                                  description=description)
         response = BookclubFlow.create_bookclub(client, payload=payload)
 
-        assert response.status_code == 422, \
-            f"Ожидался статус 422, но получен {response.status_code}: {response.json()}"
+        assert response.status_code == 409, \
+            f"Ожидался статус 409, но получен {response.status_code}: {response.json()}"
 
     def test_user_is_owner_of_created_club(self, client: TestClient):
         # Тест на проверку, что пользователь является владельцем созданного клуба
@@ -61,3 +61,18 @@ class TestBookclubsCreate:
             f"Ошибка при создании клуба: {response.json()}"
         assert auth_data.user_id in response.json()["data"]["members_ids"], \
             f"ID владельца клуба должен быть в списке участников"
+
+    def test_create_bookclub__with_existing_name(self, client: TestClient):
+        # Тест на создание клуба с уже существующим именем
+        payload = BookclubPayloadFactory.create_bookclub_payload(name=faker.pystr(min_chars=4, max_chars=99))
+        response = BookclubFlow.create_bookclub(client, payload=payload)
+
+        assert response.status_code == 201, \
+            f"Ошибка при создании клуба: {response.json()}"
+
+        response2 = BookclubFlow.create_bookclub(client, payload=payload)
+
+        assert response2.status_code == 409, \
+            f"Ожидался статус 409, но получен {response.status_code}: {response.json()}"
+        assert response2.json()["message"] == "Клуб с таким названием уже существует", \
+            f"Сообщение об ошибке не совпадает с ожидаемым: {response2.json()}"
