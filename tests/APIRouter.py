@@ -27,8 +27,8 @@ class APIRouter:
 
     class BookClubs:
         @staticmethod
-        def get_all_book_clubs(client: TestClient):
-            return client.get("/api/bookclubs")
+        def get_all_book_clubs(client: TestClient, headers: Dict = None):
+            return client.get(f"/api/bookclubs", headers=headers)
 
         @staticmethod
         def create_book_club(client: TestClient, payload: Dict, headers: Dict):
@@ -43,8 +43,8 @@ class APIRouter:
             return client.get(f"/api/bookclubs/owned", headers=headers)
 
         @staticmethod
-        def get_book_club_by_id(client: TestClient, club_id: int):
-            return client.get(f"/api/bookclubs/{club_id}")
+        def get_book_club_by_id(client: TestClient, club_id: int, headers: Dict = None):
+            return client.get(f"/api/bookclubs/{club_id}", headers=headers)
 
         @staticmethod
         def join_book_club(client: TestClient, club_id: int, headers: Dict):
