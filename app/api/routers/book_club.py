@@ -35,12 +35,16 @@ def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2
     "",
     response_model=ResponseModel[List[BookClubResponseModel]],
     summary="Получение всех книжных клубов",
+    description=(
+        "**Требуется авторизация** с заголовком:\n"
+        "`Authorization: Bearer <your_token>`\n\n"
+    ),
     responses={
         200: {"description": "Успешный ответ с данными книжных клубов"},
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def get_all_book_clubs(service: BookClubSerivce = Depends()):
+def get_all_book_clubs(access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
     return service.get_book_clubs()
 
 @router.get(
@@ -65,7 +69,8 @@ def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), service: Bo
     response_model=ResponseModel[BookClubResponseModel],
     summary="Получение книжного клуба по id",
     description=(
-        "Получение книжного клуба по id."
+        "**Требуется авторизация** с заголовком:\n"
+        "`Authorization: Bearer <your_token>`\n\n"
     ),
     responses = {
         200: {"description": "Успешный ответ с данными книжного клуба"},
@@ -73,7 +78,7 @@ def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), service: Bo
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def get_book_club(club_id: int, service: BookClubSerivce = Depends()):
+def get_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
     return service.get_book_club(club_id)
 
 @router.delete(
