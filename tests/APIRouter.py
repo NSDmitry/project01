@@ -32,12 +32,24 @@ class APIRouter:
 
         @staticmethod
         def create_book_club(client: TestClient, payload: Dict, headers: Dict):
-            return client.post("/api/bookclubs", json=payload, headers=headers)
+            return client.post(f"/api/bookclubs", json=payload, headers=headers)
+
+        @staticmethod
+        def delete_book_club(client: TestClient, club_id: int, headers: Dict):
+            return client.delete(f"/api/bookclubs/{club_id}", headers=headers)
 
         @staticmethod
         def get_owned_book_clubs(client: TestClient, headers: Dict):
-            return client.get("/api/bookclubs/owned", headers=headers)
+            return client.get(f"/api/bookclubs/owned", headers=headers)
 
         @staticmethod
         def get_book_club_by_id(client: TestClient, club_id: int):
             return client.get(f"/api/bookclubs/{club_id}")
+
+        @staticmethod
+        def join_book_club(client: TestClient, club_id: int, headers: Dict):
+            return client.post(f"/api/bookclubs/{club_id}/join", headers=headers)
+
+        @staticmethod
+        def leave_book_club(client: TestClient, club_id: int, headers: Dict):
+            return client.delete(f"/api/bookclubs/{club_id}/leave", headers=headers)
