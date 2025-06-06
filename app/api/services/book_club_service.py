@@ -1,6 +1,6 @@
 from typing import List
 
-from app.core.errors.errors import UnprocessableEntity
+from app.core.errors.errors import Conflict
 from app.core.models.response_model import ResponseModel
 
 from app.db.models.db_user import DBUser
@@ -68,11 +68,32 @@ class BookClubSerivce:
         return ResponseModel.success_response(club)
 
     def __validate_create_book_club_request(self, model: CreateBookClubRequestModel):
-        if not model.name or not model.description:
-            raise UnprocessableEntity(errors=["Имя и описание являются обязательными полями для создания книжного клуба."])
+        bookclubs: DBBookClub = self.book_club_repository.get_book_clubs()
 
-        if len(model.name) < 3 or len(model.description) < 3:
-            raise UnprocessableEntity(errors=["Название книжного клуба должно быть не менее 3 символов, а описание - не менее 3 символов."])
+        if model.name in [club.name for club in bookclubs]:
+            raise Conflict(
+                message="Клуб с таким названием уже существует",
+                errors=["field: name, message: Это имя уже используется "]
+            )
 
-        if len(model.name) > 100 or len(model.description) > 500:
-            raise UnprocessableEntity(errors=["Название книжного клуба не должно превышать 100 символов, а описание - 500 символов."])
+        if not model.name:
+            raise Conflict(
+                message="Имя книжного клуба не может быть пустым.",
+                errors=["field: name, message: Имя книжного клуба не может быть пустым."])
+
+        if not model.description:
+            raise Conflict(
+                message="Описание книжного клуба не может быть пустым.",
+                errors=["field: description, message: Описание книжного клуба не может быть пустым."])
+
+        if len(model.name) < 3 or len(model.name) > 100:
+            raise Conflict(
+                message="Название книжного клуба должно быть от 3 до 100 символов.",
+                errors=["field: name, message: Название книжного клуба должно быть от 3 до 100 символов."]
+            )
+
+        if len(model.description) < 3 or len(model.description) > 500:
+            raise Conflict(
+                message="Описание книжного клуба должно быть от 3 до 500 символов.",
+                errors=["field: description, message: Описание книжного клуба должно быть от 3 до 500 символов."]
+            )
