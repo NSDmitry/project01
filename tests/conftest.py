@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.db.database import Base, get_db
 from app.settings import settings
@@ -22,7 +22,6 @@ def db():
     try:
         yield db
     finally:
-        db.rollback()
         db.close()
 
 @pytest.fixture()
@@ -33,3 +32,13 @@ def client(db):
     app.dependency_overrides[get_db] = override_get_db
     yield TestClient(app)
     app.dependency_overrides.clear()
+
+@pytest.fixture(autouse=True)
+def clear_db(db):
+    db.execute(text("SET session_replication_role = 'replica';"))
+
+    for table in reversed(Base.metadata.sorted_tables):
+        db.execute(table.delete())
+
+    db.execute(text("SET session_replication_role = 'origin';"))
+    db.commit()
