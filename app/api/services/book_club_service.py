@@ -1,5 +1,6 @@
 from typing import List
 
+from app.core.errors.errors import UnprocessableEntity
 from app.core.models.response_model import ResponseModel
 
 from app.db.models.db_user import DBUser
@@ -20,6 +21,8 @@ class BookClubSerivce:
         self.book_club_repository = BookClubRepository()
 
     def create_book_club(self, model: CreateBookClubRequestModel, access_token: str) -> ResponseModel[BookClubResponseModel]:
+        self.__validate_create_book_club_request(model)
+
         owner: DBUser = self.user_repository.get_user_by_access_token(access_token)
         db_book_club: DBBookClub = self.book_club_repository.create_book_blub(owner, model)
 
@@ -63,3 +66,13 @@ class BookClubSerivce:
         club = BookClubResponseModel(**db_club.to_dict())
 
         return ResponseModel.success_response(club)
+
+    def __validate_create_book_club_request(self, model: CreateBookClubRequestModel):
+        if not model.name or not model.description:
+            raise UnprocessableEntity(errors=["Имя и описание являются обязательными полями для создания книжного клуба."])
+
+        if len(model.name) < 3 or len(model.description) < 3:
+            raise UnprocessableEntity(errors=["Название книжного клуба должно быть не менее 3 символов, а описание - не менее 3 символов."])
+
+        if len(model.name) > 100 or len(model.description) > 500:
+            raise UnprocessableEntity(errors=["Название книжного клуба не должно превышать 100 символов, а описание - 500 символов."])

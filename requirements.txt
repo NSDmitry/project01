@@ -11,3 +11,4 @@ pydantic-settings~=2.9.1
 pytest~=8.3.5
 httpx~=0.28.1
 pytest~=8.3.5
+faker~=37.3.0
