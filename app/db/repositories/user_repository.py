@@ -1,12 +1,12 @@
 import logging
 
-from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.core.OAuth2PasswordBearer import get_current_user
 from app.db.models.db_user import DBUser
+from app.core.errors.errors import NotFound, Conflict, InternalServerError
 
 
 class UserRepository:
@@ -24,7 +24,7 @@ class UserRepository:
         db_user: DBUser = self.db.query(DBUser).filter(DBUser.id == user_id).first()
 
         if db_user is None:
-            raise HTTPException(status_code=404, detail="Пользователь с таким id не найден")
+            raise NotFound(errors=["Пользователь с таким id не найден"])
 
         return db_user
 
@@ -42,7 +42,7 @@ class UserRepository:
         )
 
         if self.db is None:
-            raise HTTPException(status_code=600, detail="Соединение с базой данных не установлено.")
+            raise InternalServerError(errors=["Соединение с базой данных не установлено."])
 
         try:
             self.db.add(user_db_model)
@@ -50,11 +50,11 @@ class UserRepository:
         except IntegrityError as e:
             self.db.rollback()
             self.logger.error(f"IntegrityError: {str(e)}")  # Логируем ошибку
-            raise HTTPException(status_code=409, detail="Пользователь с таким номером телефона уже зарегистрирован.")
+            raise Conflict(errors=["Пользователь с таким номером телефона уже зарегистрирован."])
         except Exception as e:
             self.logger.error(f"Exception: {str(e)}")  # Логируем ошибку
             self.db.rollback()
-            raise HTTPException(status_code=500, detail="Ошибка сервера, попробуйте позже.")
+            raise InternalServerError(errors=["Ошибка при создании пользователя."])
 
         return user_db_model
 
@@ -78,6 +78,7 @@ class UserRepository:
         except IntegrityError as e:
             self.db.rollback()
             self.logger.error(f"IntegrityError: {str(e)}")
+            raise Conflict(errors=["Пользователь с таким Telegram ID уже зарегистрирован."])
 
         return user_db_model
 

@@ -1,4 +1,4 @@
-from fastapi import Security, HTTPException
+from fastapi import Security
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
