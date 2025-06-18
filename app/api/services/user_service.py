@@ -1,5 +1,3 @@
-from fastapi import HTTPException
-
 from app.core.errors.errors import UnprocessableEntity, Conflict, NotFound
 from app.core.models.response_model import ResponseModel
 from app.db.models.db_user import DBUser
