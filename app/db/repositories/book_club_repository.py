@@ -1,6 +1,5 @@
 from typing import List
 
-from fastapi import HTTPException
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.orm import Session
 
