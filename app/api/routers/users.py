@@ -1,8 +1,10 @@
 from fastapi import APIRouter, Depends, Body
 
-from app.core.OAuth2PasswordBearer import oauth2_scheme
+from app.core.deps.deps import get_user_service
+from app.core.deps.get_current_user import get_current_user
 from app.api.services.user_service import UserService, PublicUserResponseModel, UpdateUserRequestModel
 from app.core.models.response_model import ResponseModel
+from app.db.models import DBUser
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -21,8 +23,11 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def get_current_user(access_token: str = Depends(oauth2_scheme), user_service: UserService = Depends()):
-    return user_service.get_current_user(access_token)
+def get_current_user_public_info(
+    user: DBUser = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service)
+):
+    return user_service.get_current_user_public_info(user)
 
 @router.get(
     "/public",
@@ -39,7 +44,11 @@ def get_current_user(access_token: str = Depends(oauth2_scheme), user_service: U
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def get_user_by_id(user_id: int, access_token: str = Depends(oauth2_scheme), user_service: UserService = Depends()):
+def get_user_by_id(
+    user_id: int,
+    user: DBUser = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service)
+):
     return user_service.get_user_by_id(user_id)
 
 @router.put(
@@ -53,7 +62,8 @@ def get_user_by_id(user_id: int, access_token: str = Depends(oauth2_scheme), use
     }
 )
 def change_user_info(
-        model: UpdateUserRequestModel = Body(...),
-        access_token: str = Depends(oauth2_scheme),
-        user_service: UserService = Depends()):
-    return user_service.update_user_info(access_token=access_token, model=model)
+    model: UpdateUserRequestModel = Body(...),
+    user: DBUser = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service)
+):
+    return user_service.update_user_info(user=user, model=model)

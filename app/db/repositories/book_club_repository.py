@@ -13,8 +13,8 @@ from app.schemas.book_club_schema import CreateBookClubRequestModel
 class BookClubRepository:
     db: Session
 
-    def __init__(self, db: Session = get_db()) -> None:
-        self.db = get_db()
+    def __init__(self, db: Session) -> None:
+        self.db = db
 
     def create_book_blub(self, owner: DBUser, model: CreateBookClubRequestModel) -> DBBookClub:
         new_book_club = DBBookClub(name=model.name, description=model.description, owner_id=owner.id, members_ids=[owner.id])

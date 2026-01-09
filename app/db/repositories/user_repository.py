@@ -4,9 +4,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.core.OAuth2PasswordBearer import get_current_user
 from app.db.models.db_user import DBUser
-from app.core.errors.errors import NotFound, Conflict, InternalServerError
+from app.core.errors.errors import NotFound, Conflict, InternalServerError, Unauthorized
 
 
 class UserRepository:
@@ -14,11 +13,16 @@ class UserRepository:
 
     logger = logging.getLogger(__name__)
 
-    def __init__(self, db: Session = get_db()) -> None:
+    def __init__(self, db: Session) -> None:
         self.db = db
 
     def get_user_by_access_token(self, access_token: str) -> DBUser:
-        return get_current_user(access_token)
+        user = self.db.query(DBUser).filter(DBUser.access_token == access_token).first()
+
+        if not user:
+            raise Unauthorized()
+
+        return user
 
     def get_user_by_id(self, user_id: int) -> DBUser:
         db_user: DBUser = self.db.query(DBUser).filter(DBUser.id == user_id).first()
@@ -82,8 +86,8 @@ class UserRepository:
 
         return user_db_model
 
-    def update_user_info(self, access_token: str, name: str, phone_number: str) -> DBUser:
-        db_user = self.get_user_by_access_token(access_token)
+    def update_user_info(self, user_id: int, name: str, phone_number: str) -> DBUser:
+        db_user = self.get_user_by_id(user_id)
 
         db_user.name = name
         db_user.phone_number = phone_number

@@ -3,7 +3,6 @@ from typing import List
 from sqlalchemy.orm import Session
 
 from app.core.errors.errors import NotFound
-from app.db.database import get_db
 from app.db.models.db_discussion import DBDiscussion
 from app.schemas.discussions_schema import DiscussionCreateRequestModel
 
@@ -11,7 +10,7 @@ from app.schemas.discussions_schema import DiscussionCreateRequestModel
 class DiscussionRepository:
     db: Session
 
-    def __init__(self, db: Session = get_db()) -> None:
+    def __init__(self, db: Session) -> None:
         self.db = db
 
     def get_discussions(self, book_club_id: int) -> List[DBDiscussion]:

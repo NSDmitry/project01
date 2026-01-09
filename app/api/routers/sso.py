@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends
 
+from app.core.deps.deps import get_sso_service
 from app.core.models.response_model import ResponseModel
 from app.schemas.public_user_schema import PrivateUserResponseModel
 from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
@@ -19,7 +20,10 @@ router = APIRouter(prefix="/api/SSO", tags=["SSO"])
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def sign_up(model: SingUpRequestModel, sso_service: SSOService = Depends()):
+def sign_up(
+    model: SingUpRequestModel,
+    sso_service: SSOService = Depends(get_sso_service)
+):
     return sso_service.sign_up(model=model)
 
 @router.post(
@@ -33,7 +37,10 @@ def sign_up(model: SingUpRequestModel, sso_service: SSOService = Depends()):
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def sign_in(model: SignInRequestModel, sso_service: SSOService = Depends()):
+def sign_in(
+    model: SignInRequestModel,
+    sso_service: SSOService = Depends(get_sso_service)
+):
     return sso_service.sign_in(model=model)
 
 @router.post(
@@ -50,6 +57,6 @@ def sign_in(model: SignInRequestModel, sso_service: SSOService = Depends()):
 )
 def telegram_sign_in(
     model: TelegramSignInRequestModel,
-    sso_service: SSOService = Depends()
+    sso_service: SSOService = Depends(get_sso_service)
 ):
     return sso_service.telegram_sing_in(model=model)

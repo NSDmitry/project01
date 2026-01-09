@@ -3,9 +3,11 @@ from typing import List
 from fastapi import APIRouter, Depends
 
 from app.api.services.book_club_service import BookClubSerivce
+from app.core.deps.deps import get_book_club_service
 from app.core.models.response_model import ResponseModel
+from app.db.models import DBUser
 from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel
-from app.core.OAuth2PasswordBearer import oauth2_scheme
+from app.core.deps.get_current_user import oauth2_scheme, get_current_user
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 
@@ -26,8 +28,12 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
-    response: BookClubResponseModel = service.create_book_club(model, access_token)
+def create(
+        model: CreateBookClubRequestModel,
+        user: DBUser = Depends(get_current_user),
+        service: BookClubSerivce = Depends(get_book_club_service)
+):
+    response: BookClubResponseModel = service.create_book_club(model, user)
 
     return response
 
@@ -44,7 +50,10 @@ def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def get_all_book_clubs(access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
+def get_all_book_clubs(
+    user: DBUser = Depends(get_current_user),
+    service: BookClubSerivce = Depends(get_book_club_service)
+):
     return service.get_book_clubs()
 
 @router.get(
@@ -61,8 +70,11 @@ def get_all_book_clubs(access_token: str = Depends(oauth2_scheme), service: Book
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
-    return service.get_owned_book_clubs(access_token)
+def get_owned_book_clubs(
+    user: DBUser = Depends(get_current_user),
+    service: BookClubSerivce = Depends(get_book_club_service)
+):
+    return service.get_owned_book_clubs(user)
 
 @router.get(
     "/{club_id}",
@@ -78,7 +90,11 @@ def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), service: Bo
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def get_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
+def get_book_club(
+    club_id: int,
+    user: DBUser = Depends(get_current_user),
+    service: BookClubSerivce = Depends(get_book_club_service)
+):
     return service.get_book_club(club_id)
 
 @router.delete(
@@ -96,8 +112,12 @@ def get_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), serv
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def delete_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
-    return service.delete_book_club(access_token, club_id)
+def delete_book_club(
+    club_id: int,
+    user: DBUser = Depends(get_current_user),
+    service: BookClubSerivce = Depends(get_book_club_service)
+):
+    return service.delete_book_club(user, club_id)
 
 @router.post(
     "/{club_id}/join",
@@ -113,8 +133,12 @@ def delete_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), s
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def join(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
-    return service.join(access_token, club_id)
+def join(
+    club_id: int,
+    user: DBUser = Depends(get_current_user),
+    service: BookClubSerivce = Depends(get_book_club_service)
+):
+    return service.join(user, club_id)
 
 @router.delete(
     "/{club_id}/leave",
@@ -131,5 +155,9 @@ def join(club_id: int, access_token: str = Depends(oauth2_scheme), service: Book
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def join(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
-    return service.leave(access_token, club_id)
+def join(
+    club_id: int,
+    user: DBUser = Depends(get_current_user),
+    service: BookClubSerivce = Depends(get_book_club_service)
+):
+    return service.leave(user, club_id)
