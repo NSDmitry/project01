@@ -14,9 +14,9 @@ class SSOService:
     user_service: UserService
     user_repository: UserRepository
 
-    def __init__(self) -> None:
-        self.user_service = UserService()
-        self.user_repository = UserRepository()
+    def __init__(self, user_service: UserService, user_repository: UserRepository) -> None:
+        self.user_service = user_service
+        self.user_repository = user_repository
 
     def sign_up(self, model: SingUpRequestModel) -> ResponseModel[PrivateUserResponseModel]:
         """
