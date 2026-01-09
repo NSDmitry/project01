@@ -13,10 +13,16 @@ class DiscussionService:
     book_club_repository: BookClubRepository
     user_repository: UserRepository
 
-    def __init__(self) -> None:
-        self.discussion_repository = DiscussionRepository()
-        self.book_club_repository = BookClubRepository()
-        self.user_repository = UserRepository()
+    def __init__(
+            self,
+            discussion_repository: DiscussionRepository,
+            book_club_repository: BookClubRepository,
+            user_repository: UserRepository
+        ) -> None:
+
+        self.discussion_repository = discussion_repository
+        self.book_club_repository = book_club_repository
+        self.user_repository = user_repository
 
     def get_disscussions(self, book_club_id: int) -> ResponseModel[List[DisscussionResponseModel]]:
         """

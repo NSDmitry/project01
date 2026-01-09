@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 
 from app.api.services.book_club_service import BookClubSerivce
+from app.core.deps.deps import get_user_service, get_book_club_service
 from app.core.models.response_model import ResponseModel
 from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel
 from app.core.deps.get_current_user import oauth2_scheme
@@ -26,7 +27,11 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
+def create(
+        model: CreateBookClubRequestModel,
+        access_token: str = Depends(oauth2_scheme),
+        service: BookClubSerivce = Depends(get_book_club_service)
+):
     response: BookClubResponseModel = service.create_book_club(model, access_token)
 
     return response
@@ -44,7 +49,10 @@ def create(model: CreateBookClubRequestModel, access_token: str = Depends(oauth2
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def get_all_book_clubs(access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
+def get_all_book_clubs(
+        access_token: str = Depends(oauth2_scheme),
+        service: BookClubSerivce = Depends(get_book_club_service)
+):
     return service.get_book_clubs()
 
 @router.get(
@@ -61,7 +69,10 @@ def get_all_book_clubs(access_token: str = Depends(oauth2_scheme), service: Book
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
+def get_owned_book_clubs(
+        access_token: str = Depends(oauth2_scheme),
+        service: BookClubSerivce = Depends(get_book_club_service)
+):
     return service.get_owned_book_clubs(access_token)
 
 @router.get(
@@ -78,7 +89,11 @@ def get_owned_book_clubs(access_token: str = Depends(oauth2_scheme), service: Bo
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def get_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
+def get_book_club(
+    club_id: int,
+    access_token: str = Depends(oauth2_scheme),
+    service: BookClubSerivce = Depends(get_book_club_service)
+):
     return service.get_book_club(club_id)
 
 @router.delete(
@@ -96,7 +111,11 @@ def get_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), serv
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def delete_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
+def delete_book_club(
+    club_id: int,
+    access_token: str = Depends(oauth2_scheme),
+    service: BookClubSerivce = Depends(get_book_club_service)
+):
     return service.delete_book_club(access_token, club_id)
 
 @router.post(
@@ -113,7 +132,11 @@ def delete_book_club(club_id: int, access_token: str = Depends(oauth2_scheme), s
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def join(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
+def join(
+    club_id: int,
+    access_token: str = Depends(oauth2_scheme),
+    service: BookClubSerivce = Depends(get_book_club_service)
+):
     return service.join(access_token, club_id)
 
 @router.delete(
@@ -131,5 +154,9 @@ def join(club_id: int, access_token: str = Depends(oauth2_scheme), service: Book
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def join(club_id: int, access_token: str = Depends(oauth2_scheme), service: BookClubSerivce = Depends()):
+def join(
+    club_id: int,
+    access_token: str = Depends(oauth2_scheme),
+    service: BookClubSerivce = Depends(get_book_club_service)
+):
     return service.leave(access_token, club_id)

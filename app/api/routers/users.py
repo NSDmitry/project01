@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, Body
 
+from app.core.deps.deps import get_user_service
 from app.core.deps.get_current_user import oauth2_scheme
 from app.api.services.user_service import UserService, PublicUserResponseModel, UpdateUserRequestModel
 from app.core.models.response_model import ResponseModel
@@ -21,7 +22,10 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def get_current_user(access_token: str = Depends(oauth2_scheme), user_service: UserService = Depends()):
+def get_current_user(
+    access_token: str = Depends(oauth2_scheme),
+    user_service: UserService = Depends(get_user_service)
+):
     return user_service.get_current_user(access_token)
 
 @router.get(
@@ -39,7 +43,11 @@ def get_current_user(access_token: str = Depends(oauth2_scheme), user_service: U
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def get_user_by_id(user_id: int, access_token: str = Depends(oauth2_scheme), user_service: UserService = Depends()):
+def get_user_by_id(
+    user_id: int,
+    access_token: str = Depends(oauth2_scheme),
+    user_service: UserService = Depends(get_user_service)
+):
     return user_service.get_user_by_id(user_id)
 
 @router.put(
@@ -55,5 +63,5 @@ def get_user_by_id(user_id: int, access_token: str = Depends(oauth2_scheme), use
 def change_user_info(
         model: UpdateUserRequestModel = Body(...),
         access_token: str = Depends(oauth2_scheme),
-        user_service: UserService = Depends()):
+        user_service: UserService = Depends(get_user_service)):
     return user_service.update_user_info(access_token=access_token, model=model)

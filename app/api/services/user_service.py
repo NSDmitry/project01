@@ -8,8 +8,8 @@ from app.schemas.public_user_schema import PublicUserResponseModel, UpdateUserRe
 class UserService:
     user_repository: UserRepository
 
-    def __init__(self) -> None:
-        self.user_repository = UserRepository()
+    def __init__(self, user_repository: UserRepository) -> None:
+        self.user_repository = user_repository
 
     def get_current_user(self, access_token: str) -> PublicUserResponseModel:
         db_user: DBUser = self.user_repository.get_user_by_access_token(access_token)

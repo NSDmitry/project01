@@ -16,9 +16,9 @@ class BookClubSerivce:
     user_repository: UserRepository
     book_club_repository: BookClubRepository
 
-    def __init__(self) -> None:
-        self.user_repository = UserRepository()
-        self.book_club_repository = BookClubRepository()
+    def __init__(self, user_repository: UserRepository, book_club_repository: BookClubRepository) -> None:
+        self.user_repository = user_repository
+        self.book_club_repository = book_club_repository
 
     def create_book_club(self, model: CreateBookClubRequestModel, access_token: str) -> ResponseModel[BookClubResponseModel]:
         self.__validate_create_book_club_request(model)

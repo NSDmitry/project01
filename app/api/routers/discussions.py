@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 
 from app.api.services.discussion_service import DiscussionService
+from app.core.deps.deps import get_discussion_service
 from app.core.deps.get_current_user import oauth2_scheme
 from app.core.models.response_model import ResponseModel
 from app.schemas.discussions_schema import DisscussionResponseModel, DiscussionCreateRequestModel, \
@@ -21,7 +22,10 @@ router = APIRouter(prefix="/api/disscussions", tags=["discussions"])
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def get_disscussions(club_id: int, service: DiscussionService = Depends()):
+def get_disscussions(
+    club_id: int,
+    service: DiscussionService = Depends(get_discussion_service)
+):
     return service.get_disscussions(book_club_id=club_id)
 
 @router.post(
@@ -46,7 +50,7 @@ def get_disscussions(club_id: int, service: DiscussionService = Depends()):
 def create_discussion(
     model: DiscussionCreateRequestModel,
     access_token: str = Depends(oauth2_scheme),
-    service: DiscussionService = Depends()
+    service: DiscussionService = Depends(get_discussion_service)
 ):
     return service.create_discussion(access_token=access_token, model=model)
 
@@ -66,7 +70,7 @@ def create_discussion(
 def delete_discussion(
     discussion_id: int,
     access_token: str = Depends(oauth2_scheme),
-    service: DiscussionService = Depends()
+    service: DiscussionService = Depends(get_discussion_service)
 ):
     return service.delete_discussion(access_token=access_token, discussion_id=discussion_id)
 
@@ -86,6 +90,6 @@ def update_discussion(
     discussion_id: int,
     model: DiscussionUpdateRequestModel,
     access_token: str = Depends(oauth2_scheme),
-    service: DiscussionService = Depends()
+    service: DiscussionService = Depends(get_discussion_service)
 ):
     return service.update_discussion(access_token=access_token, discussion_id=discussion_id, model=model)

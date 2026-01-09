@@ -13,7 +13,7 @@ class UserRepository:
 
     logger = logging.getLogger(__name__)
 
-    def __init__(self, db: Session = get_db()) -> None:
+    def __init__(self, db: Session) -> None:
         self.db = db
 
     def get_user_by_access_token(self, access_token: str) -> DBUser:
