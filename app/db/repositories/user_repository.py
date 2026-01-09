@@ -4,9 +4,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.core.OAuth2PasswordBearer import get_current_user
 from app.db.models.db_user import DBUser
-from app.core.errors.errors import NotFound, Conflict, InternalServerError
+from app.core.errors.errors import NotFound, Conflict, InternalServerError, Unauthorized
 
 
 class UserRepository:
@@ -18,7 +17,12 @@ class UserRepository:
         self.db = db
 
     def get_user_by_access_token(self, access_token: str) -> DBUser:
-        return get_current_user(access_token)
+        user = self.db.query(DBUser).filter(DBUser.access_token == access_token).first()
+
+        if not user:
+            raise Unauthorized()
+
+        return user
 
     def get_user_by_id(self, user_id: int) -> DBUser:
         db_user: DBUser = self.db.query(DBUser).filter(DBUser.id == user_id).first()

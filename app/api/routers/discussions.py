@@ -3,7 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends
 
 from app.api.services.discussion_service import DiscussionService
-from app.core.OAuth2PasswordBearer import oauth2_scheme
+from app.core.deps.get_current_user import oauth2_scheme
 from app.core.models.response_model import ResponseModel
 from app.schemas.discussions_schema import DisscussionResponseModel, DiscussionCreateRequestModel, \
     DiscussionUpdateRequestModel

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Body
 
-from app.core.OAuth2PasswordBearer import oauth2_scheme
+from app.core.deps.get_current_user import oauth2_scheme
 from app.api.services.user_service import UserService, PublicUserResponseModel, UpdateUserRequestModel
 from app.core.models.response_model import ResponseModel
 

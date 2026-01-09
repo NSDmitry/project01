@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 from app.api.services.book_club_service import BookClubSerivce
 from app.core.models.response_model import ResponseModel
 from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel
-from app.core.OAuth2PasswordBearer import oauth2_scheme
+from app.core.deps.get_current_user import oauth2_scheme
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 
