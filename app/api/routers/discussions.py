@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends
 
 from app.api.services.discussion_service import DiscussionService
 from app.core.deps.deps import get_discussion_service
-from app.core.deps.get_current_user import oauth2_scheme
+from app.core.deps.get_current_user import oauth2_scheme, get_current_user
 from app.core.models.response_model import ResponseModel
+from app.db.models import DBUser
 from app.schemas.discussions_schema import DisscussionResponseModel, DiscussionCreateRequestModel, \
     DiscussionUpdateRequestModel
 
@@ -49,10 +50,10 @@ def get_disscussions(
 )
 def create_discussion(
     model: DiscussionCreateRequestModel,
-    access_token: str = Depends(oauth2_scheme),
+    user: DBUser = Depends(get_current_user),
     service: DiscussionService = Depends(get_discussion_service)
 ):
-    return service.create_discussion(access_token=access_token, model=model)
+    return service.create_discussion(user=user, model=model)
 
 @router.delete(
     "/{discussion_id}",
@@ -69,10 +70,10 @@ def create_discussion(
 )
 def delete_discussion(
     discussion_id: int,
-    access_token: str = Depends(oauth2_scheme),
+    user: DBUser = Depends(get_current_user),
     service: DiscussionService = Depends(get_discussion_service)
 ):
-    return service.delete_discussion(access_token=access_token, discussion_id=discussion_id)
+    return service.delete_discussion(user=user, discussion_id=discussion_id)
 
 @router.put(
     "/{discussion_id}",
@@ -89,7 +90,7 @@ def delete_discussion(
 def update_discussion(
     discussion_id: int,
     model: DiscussionUpdateRequestModel,
-    access_token: str = Depends(oauth2_scheme),
+    user: str = Depends(get_current_user),
     service: DiscussionService = Depends(get_discussion_service)
 ):
-    return service.update_discussion(access_token=access_token, discussion_id=discussion_id, model=model)
+    return service.update_discussion(user=user, discussion_id=discussion_id, model=model)

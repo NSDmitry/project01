@@ -86,8 +86,8 @@ class UserRepository:
 
         return user_db_model
 
-    def update_user_info(self, access_token: str, name: str, phone_number: str) -> DBUser:
-        db_user = self.get_user_by_access_token(access_token)
+    def update_user_info(self, user_id: int, name: str, phone_number: str) -> DBUser:
+        db_user = self.get_user_by_id(user_id)
 
         db_user.name = name
         db_user.phone_number = phone_number

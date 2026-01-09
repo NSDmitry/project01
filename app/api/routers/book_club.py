@@ -3,10 +3,11 @@ from typing import List
 from fastapi import APIRouter, Depends
 
 from app.api.services.book_club_service import BookClubSerivce
-from app.core.deps.deps import get_user_service, get_book_club_service
+from app.core.deps.deps import get_book_club_service
 from app.core.models.response_model import ResponseModel
+from app.db.models import DBUser
 from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel
-from app.core.deps.get_current_user import oauth2_scheme
+from app.core.deps.get_current_user import oauth2_scheme, get_current_user
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 
@@ -29,10 +30,10 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 )
 def create(
         model: CreateBookClubRequestModel,
-        access_token: str = Depends(oauth2_scheme),
+        user: DBUser = Depends(get_current_user),
         service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    response: BookClubResponseModel = service.create_book_club(model, access_token)
+    response: BookClubResponseModel = service.create_book_club(model, user)
 
     return response
 
@@ -50,8 +51,8 @@ def create(
     },
 )
 def get_all_book_clubs(
-        access_token: str = Depends(oauth2_scheme),
-        service: BookClubSerivce = Depends(get_book_club_service)
+    user: DBUser = Depends(get_current_user),
+    service: BookClubSerivce = Depends(get_book_club_service)
 ):
     return service.get_book_clubs()
 
@@ -70,10 +71,10 @@ def get_all_book_clubs(
     },
 )
 def get_owned_book_clubs(
-        access_token: str = Depends(oauth2_scheme),
-        service: BookClubSerivce = Depends(get_book_club_service)
+    user: DBUser = Depends(get_current_user),
+    service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    return service.get_owned_book_clubs(access_token)
+    return service.get_owned_book_clubs(user)
 
 @router.get(
     "/{club_id}",
@@ -91,7 +92,7 @@ def get_owned_book_clubs(
 )
 def get_book_club(
     club_id: int,
-    access_token: str = Depends(oauth2_scheme),
+    user: DBUser = Depends(get_current_user),
     service: BookClubSerivce = Depends(get_book_club_service)
 ):
     return service.get_book_club(club_id)
@@ -113,10 +114,10 @@ def get_book_club(
 )
 def delete_book_club(
     club_id: int,
-    access_token: str = Depends(oauth2_scheme),
+    user: DBUser = Depends(get_current_user),
     service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    return service.delete_book_club(access_token, club_id)
+    return service.delete_book_club(user, club_id)
 
 @router.post(
     "/{club_id}/join",
@@ -134,10 +135,10 @@ def delete_book_club(
 )
 def join(
     club_id: int,
-    access_token: str = Depends(oauth2_scheme),
+    user: DBUser = Depends(get_current_user),
     service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    return service.join(access_token, club_id)
+    return service.join(user, club_id)
 
 @router.delete(
     "/{club_id}/leave",
@@ -156,7 +157,7 @@ def join(
 )
 def join(
     club_id: int,
-    access_token: str = Depends(oauth2_scheme),
+    user: DBUser = Depends(get_current_user),
     service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    return service.leave(access_token, club_id)
+    return service.leave(user, club_id)

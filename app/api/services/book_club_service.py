@@ -20,10 +20,9 @@ class BookClubSerivce:
         self.user_repository = user_repository
         self.book_club_repository = book_club_repository
 
-    def create_book_club(self, model: CreateBookClubRequestModel, access_token: str) -> ResponseModel[BookClubResponseModel]:
+    def create_book_club(self, model: CreateBookClubRequestModel, owner: DBUser) -> ResponseModel[BookClubResponseModel]:
         self.__validate_create_book_club_request(model)
 
-        owner: DBUser = self.user_repository.get_user_by_access_token(access_token)
         db_book_club: DBBookClub = self.book_club_repository.create_book_blub(owner, model)
 
         return ResponseModel.success_response(BookClubResponseModel(**db_book_club.to_dict()))
@@ -39,29 +38,25 @@ class BookClubSerivce:
 
         return ResponseModel.success_response(BookClubResponseModel(**db_club.to_dict()))
 
-    def get_owned_book_clubs(self, access_token: str) -> ResponseModel[List[BookClubResponseModel]]:
-        owner: DBUser = self.user_repository.get_user_by_access_token(access_token)
+    def get_owned_book_clubs(self, owner: DBUser) -> ResponseModel[List[BookClubResponseModel]]:
         db_clubs: List[DBBookClub] = self.book_club_repository.get_owned_book_blubs(owner)
         clubs = [BookClubResponseModel(**club.to_dict()) for club in db_clubs]
 
         return ResponseModel.success_response(clubs)
 
-    def delete_book_club(self, access_token: str, book_club_id: int) -> ResponseModel:
-        owner: DBUser = self.user_repository.get_user_by_access_token(access_token)
+    def delete_book_club(self, owner: DBUser, book_club_id: int) -> ResponseModel:
         self.book_club_repository.delete_book_club(owner, book_club_id)
 
         return ResponseModel.success_response(message="Книжный клуб успешно удален")
 
-    def join(self, access_token: str, club_id: int) -> ResponseModel[BookClubResponseModel]:
-        user: DBUser = self.user_repository.get_user_by_access_token(access_token)
+    def join(self, user: DBUser, club_id: int) -> ResponseModel[BookClubResponseModel]:
         db_club: DBBookClub = self.book_club_repository.join_book_club(user=user, club_id=club_id)
         club = BookClubResponseModel(**db_club.to_dict())
 
         return ResponseModel.success_response(club)
 
 
-    def leave(self, access_token: str, club_id: int) -> ResponseModel[BookClubResponseModel]:
-        user: DBUser = self.user_repository.get_user_by_access_token(access_token)
+    def leave(self, user: DBUser, club_id: int) -> ResponseModel[BookClubResponseModel]:
         db_club: DBBookClub = self.book_club_repository.remove_member(user, club_id)
         club = BookClubResponseModel(**db_club.to_dict())
 
