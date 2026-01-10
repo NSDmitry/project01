@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends
 
-from app.core.deps.deps import get_sso_service
+from app.core.deps.deps import get_auth_service
 from app.core.models.response_model import ResponseModel
 from app.schemas.public_user_schema import PrivateUserResponseModel
 from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
-from app.api.services.sso_service import SSOService
+from app.api.services.sso_service import AuthService
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -22,9 +22,9 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 )
 def register(
     model: SingUpRequestModel,
-    sso_service: SSOService = Depends(get_sso_service)
+    sso_service: AuthService = Depends(get_auth_service)
 ):
-    return sso_service.sign_up(model=model)
+    return sso_service.register(model=model)
 
 @router.post(
     "/login",
@@ -39,9 +39,9 @@ def register(
 )
 def login(
     model: SignInRequestModel,
-    sso_service: SSOService = Depends(get_sso_service)
+    sso_service: AuthService = Depends(get_auth_service)
 ):
-    return sso_service.sign_in(model=model)
+    return sso_service.login(model=model)
 
 @router.post(
     "/telegram/login",
@@ -57,6 +57,6 @@ def login(
 )
 def telegram_sign_in(
     model: TelegramSignInRequestModel,
-    sso_service: SSOService = Depends(get_sso_service)
+    sso_service: AuthService = Depends(get_auth_service)
 ):
-    return sso_service.telegram_sing_in(model=model)
+    return sso_service.telegram_login(model=model)

@@ -10,7 +10,7 @@ from app.schemas.public_user_schema import PublicUserResponseModel, PrivateUserR
 from app.api.services.user_service import UserService
 
 
-class SSOService:
+class AuthService:
     user_service: UserService
     user_repository: UserRepository
 
@@ -18,7 +18,7 @@ class SSOService:
         self.user_service = user_service
         self.user_repository = user_repository
 
-    def sign_up(self, model: SingUpRequestModel) -> ResponseModel[PrivateUserResponseModel]:
+    def register(self, model: SingUpRequestModel) -> ResponseModel[PrivateUserResponseModel]:
         """
         Регистрация нового пользователя.
         :param model: SingUpRequestModel
@@ -34,7 +34,7 @@ class SSOService:
         return ResponseModel.success_response(PrivateUserResponseModel(**db_user.to_dict()))
 
 
-    def sign_in(self, model: SignInRequestModel) -> ResponseModel[PrivateUserResponseModel] :
+    def login(self, model: SignInRequestModel) -> ResponseModel[PrivateUserResponseModel] :
         """
         Авторизация пользователя.
         :param model: SignInRequestModel
@@ -50,7 +50,7 @@ class SSOService:
 
         return ResponseModel.success_response(PrivateUserResponseModel(**db_user.to_dict()))
 
-    def telegram_sing_in(self, model: TelegramSignInRequestModel) -> ResponseModel[PrivateUserResponseModel]:
+    def telegram_login(self, model: TelegramSignInRequestModel) -> ResponseModel[PrivateUserResponseModel]:
         db_user = self.user_repository.get_user_by_telegram_id(model.telegram_id)
 
         if db_user:

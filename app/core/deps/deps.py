@@ -9,7 +9,7 @@ from app.db.repositories.discussion_repository import DiscussionRepository
 from app.api.services.user_service import UserService
 from app.api.services.book_club_service import BookClubSerivce
 from app.api.services.discussion_service import DiscussionService
-from app.api.services.sso_service import SSOService
+from app.api.services.sso_service import AuthService
 
 
 ######## repositories ########
@@ -51,11 +51,11 @@ def get_discussion_service(
         user_repository=user_repository,
     )
 
-def get_sso_service(
+def get_auth_service(
     user_service: UserService = Depends(get_user_service),
     user_repository: UserRepository = Depends(get_user_repository),
-) -> SSOService:
-    return SSOService(
+) -> AuthService:
+    return AuthService(
         user_service=user_service,
         user_repository=user_repository,
     )

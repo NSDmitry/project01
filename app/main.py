@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 
 from app.core.errors.APIExeption import APIException
 from app.db.database import engine, Base
-from app.api.routers import sso, users, book_club, discussions
+from app.api.routers import auth, users, book_club, discussions
 from fastapi.middleware.cors import CORSMiddleware
 from app.settings import settings
 
@@ -10,7 +10,7 @@ app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
 
-app.include_router(sso.router)
+app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(book_club.router)
 app.include_router(discussions.router)
