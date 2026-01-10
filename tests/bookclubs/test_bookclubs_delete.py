@@ -1,12 +1,12 @@
 from fastapi.testclient import TestClient
-from tests.utils.flows.SSOFlow import AuthenticatedUser, SSOTestFlow
+from tests.utils.flows.SSOFlow import AuthenticatedUser, AuthTestFlow
 from tests.utils.flows.BookclubFlow import BookclubFlow
 from tests.APIRouter import APIRouter
 
 class TestBookclubsDelete:
     def test_delete_bookclub(self, client: TestClient):
         # Тест на удаление клуба
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         create_response = BookclubFlow.create_bookclub(client, auth_data )
         club_id = create_response.json()["data"]["id"]
 
@@ -24,7 +24,7 @@ class TestBookclubsDelete:
 
     def test_delete_bookclub_not_found(self, client: TestClient):
         # Тест на удаление клуба, который не существует
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         response = APIRouter.BookClubs.delete_book_club(client, club_id=999999, headers=auth_data.headers)
 
         assert response.status_code == 404, \
@@ -39,11 +39,11 @@ class TestBookclubsDelete:
 
     def test_delete_bookclub_forbidden(self, client: TestClient):
         # Тест на удаление клуба, когда пользователь не является владельцем
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         create_response = BookclubFlow.create_bookclub(client, auth_data=auth_data)
         club_id = create_response.json()["data"]["id"]
 
-        another_user_auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        another_user_auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         response = APIRouter.BookClubs.delete_book_club(client, club_id, another_user_auth_data.headers)
 
         assert response.status_code == 403, \

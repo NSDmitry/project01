@@ -3,7 +3,7 @@ from typing import Dict
 from fastapi.testclient import TestClient
 
 from tests.APIRouter import APIRouter
-from tests.utils.mock_factories.SSOMockFactory import SSOMockFactory
+from tests.utils.mock_factories.AuthMockFactory import AuthMockFactory
 
 @dataclass
 class AuthenticatedUser:
@@ -12,11 +12,11 @@ class AuthenticatedUser:
     phone_number: str
     user_id: int
 
-class SSOTestFlow:
+class AuthTestFlow:
     @staticmethod
-    def sign_up_user(client: TestClient, payload=None) -> AuthenticatedUser:
+    def register(client: TestClient, payload=None) -> AuthenticatedUser:
         if payload is None:
-            payload = SSOMockFactory.make_sign_up_payload()
+            payload = AuthMockFactory.make_register_payload()
 
         response = APIRouter.SSO.sign_up(client, payload)
 

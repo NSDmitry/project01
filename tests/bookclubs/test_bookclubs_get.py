@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 from tests.APIRouter import APIRouter
-from tests.utils.flows.SSOFlow import AuthenticatedUser, SSOTestFlow
+from tests.utils.flows.SSOFlow import AuthenticatedUser, AuthTestFlow
 from tests.utils.flows.BookclubFlow import BookclubFlow
 
 class TestAllClubs:
@@ -13,7 +13,7 @@ class TestAllClubs:
 
     def test_get_all_clubs_empty(self, client: TestClient):
         # Тест на получение всех клубов, когда нет ни одного клуба
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         response = APIRouter.BookClubs.get_all_book_clubs(client, headers=auth_data.headers)
 
         assert response.status_code == 200, \
@@ -23,7 +23,7 @@ class TestAllClubs:
 
     def test_get_all_clubs(self, client: TestClient):
         # Тест на получение всех клубов
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         BookclubFlow.create_bookclub(client, auth_data=auth_data)
         response = APIRouter.BookClubs.get_all_book_clubs(client, headers=auth_data.headers)
 
@@ -34,7 +34,7 @@ class TestAllClubs:
 
     def test_get_owned_bookclubs(self, client: TestClient):
         # Тест на получение клубов, которыми владеет пользователь
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         BookclubFlow.create_bookclub(client, auth_data=auth_data)
 
         response = APIRouter.BookClubs.get_owned_book_clubs(client, headers=auth_data.headers)
@@ -46,7 +46,7 @@ class TestAllClubs:
 
     def test_get_bookclub_by_id(self, client: TestClient):
         # Тест на получение клуба по ID
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         create_response = BookclubFlow.create_bookclub(client)
 
         club_id = create_response.json()["data"]["id"]
@@ -68,7 +68,7 @@ class TestAllClubs:
 
     def test_get_bookclub_by_id_not_found(self, client: TestClient):
         # Тест на получение клуба по несуществующему ID
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         response = APIRouter.BookClubs.get_book_club_by_id(client, club_id=999999, headers=auth_data.headers)
 
         assert response.status_code == 404, \

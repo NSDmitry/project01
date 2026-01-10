@@ -1,20 +1,20 @@
 from fastapi.testclient import TestClient
 
 from tests.APIRouter import APIRouter
-from tests.utils.flows.SSOFlow import SSOTestFlow
+from tests.utils.flows.SSOFlow import AuthTestFlow
 from tests.utils.mock_factories.UsersPayloadFactory import UsersPayloadFactory
-from tests.utils.mock_factories.SSOMockFactory import SSOMockFactory
+from tests.utils.mock_factories.AuthMockFactory import AuthMockFactory
 
 class TestChangeUserInfo:
     def test_change_current_user_phone_number_and_name(self, client: TestClient):
         # Тест на изменение номера телефона и имени текущего пользователя
         user_name = "username"
-        phone_number = SSOMockFactory.generate_random_phone_number()
+        phone_number = AuthMockFactory.generate_random_phone_number()
 
-        auth_data = SSOTestFlow.sign_up_user(client)
+        auth_data = AuthTestFlow.register(client)
 
         new_user_name = "new username"
-        new_phone_number = SSOMockFactory.generate_random_phone_number()
+        new_phone_number = AuthMockFactory.generate_random_phone_number()
 
         payload = UsersPayloadFactory.make_change_user_info_payload(new_user_name, new_phone_number)
         response = APIRouter.Users.change_current_user_info(client, payload, auth_data.headers)
@@ -33,11 +33,11 @@ class TestChangeUserInfo:
     def test_change_only_user_phone(self, client: TestClient):
         # Тест на изменение только номера телефона текущего пользователя
         user_name = "username"
-        phone_number = SSOMockFactory.generate_random_phone_number()
+        phone_number = AuthMockFactory.generate_random_phone_number()
 
-        auth_data = SSOTestFlow.sign_up_user(client)
+        auth_data = AuthTestFlow.register(client)
 
-        new_phone_number = SSOMockFactory.generate_random_phone_number()
+        new_phone_number = AuthMockFactory.generate_random_phone_number()
 
         payload = UsersPayloadFactory.make_change_user_info_payload(user_name, new_phone_number)
         response = APIRouter.Users.change_current_user_info(client, payload, auth_data.headers)
@@ -54,9 +54,9 @@ class TestChangeUserInfo:
     def test_change_only_user_name(self, client: TestClient):
         # Тест на изменение только имени текущего пользователя
         user_name = "username"
-        phone_number = SSOMockFactory.generate_random_phone_number()
+        phone_number = AuthMockFactory.generate_random_phone_number()
 
-        auth_data = SSOTestFlow.sign_up_user(client)
+        auth_data = AuthTestFlow.register(client)
 
         new_user_name = "new username"
 
