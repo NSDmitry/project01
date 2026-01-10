@@ -7,7 +7,7 @@ from tests.utils.mock_factories.AuthMockFactory import AuthMockFactory
 
 @dataclass
 class AuthenticatedUser:
-    access_token: str
+    sid: str
     headers: Dict[str, str]
     phone_number: str
     user_id: int
@@ -25,8 +25,8 @@ class AuthTestFlow:
         token_type = data.get("token_type", "Bearer")
 
         return AuthenticatedUser(
-            access_token=access_token,
-            headers={"Authorization": f"{token_type} {access_token}"},
+            sid=access_token,
+            headers={"X-Session-Id": access_token},
             phone_number=data.get("phone_number"),
             user_id=data.get("id"),
         )

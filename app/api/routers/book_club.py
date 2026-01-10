@@ -7,7 +7,7 @@ from app.core.deps.deps import get_book_club_service
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
 from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel
-from app.core.deps.get_current_user import oauth2_scheme, get_current_user
+from app.core.deps.get_current_user import get_current_user
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 
