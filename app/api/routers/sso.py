@@ -6,10 +6,10 @@ from app.schemas.public_user_schema import PrivateUserResponseModel
 from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
 from app.api.services.sso_service import SSOService
 
-router = APIRouter(prefix="/api/SSO", tags=["SSO"])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post(
-    "/signup",
+    "/register",
     response_model=ResponseModel[PrivateUserResponseModel],
     summary="SSO: Регистрация пользователя (номер телефона и пароль)",
     status_code=201,
@@ -20,14 +20,14 @@ router = APIRouter(prefix="/api/SSO", tags=["SSO"])
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def sign_up(
+def register(
     model: SingUpRequestModel,
     sso_service: SSOService = Depends(get_sso_service)
 ):
     return sso_service.sign_up(model=model)
 
 @router.post(
-    "/signin",
+    "/login",
     response_model = ResponseModel[PrivateUserResponseModel],
     summary = "SSO: Авторизация пользователя (номер телефона и пароль)",
     responses = {
@@ -37,14 +37,14 @@ def sign_up(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def sign_in(
+def login(
     model: SignInRequestModel,
     sso_service: SSOService = Depends(get_sso_service)
 ):
     return sso_service.sign_in(model=model)
 
 @router.post(
-    "/telegram/signin",
+    "/telegram/login",
     response_model=ResponseModel[PrivateUserResponseModel],
     summary="SSO: Авторизация через Telegram. Если пользователь не зарегистрирован, то он будет зарегистрирован автоматически",
     status_code=201,
