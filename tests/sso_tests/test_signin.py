@@ -14,8 +14,8 @@ class TestAuthLogin:
 
         assert sign_in_response.status_code == 200, \
             f"Ошибка при авторизации пользователя: {sign_in_response.json()}"
-        assert "access_token" in sign_in_response.json()["data"], \
-            f"Ответ должен содержать access_token"
+        assert "session_id" in sign_in_response.json()["data"], \
+            f"Ответ должен содержать session_id"
 
     # Тест авторизации на проверку неверного пароля
     def test_login_wrong_password(self, client: TestClient):

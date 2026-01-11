@@ -16,8 +16,8 @@ class UserRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def get_user_by_access_token(self, access_token: str) -> DBUser:
-        user = self.db.query(DBUser).filter(DBUser.access_token == access_token).first()
+    def get_user_by_sid(self, sid: str) -> DBUser:
+        user = self.db.query(DBUser).filter(DBUser.access_token == sid).first()
 
         if not user:
             raise Unauthorized()
@@ -37,12 +37,11 @@ class UserRepository:
 
         return db_user
 
-    def create_user(self, name: str, phone_number: int, password: str, token: str) -> DBUser:
+    def create_user(self, name: str, phone_number: int, password: str) -> DBUser:
         user_db_model = DBUser(
             name=name,
             phone_number=phone_number,
-            password=password,
-            access_token=token
+            password=password
         )
 
         if self.db is None:

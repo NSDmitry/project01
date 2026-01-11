@@ -21,12 +21,11 @@ class AuthTestFlow:
         response = APIRouter.SSO.sign_up(client, payload)
 
         data = response.json()["data"]
-        access_token = data["access_token"]
-        token_type = data.get("token_type", "Bearer")
+        sid = data["session_id"]
 
         return AuthenticatedUser(
-            sid=access_token,
-            headers={"X-Session-Id": access_token},
+            sid=sid,
+            headers={"X-Session-Id": sid},
             phone_number=data.get("phone_number"),
             user_id=data.get("id"),
         )

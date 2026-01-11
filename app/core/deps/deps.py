@@ -10,6 +10,8 @@ from app.api.services.user_service import UserService
 from app.api.services.book_club_service import BookClubSerivce
 from app.api.services.discussion_service import DiscussionService
 from app.api.services.sso_service import AuthService
+from app.db.repositories.user_session_repository import UserSessionRepository
+from app.api.services.user_session_service import UserSessionService
 
 
 ######## repositories ########
@@ -22,6 +24,9 @@ def get_club_repository(db: Session = Depends(get_db)) -> BookClubRepository:
 
 def get_discussion_repository(db: Session = Depends(get_db)) -> DiscussionRepository:
     return DiscussionRepository(db)
+
+def get_user_session_repository(db: Session = Depends(get_db)):
+    return UserSessionRepository(db)
 
 
 ######## services ########
@@ -51,11 +56,18 @@ def get_discussion_service(
         user_repository=user_repository,
     )
 
+def get_user_session_service(
+    user_session_repository: UserSessionRepository = Depends(get_user_session_repository),
+) -> UserSessionService:
+    return UserSessionService(user_session_repository=user_session_repository)
+
 def get_auth_service(
     user_service: UserService = Depends(get_user_service),
     user_repository: UserRepository = Depends(get_user_repository),
+    user_session_service: UserSessionService = Depends(get_user_session_service),
 ) -> AuthService:
     return AuthService(
         user_service=user_service,
         user_repository=user_repository,
+        user_session_service=user_session_service,
     )
