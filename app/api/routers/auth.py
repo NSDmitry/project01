@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends
+from fastapi.params import Security
+from pydantic import Secret
 
 from app.core.deps.deps import get_auth_service
+from app.core.deps.get_current_user import session_header
 from app.core.models.response_model import ResponseModel
 from app.schemas.public_user_schema import PrivateUserResponseModel
 from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
@@ -42,6 +45,22 @@ def login(
     sso_service: AuthService = Depends(get_auth_service)
 ):
     return sso_service.login(model=model)
+
+@router.post(
+    "/logout",
+    response_model=ResponseModel[None],
+    summary="SSO: Выход из системы (удаление сессии пользователя)",
+    responses={
+        200: {"description": "Успешный выход из системы"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+def logout(
+    sso_service: AuthService = Depends(get_auth_service),
+    sid: str = Security(session_header)
+):
+    return sso_service.logout(sid=sid)
 
 @router.post(
     "/telegram/login",

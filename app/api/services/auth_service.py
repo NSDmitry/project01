@@ -66,6 +66,15 @@ class AuthService:
 
         return ResponseModel.success_response(response)
 
+    def logout(self, sid: str) -> ResponseModel[None]:
+        """
+        Выход из системы (удаление сессии пользователя).
+        :param sid: Идентификатор сессии
+        :return: Сообщение об успешном выходе из системы
+        """
+        self.user_session_service.logout_user_session(sid)
+        return ResponseModel.success_response(None, message="Успешный выход из системы")
+
     def telegram_login(self, model: TelegramSignInRequestModel) -> ResponseModel[PrivateUserResponseModel]:
         db_user = self.user_repository.get_user_by_telegram_id(model.telegram_id)
 

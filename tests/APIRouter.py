@@ -12,6 +12,10 @@ class APIRouter:
         def sign_in(client: TestClient, payload: Dict):
             return client.post("/api/auth/login", json=payload)
 
+        @staticmethod
+        def logout(client: TestClient, headers: Dict):
+            return client.post("/api/auth/logout", headers=headers)
+
     class Users:
         @staticmethod
         def current_user(client: TestClient, headers: Dict = None):
