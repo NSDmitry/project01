@@ -6,11 +6,15 @@ class APIRouter:
     class SSO:
         @staticmethod
         def sign_up(client: TestClient, payload: Dict):
-            return client.post("/api/SSO/signup", json=payload)
+            return client.post("/api/auth/register", json=payload)
 
         @staticmethod
         def sign_in(client: TestClient, payload: Dict):
-            return client.post("/api/SSO/signin", json=payload)
+            return client.post("/api/auth/login", json=payload)
+
+        @staticmethod
+        def logout(client: TestClient, headers: Dict):
+            return client.post("/api/auth/logout", headers=headers)
 
     class Users:
         @staticmethod

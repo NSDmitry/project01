@@ -11,9 +11,6 @@ class UserService:
     def __init__(self, user_repository: UserRepository) -> None:
         self.user_repository = user_repository
 
-    def get_current_user_public_info(self, user: DBUser) -> PublicUserResponseModel:
-        return ResponseModel.success_response(PublicUserResponseModel(**user.to_dict()))
-
     def get_user_by_id(self, user_id: int) -> PublicUserResponseModel:
         db_user: DBUser = self.user_repository.get_user_by_id(user_id)
 

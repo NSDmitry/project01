@@ -1,12 +1,12 @@
 from fastapi.testclient import TestClient
 
 from tests.APIRouter import APIRouter
-from tests.utils.flows.SSOFlow import SSOTestFlow
+from tests.utils.flows.SSOFlow import AuthTestFlow
 
 class TestUserInfo:
     # Тест на получение информации о пользователе
     def test_get_user_info(self, client: TestClient):
-        auth_data = SSOTestFlow.sign_up_user(client)
+        auth_data = AuthTestFlow.register(client)
         response = APIRouter.Users.current_user(client, auth_data.headers)
 
         assert response.status_code == 200, f"Ошибка: {response.json()}"

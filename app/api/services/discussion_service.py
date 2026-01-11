@@ -28,7 +28,7 @@ class DiscussionService:
     def get_disscussions(self, book_club_id: int) -> ResponseModel[List[DisscussionResponseModel]]:
         """
         Получение всех обсуждений книжного клуба.
-        :param book_club_id: id книжного клуба
+        :param book_club_id: Id книжного клуба
         :return: Список обсуждений
         """
         club = self.book_club_repository.get_book_club(club_id=book_club_id)
@@ -43,7 +43,7 @@ class DiscussionService:
         :param model: DiscussionCreateRequestModel
         :return: ResponseModel[DisscussionResponseModel]
         """
-        user = self.user_repository.get_user_by_access_token(access_token)
+        user = self.user_repository.get_user_by_id(user.id)
         db_book_club = self.book_club_repository.get_book_club(model.club_id)
 
         if user.id not in db_book_club.members_ids:

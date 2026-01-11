@@ -16,7 +16,7 @@ class PrivateUserResponseModel(BaseModel):
     name: str
     phone_number: Optional[int]
     created_at: datetime
-    access_token: str
+    session_id: str
     is_telegram_user: bool
     telegram_id: Optional[int]
 

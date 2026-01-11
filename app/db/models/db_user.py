@@ -10,6 +10,5 @@ class DBUser(Base, DBBaseModel):
     name = Column(String, nullable=False)
     phone_number = Column(BigInteger, unique=True, nullable=True)
     password = Column(String, nullable=False)
-    access_token = Column(String, unique=True, nullable=False)
     telegram_id = Column(BigInteger, unique=True, nullable=True)
     is_telegram_user = Column(Boolean, default=False)
