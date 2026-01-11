@@ -20,6 +20,7 @@
 Миграция базы:
 - alembic revision --autogenerate -m "description"
 - alembic upgrade head
+- psql "$DATABASEURL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;" - чтоб не париться с миграцией при локальной разработке
 
 Полезное:
 - формат перемнной в .env DATABASE_URL=postgresql://user:password@host/dbname - логин, пароль, хост и имя базы

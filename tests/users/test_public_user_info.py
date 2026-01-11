@@ -1,12 +1,12 @@
 from fastapi.testclient import TestClient
 
 from tests.APIRouter import APIRouter
-from tests.utils.flows.SSOFlow import SSOTestFlow, AuthenticatedUser
+from tests.utils.flows.SSOFlow import AuthTestFlow, AuthenticatedUser
 
 class TestPublicUserInfo:
     def test_public_user_info(self, client: TestClient):
         # Попытка получить публичную информацию о пользователе
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
 
         user_id = auth_data.user_id
         public_response = APIRouter.Users.public_user_info(client, user_id, headers=auth_data.headers)
@@ -18,11 +18,11 @@ class TestPublicUserInfo:
 
     def test_private_data_in_public_info(self, client: TestClient):
         # Проверка, что приватные данные не возвращаются в публичной информации
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
 
         user_id = auth_data.user_id
 
-        another_auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        another_auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         public_response = APIRouter.Users.public_user_info(client, user_id, another_auth_data.headers)
 
         assert "access_token" not in public_response.json()["data"], \
@@ -38,7 +38,7 @@ class TestPublicUserInfo:
 
     def test_public_info_unauthorized(self, client: TestClient):
         # Попытка получить публичную информацию о пользователе без авторизации
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
 
         response = APIRouter.Users.public_user_info(client, auth_data.user_id)
 

@@ -27,12 +27,11 @@ class DiscussionRepository:
         return discussion
 
     def create_discussion(self, author_id: int, model: DiscussionCreateRequestModel) -> DBDiscussion:
-        new_discussion = DBDiscussion(
-            club_id = model.club_id,
-            author_id = author_id,
-            title = model.title,
-            content = model.content,
-        )
+        new_discussion = DBDiscussion()
+        new_discussion.club_id = model.club_id
+        new_discussion.author_id = author_id
+        new_discussion.title = model.title
+        new_discussion.content = model.content
 
         self.db.add(new_discussion)
         self.db.commit()

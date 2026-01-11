@@ -1,7 +1,7 @@
 import pytest
 from faker import Faker
 from fastapi.testclient import TestClient
-from tests.utils.flows.SSOFlow import AuthenticatedUser, SSOTestFlow
+from tests.utils.flows.SSOFlow import AuthenticatedUser, AuthTestFlow
 from tests.utils.flows.BookclubFlow import BookclubFlow
 from tests.utils.mock_factories.BookclubPayloadFactory import BookclubPayloadFactory
 
@@ -44,7 +44,7 @@ class TestBookclubsCreate:
 
     def test_user_is_owner_of_created_club(self, client: TestClient):
         # Тест на проверку, что пользователь является владельцем созданного клуба
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         response = BookclubFlow.create_bookclub(client, auth_data=auth_data)
 
         assert response.status_code == 201, \
@@ -54,7 +54,7 @@ class TestBookclubsCreate:
 
     def test_user_is_member_of_created_club(self, client: TestClient):
         # Тест на проверку, что пользователь является участником созданного клуба
-        auth_data: AuthenticatedUser = SSOTestFlow.sign_up_user(client)
+        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
         response = BookclubFlow.create_bookclub(client, auth_data)
 
         assert response.status_code == 201, \

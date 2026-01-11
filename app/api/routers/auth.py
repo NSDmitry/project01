@@ -1,15 +1,18 @@
 from fastapi import APIRouter, Depends
+from fastapi.params import Security
+from pydantic import Secret
 
-from app.core.deps.deps import get_sso_service
+from app.core.deps.deps import get_auth_service
+from app.core.deps.get_current_user import session_header
 from app.core.models.response_model import ResponseModel
 from app.schemas.public_user_schema import PrivateUserResponseModel
 from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
-from app.api.services.sso_service import SSOService
+from app.api.services.auth_service import AuthService
 
-router = APIRouter(prefix="/api/SSO", tags=["SSO"])
+router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post(
-    "/signup",
+    "/register",
     response_model=ResponseModel[PrivateUserResponseModel],
     summary="SSO: Регистрация пользователя (номер телефона и пароль)",
     status_code=201,
@@ -20,14 +23,14 @@ router = APIRouter(prefix="/api/SSO", tags=["SSO"])
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def sign_up(
+def register(
     model: SingUpRequestModel,
-    sso_service: SSOService = Depends(get_sso_service)
+    sso_service: AuthService = Depends(get_auth_service)
 ):
-    return sso_service.sign_up(model=model)
+    return sso_service.register(model=model)
 
 @router.post(
-    "/signin",
+    "/login",
     response_model = ResponseModel[PrivateUserResponseModel],
     summary = "SSO: Авторизация пользователя (номер телефона и пароль)",
     responses = {
@@ -37,14 +40,30 @@ def sign_up(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def sign_in(
+def login(
     model: SignInRequestModel,
-    sso_service: SSOService = Depends(get_sso_service)
+    sso_service: AuthService = Depends(get_auth_service)
 ):
-    return sso_service.sign_in(model=model)
+    return sso_service.login(model=model)
 
 @router.post(
-    "/telegram/signin",
+    "/logout",
+    response_model=ResponseModel[None],
+    summary="SSO: Выход из системы (удаление сессии пользователя)",
+    responses={
+        200: {"description": "Успешный выход из системы"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+def logout(
+    sso_service: AuthService = Depends(get_auth_service),
+    sid: str = Security(session_header)
+):
+    return sso_service.logout(sid=sid)
+
+@router.post(
+    "/telegram/login",
     response_model=ResponseModel[PrivateUserResponseModel],
     summary="SSO: Авторизация через Telegram. Если пользователь не зарегистрирован, то он будет зарегистрирован автоматически",
     status_code=201,
@@ -57,6 +76,6 @@ def sign_in(
 )
 def telegram_sign_in(
     model: TelegramSignInRequestModel,
-    sso_service: SSOService = Depends(get_sso_service)
+    sso_service: AuthService = Depends(get_auth_service)
 ):
-    return sso_service.telegram_sing_in(model=model)
+    return sso_service.telegram_login(model=model)

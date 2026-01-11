@@ -24,10 +24,9 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
     }
 )
 def get_current_user_public_info(
-    user: DBUser = Depends(get_current_user),
-    user_service: UserService = Depends(get_user_service)
+    user: DBUser = Depends(get_current_user)
 ):
-    return user_service.get_current_user_public_info(user)
+    return ResponseModel.success_response(PublicUserResponseModel(**user.to_dict()))
 
 @router.get(
     "/public",
@@ -46,7 +45,7 @@ def get_current_user_public_info(
 )
 def get_user_by_id(
     user_id: int,
-    user: DBUser = Depends(get_current_user),
+    _: DBUser = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)
 ):
     return user_service.get_user_by_id(user_id)

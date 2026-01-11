@@ -3,7 +3,6 @@ import logging
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db.database import get_db
 from app.db.models.db_user import DBUser
 from app.core.errors.errors import NotFound, Conflict, InternalServerError, Unauthorized
 
@@ -16,8 +15,8 @@ class UserRepository:
     def __init__(self, db: Session) -> None:
         self.db = db
 
-    def get_user_by_access_token(self, access_token: str) -> DBUser:
-        user = self.db.query(DBUser).filter(DBUser.access_token == access_token).first()
+    def get_user_by_sid(self, sid: str) -> DBUser:
+        user = self.db.query(DBUser).filter(DBUser.access_token == sid).first()
 
         if not user:
             raise Unauthorized()
@@ -37,13 +36,11 @@ class UserRepository:
 
         return db_user
 
-    def create_user(self, name: str, phone_number: int, password: str, token: str) -> DBUser:
-        user_db_model = DBUser(
-            name=name,
-            phone_number=phone_number,
-            password=password,
-            access_token=token
-        )
+    def create_user(self, name: str, phone_number: int, password: str) -> DBUser:
+        user_db_model = DBUser()
+        user_db_model.name = name
+        user_db_model.phone_number = phone_number
+        user_db_model.password = password
 
         if self.db is None:
             raise InternalServerError(errors=["Соединение с базой данных не установлено."])
@@ -67,14 +64,12 @@ class UserRepository:
 
         return db_user
 
-    def create_user_by_telegram(self, telegram_id: int, password: str, name: str, token: str) -> DBUser:
-        user_db_model = DBUser(
-            name=name,
-            password=password,
-            telegram_id=telegram_id,
-            access_token=token,
-            is_telegram_user=True
-        )
+    def create_user_by_telegram(self, telegram_id: int, password: str, name: str) -> DBUser:
+        user_db_model = DBUser()
+        user_db_model.name = name
+        user_db_model.password = password
+        user_db_model.telegram_id = telegram_id
+        user_db_model.is_telegram_user = True
 
         try:
             self.db.add(user_db_model)

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 
 from app.api.services.discussion_service import DiscussionService
 from app.core.deps.deps import get_discussion_service
-from app.core.deps.get_current_user import oauth2_scheme, get_current_user
+from app.core.deps.get_current_user import get_current_user
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
 from app.schemas.discussions_schema import DisscussionResponseModel, DiscussionCreateRequestModel, \

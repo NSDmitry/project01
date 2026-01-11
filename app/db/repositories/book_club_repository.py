@@ -4,7 +4,6 @@ from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.orm import Session
 
 from app.core.errors.errors import NotFound, Forbidden, Conflict
-from app.db.database import get_db
 from app.db.models.db_user import DBUser
 from app.db.models.db_book_club import DBBookClub
 from app.schemas.book_club_schema import CreateBookClubRequestModel
@@ -17,7 +16,11 @@ class BookClubRepository:
         self.db = db
 
     def create_book_blub(self, owner: DBUser, model: CreateBookClubRequestModel) -> DBBookClub:
-        new_book_club = DBBookClub(name=model.name, description=model.description, owner_id=owner.id, members_ids=[owner.id])
+        new_book_club = DBBookClub()
+        new_book_club.name = model.name
+        new_book_club.description = model.description
+        new_book_club.owner_id = owner.id
+        new_book_club.members_ids = [owner.id]
 
         self.db.add(new_book_club)
         self.db.commit()

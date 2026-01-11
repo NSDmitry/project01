@@ -1,7 +1,7 @@
 from starlette.testclient import TestClient
 
 from tests.APIRouter import APIRouter
-from tests.utils.flows.SSOFlow import AuthenticatedUser, SSOTestFlow
+from tests.utils.flows.SSOFlow import AuthenticatedUser, AuthTestFlow
 from tests.utils.mock_factories.BookclubPayloadFactory import BookclubPayloadFactory
 
 class BookclubFlow:
@@ -11,7 +11,7 @@ class BookclubFlow:
         # Если auth_data не передан, то создаем нового пользователя
 
         if auth_data is None:
-            auth_data = SSOTestFlow.sign_up_user(client)
+            auth_data = AuthTestFlow.register(client)
 
         if payload is None:
             payload = BookclubPayloadFactory.create_bookclub_payload()
