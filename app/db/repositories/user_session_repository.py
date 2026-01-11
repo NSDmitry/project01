@@ -10,17 +10,16 @@ class UserSessionRepository:
         self.db = db
 
     def create_user_session(self, user_id: int, sid_hash: str, expires_at: DateTime) -> DBUserSession:
-        user_session = DBUserSession(
-            user_id=user_id,
-            sid_hash=sid_hash,
-            expires_at=expires_at
-        )
+        session = DBUserSession()
+        session.user_id = user_id
+        session.sid_hash = sid_hash
+        session.expires_at = expires_at
 
-        self.db.add(user_session)
+        self.db.add(session)
         self.db.commit()
-        self.db.refresh(user_session)
+        self.db.refresh(session)
 
-        return user_session
+        return session
 
     def get_user_session(self, sid_hash: str) -> DBUserSession:
         return self.db.query(DBUserSession).filter(DBUserSession.sid_hash == sid_hash).first()

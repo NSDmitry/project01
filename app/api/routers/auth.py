@@ -4,7 +4,7 @@ from app.core.deps.deps import get_auth_service
 from app.core.models.response_model import ResponseModel
 from app.schemas.public_user_schema import PrivateUserResponseModel
 from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
-from app.api.services.sso_service import AuthService
+from app.api.services.auth_service import AuthService
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 

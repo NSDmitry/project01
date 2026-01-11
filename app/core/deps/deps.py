@@ -9,7 +9,7 @@ from app.db.repositories.discussion_repository import DiscussionRepository
 from app.api.services.user_service import UserService
 from app.api.services.book_club_service import BookClubSerivce
 from app.api.services.discussion_service import DiscussionService
-from app.api.services.sso_service import AuthService
+from app.api.services.auth_service import AuthService
 from app.db.repositories.user_session_repository import UserSessionRepository
 from app.api.services.user_session_service import UserSessionService
 

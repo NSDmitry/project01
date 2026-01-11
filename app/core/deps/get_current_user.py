@@ -3,7 +3,7 @@ from fastapi.params import Depends
 from fastapi.security import APIKeyHeader
 
 from app.api.services.user_session_service import UserSessionService
-from app.core.deps.deps import get_user_repository, get_user_session_repository, get_user_session_service
+from app.core.deps.deps import get_user_repository, get_user_session_service
 from app.core.errors.errors import Unauthorized
 from app.db.models.db_user import DBUser
 from app.db.repositories.user_repository import UserRepository

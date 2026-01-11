@@ -28,7 +28,7 @@ class DiscussionService:
     def get_disscussions(self, book_club_id: int) -> ResponseModel[List[DisscussionResponseModel]]:
         """
         Получение всех обсуждений книжного клуба.
-        :param book_club_id: id книжного клуба
+        :param book_club_id: Id книжного клуба
         :return: Список обсуждений
         """
         club = self.book_club_repository.get_book_club(club_id=book_club_id)
