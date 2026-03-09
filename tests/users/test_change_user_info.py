@@ -72,3 +72,22 @@ class TestChangeUserInfo:
             f"Номер телефона был изменен. Ожидалось: {phone_number}, получено: {response.json()['phone_number']}"
         assert response.json()["data"]["name"] == new_user_name, \
             f"Имя пользователя не совпадает с ожидаемым. Ожидалось: {new_user_name}, получено: {response.json()['name']}"
+
+    def test_change_phone_to_existing_phone_conflict(self, client: TestClient):
+        first_user = AuthTestFlow.register(client)
+        second_user_payload = AuthMockFactory.make_register_payload()
+        second_register_response = APIRouter.SSO.sign_up(client, second_user_payload)
+        second_user_phone = second_register_response.json()["data"]["phone_number"]
+
+        payload = UsersPayloadFactory.make_change_user_info_payload("new name", second_user_phone)
+        response = APIRouter.Users.change_current_user_info(client, payload, first_user.headers)
+
+        assert response.status_code == 409, \
+            f"Смена на занятый номер телефона должна завершаться 409: {response.json()}"
+
+    def test_change_user_info_unauthorized(self, client: TestClient):
+        payload = UsersPayloadFactory.make_change_user_info_payload("new name", AuthMockFactory.generate_random_phone_number())
+        response = APIRouter.Users.change_current_user_info(client, payload, headers={})
+
+        assert response.status_code == 401, \
+            f"Изменение данных без авторизации должно возвращать 401: {response.json()}"

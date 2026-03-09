@@ -38,3 +38,17 @@ class TestAuthLogin:
 
         assert sign_in_response.status_code == 404, \
             f"Пользователь должен получить ошибку, что номер телефона не найден: {sign_in_response.json()}"
+
+    def test_login_wrong_password_should_not_create_valid_session(self, client: TestClient):
+        sign_up_payload = AuthMockFactory.make_register_payload()
+        APIRouter.SSO.sign_up(client, sign_up_payload)
+
+        wrong_password_payload = AuthMockFactory.make_login_payload(sign_up_payload["phone_number"], "wrong_password")
+        sign_in_response = APIRouter.SSO.sign_in(client, wrong_password_payload)
+        assert sign_in_response.status_code == 401, \
+            f"При неверном пароле ожидается 401: {sign_in_response.json()}"
+
+        # После неуспешного логина доступ к текущему пользователю без валидной сессии должен быть запрещен.
+        current_user_response = APIRouter.Users.current_user(client)
+        assert current_user_response.status_code == 401, \
+            f"Неуспешный логин не должен авторизовывать пользователя: {current_user_response.json()}"

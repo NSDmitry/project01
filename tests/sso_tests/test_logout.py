@@ -29,5 +29,15 @@ class TestAuthLogout:
         assert logout_response.status_code == 200, \
             f"Ошибка при выходе из системы: {logout_response.json()}"
         second_logout_response = APIRouter.SSO.logout(client, {"X-Session-Id": session_id})
-        assert second_logout_response.status_code == 404, \
-            f"Повторный выход из системы не должен быть успешным: {second_logout_response.json()}"
+        assert second_logout_response.status_code == 200, \
+            f"Повторный выход из системы должен быть идемпотентным: {second_logout_response.json()}"
+
+    def test_logout_without_session_header(self, client: TestClient):
+        response = APIRouter.SSO.logout(client, {})
+        assert response.status_code == 401, \
+            f"Без X-Session-Id должен возвращаться 401: {response.json()}"
+
+    def test_logout_with_invalid_session_header_is_idempotent(self, client: TestClient):
+        response = APIRouter.SSO.logout(client, {"X-Session-Id": "invalid-session-id"})
+        assert response.status_code == 200, \
+            f"Logout с несуществующей сессией должен быть идемпотентным: {response.json()}"

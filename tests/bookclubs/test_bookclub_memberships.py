@@ -110,3 +110,19 @@ class TestBookclubMemberships:
             f"Ошибка при выходе из клуба владельцем: {leave_response.json()}"
         assert auth_data.user_id not in leave_response.json()["data"]["members_ids"], \
             "Владелец клуба не был удален из списка участников клуба"
+
+    def test_user_cannot_join_bookclub_unauthorized(self, client: TestClient):
+        create_response = BookclubFlow.create_bookclub(client)
+        club_id = create_response.json()["data"]["id"]
+
+        response = APIRouter.BookClubs.join_book_club(client, club_id, headers={})
+        assert response.status_code == 401, \
+            f"Вступление в клуб без авторизации должно возвращать 401: {response.json()}"
+
+    def test_user_cannot_leave_bookclub_unauthorized(self, client: TestClient):
+        create_response = BookclubFlow.create_bookclub(client)
+        club_id = create_response.json()["data"]["id"]
+
+        response = APIRouter.BookClubs.leave_book_club(client, club_id, headers={})
+        assert response.status_code == 401, \
+            f"Выход из клуба без авторизации должен возвращать 401: {response.json()}"

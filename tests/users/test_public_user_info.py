@@ -35,6 +35,8 @@ class TestPublicUserInfo:
             f"Публичная информация должна содержать номер телефона пользователя"
         assert "id" in public_response.json()["data"], \
             f"Публичная информация должна содержать ID пользователя"
+        assert "session_id" not in public_response.json()["data"], \
+            f"Публичная информация не должна содержать session_id"
 
     def test_public_info_unauthorized(self, client: TestClient):
         # Попытка получить публичную информацию о пользователе без авторизации

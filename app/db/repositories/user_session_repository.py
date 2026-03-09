@@ -1,7 +1,6 @@
 from sqlalchemy import DateTime
 from sqlalchemy.orm import Session
 
-from app.core.errors.errors import NotFound
 from app.db.models.db_user_session import DBUserSession
 
 
@@ -29,8 +28,6 @@ class UserSessionRepository:
         if session:
             self.db.delete(session)
             self.db.commit()
-        else:
-            raise NotFound("Сессия не найдена")
 
     def get_user_session(self, sid_hash: str) -> DBUserSession:
         return self.db.query(DBUserSession).filter(DBUserSession.sid_hash == sid_hash).first()

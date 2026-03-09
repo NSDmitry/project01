@@ -49,10 +49,10 @@ def login(
 @router.post(
     "/logout",
     response_model=ResponseModel[None],
-    summary="SSO: Выход из системы (удаление сессии пользователя)",
+    summary="SSO: Выход из системы (завершение текущей сессии по X-Session-Id)",
     responses={
-        200: {"description": "Успешный выход из системы"},
-        401: {"description": "Ошибка авторизации (неверный токен)"},
+        200: {"description": "Сессия завершена (если была активна)"},
+        401: {"description": "Ошибка авторизации (отсутствует или невалиден X-Session-Id)"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
