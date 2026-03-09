@@ -6,6 +6,8 @@ from app.settings import settings
 from fastapi.testclient import TestClient
 from app.main import app
 
+from tests.support.api import ApiClient
+
 # Подключаемся к тестовой БД
 engine = create_engine(settings.database_url)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -32,6 +34,11 @@ def client(db):
     app.dependency_overrides[get_db] = override_get_db
     yield TestClient(app)
     app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def api(client: TestClient) -> ApiClient:
+    return ApiClient(client)
 
 @pytest.fixture(autouse=True)
 def clear_db(db):

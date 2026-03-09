@@ -1,19 +1,14 @@
-from fastapi.testclient import TestClient
+from tests.support.assertions import assert_status_code
+from tests.support.flows import AuthFlow
 
-from tests.APIRouter import APIRouter
-from tests.utils.flows.SSOFlow import AuthTestFlow
 
-class TestUserInfo:
-    # Тест на получение информации о пользователе
-    def test_get_user_info(self, client: TestClient):
-        auth_data = AuthTestFlow.register(client)
-        response = APIRouter.Users.current_user(client, auth_data.headers)
+class TestCurrentUser:
+    def test_current_user_returns_authenticated_user(self, api):
+        auth = AuthFlow.register(api)
+        response = api.current_user(auth.headers)
 
-        assert response.status_code == 200, f"Ошибка: {response.json()}"
-        assert response.json()["data"]["id"] == auth_data.user_id, f"Id пользователя не совпадает с ожидаемым"
+        assert_status_code(response, 200)
+        assert response.json()["data"]["id"] == auth.user_id
 
-    def test_unauthorized_access(self, client: TestClient):
-        # Попытка получить информацию о пользователе без авторизации
-        response = APIRouter.Users.current_user(client)
-
-        assert response.status_code == 401, f"Ошибка: {response.status_code}: {response.json()}"
+    def test_current_user_requires_authorization(self, api):
+        assert_status_code(api.current_user(), 401)

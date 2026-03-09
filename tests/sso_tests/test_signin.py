@@ -1,40 +1,47 @@
-from fastapi.testclient import TestClient
+from tests.support.assertions import assert_status_code
+from tests.support.factories import AuthFactory
 
-from tests.APIRouter import APIRouter
-from tests.utils.mock_factories.AuthMockFactory import AuthMockFactory
 
 class TestAuthLogin:
-    # Тест на авторизацию
-    def test_success_login(self, client: TestClient):
-        sign_up_payload = AuthMockFactory.make_register_payload()
-        APIRouter.SSO.sign_up(client, sign_up_payload)
+    def test_login_returns_session_id(self, api):
+        signup_payload = AuthFactory.register_payload()
+        api.register(signup_payload)
 
-        sign_in_payload = AuthMockFactory.make_login_payload(sign_up_payload["phone_number"], sign_up_payload["password"])
-        sign_in_response = APIRouter.SSO.sign_in(client, sign_in_payload)
+        login_payload = AuthFactory.login_payload(
+            phone_number=signup_payload["phone_number"],
+            password=signup_payload["password"],
+        )
+        response = api.login(login_payload)
 
-        assert sign_in_response.status_code == 200, \
-            f"Ошибка при авторизации пользователя: {sign_in_response.json()}"
-        assert "session_id" in sign_in_response.json()["data"], \
-            f"Ответ должен содержать session_id"
+        assert_status_code(response, 200)
+        assert "session_id" in response.json()["data"]
 
-    # Тест авторизации на проверку неверного пароля
-    def test_login_wrong_password(self, client: TestClient):
-        sign_up_payload = AuthMockFactory.make_register_payload()
-        APIRouter.SSO.sign_up(client, sign_up_payload)
+    def test_login_rejects_wrong_password(self, api):
+        signup_payload = AuthFactory.register_payload()
+        api.register(signup_payload)
 
-        wrong_password_payload = AuthMockFactory.make_login_payload(sign_up_payload["phone_number"], "wrong_password")
-        sign_in_response = APIRouter.SSO.sign_in(client, wrong_password_payload)
+        response = api.login(
+            AuthFactory.login_payload(
+                phone_number=signup_payload["phone_number"],
+                password="wrong_password",
+            )
+        )
+        assert_status_code(response, 401)
 
-        assert sign_in_response.status_code == 401, \
-            f"Пользователь должен получить ошибку, что пароль не верный: {sign_in_response.json()}"
+    def test_login_rejects_unknown_phone_number(self, api):
+        api.register(AuthFactory.register_payload())
+        response = api.login(AuthFactory.login_payload(phone_number="12312312", password="123456"))
+        assert_status_code(response, 404)
 
-    # Тест авторизации на проверку неверного номера телефона
-    def test_login_wrong_phone_number(self, client: TestClient):
-        sign_up_payload = AuthMockFactory.make_register_payload()
-        APIRouter.SSO.sign_up(client, sign_up_payload)
+    def test_failed_login_does_not_authorize_user(self, api):
+        signup_payload = AuthFactory.register_payload()
+        api.register(signup_payload)
 
-        wrong_phone_number_payload = AuthMockFactory.make_login_payload("12312312", sign_up_payload["password"])
-        sign_in_response = APIRouter.SSO.sign_in(client, wrong_phone_number_payload)
-
-        assert sign_in_response.status_code == 404, \
-            f"Пользователь должен получить ошибку, что номер телефона не найден: {sign_in_response.json()}"
+        response = api.login(
+            AuthFactory.login_payload(
+                phone_number=signup_payload["phone_number"],
+                password="wrong_password",
+            )
+        )
+        assert_status_code(response, 401)
+        assert_status_code(api.current_user(), 401)
