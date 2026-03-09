@@ -1,46 +1,25 @@
-from fastapi.testclient import TestClient
-
-from tests.APIRouter import APIRouter
-from tests.utils.flows.SSOFlow import AuthTestFlow, AuthenticatedUser
+from tests.support.assertions import assert_status_code
+from tests.support.flows import AuthFlow
 
 class TestPublicUserInfo:
-    def test_public_user_info(self, client: TestClient):
-        # Попытка получить публичную информацию о пользователе
-        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
+    def test_public_user_info_returns_requested_profile(self, api):
+        auth = AuthFlow.register(api)
+        response = api.public_user(auth.user_id, headers=auth.headers)
 
-        user_id = auth_data.user_id
-        public_response = APIRouter.Users.public_user_info(client, user_id, headers=auth_data.headers)
+        assert_status_code(response, 200)
+        assert response.json()["data"]["id"] == auth.user_id
 
-        assert public_response.status_code == 200, \
-            f"Ошибка: {public_response.json()}"
-        assert public_response.json()["data"]["id"] == user_id, \
-            f"ИД пользователя в публичной информации не совпадает с ожидаемым"
+    def test_public_user_info_hides_private_fields(self, api):
+        auth = AuthFlow.register(api)
+        another_auth = AuthFlow.register(api)
+        response = api.public_user(auth.user_id, headers=another_auth.headers)
+        data = response.json()["data"]
 
-    def test_private_data_in_public_info(self, client: TestClient):
-        # Проверка, что приватные данные не возвращаются в публичной информации
-        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
+        assert "access_token" not in data
+        assert "password" not in data
+        assert "session_id" not in data
+        assert {"id", "name", "phone_number"}.issubset(data.keys())
 
-        user_id = auth_data.user_id
-
-        another_auth_data: AuthenticatedUser = AuthTestFlow.register(client)
-        public_response = APIRouter.Users.public_user_info(client, user_id, another_auth_data.headers)
-
-        assert "access_token" not in public_response.json()["data"], \
-            f"Публичная информация не должна содержать access_token"
-        assert "password" not in public_response.json()["data"], \
-            f"Публичная информация не должна содержать пароль"
-        assert "name" in public_response.json()["data"], \
-            f"Публичная информация должна содержать имя пользователя"
-        assert "phone_number" in public_response.json()["data"], \
-            f"Публичная информация должна содержать номер телефона пользователя"
-        assert "id" in public_response.json()["data"], \
-            f"Публичная информация должна содержать ID пользователя"
-
-    def test_public_info_unauthorized(self, client: TestClient):
-        # Попытка получить публичную информацию о пользователе без авторизации
-        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
-
-        response = APIRouter.Users.public_user_info(client, auth_data.user_id)
-
-        assert response.status_code == 401, \
-            f"Ошибка: {response.status_code}: {response.json()}"
+    def test_public_user_info_requires_authorization(self, api):
+        auth = AuthFlow.register(api)
+        assert_status_code(api.public_user(auth.user_id), 401)

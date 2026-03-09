@@ -54,24 +54,27 @@ class AuthService:
         if db_user is None:
             raise NotFound(errors=["Пользователь не найден"])
 
+        if not self._verify_password(model.password, db_user.password):
+            raise Unauthorized(errors=["Неверный пароль"])
+
         sid = self.user_session_service.create_user_session(db_user.id)
 
         if not sid:
             raise BadRequest(errors=["Не удалось создать сессию пользователя"])
 
-        if not self._verify_password(model.password, db_user.password):
-            raise Unauthorized(errors=["Неверный пароль"])
-
         response = self._make_auth_response(db_user, sid)
 
         return ResponseModel.success_response(response)
 
-    def logout(self, sid: str) -> ResponseModel[None]:
+    def logout(self, sid: str | None) -> ResponseModel[None]:
         """
         Выход из системы (удаление сессии пользователя).
         :param sid: Идентификатор сессии
         :return: Сообщение об успешном выходе из системы
         """
+        if not sid:
+            raise Unauthorized(errors=["Missing session"])
+
         self.user_session_service.logout_user_session(sid)
         return ResponseModel.success_response(None, message="Успешный выход из системы")
 

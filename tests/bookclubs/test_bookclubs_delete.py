@@ -1,52 +1,29 @@
-from fastapi.testclient import TestClient
-from tests.utils.flows.SSOFlow import AuthenticatedUser, AuthTestFlow
-from tests.utils.flows.BookclubFlow import BookclubFlow
-from tests.APIRouter import APIRouter
+from tests.support.assertions import assert_status_code
+from tests.support.flows import AuthFlow, BookclubFlow
 
 class TestBookclubsDelete:
-    def test_delete_bookclub(self, client: TestClient):
-        # Тест на удаление клуба
-        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
-        create_response = BookclubFlow.create_bookclub(client, auth_data )
-        club_id = create_response.json()["data"]["id"]
+    def test_delete_bookclub_removes_entity(self, api):
+        auth = AuthFlow.register(api)
+        created = BookclubFlow.create(api, auth=auth)
+        club_id = created.json()["data"]["id"]
 
-        delete_response = APIRouter.BookClubs.delete_book_club(client, club_id, auth_data.headers)
+        response = api.delete_bookclub(club_id, headers=auth.headers)
+        assert_status_code(response, 200)
+        assert response.json()["message"] == "Книжный клуб успешно удален"
+        assert_status_code(api.bookclub(club_id, headers=auth.headers), 404)
 
-        assert delete_response.status_code == 200, \
-            f"Ошибка при удалении клуба: {delete_response.json()}"
-        assert delete_response.json()["message"] == "Книжный клуб успешно удален", \
-            "Сообщение об успешном удалении клуба не совпадает с ожидаемым"
+    def test_delete_bookclub_returns_not_found_for_unknown_id(self, api):
+        auth = AuthFlow.register(api)
+        assert_status_code(api.delete_bookclub(999999, headers=auth.headers), 404)
 
-        get_club_by_id_response = APIRouter.BookClubs.get_book_club_by_id(client, club_id, headers=auth_data.headers)
+    def test_delete_bookclub_requires_authorization(self, api):
+        assert_status_code(api.delete_bookclub(1, headers={}), 401)
 
-        assert get_club_by_id_response.status_code == 404, \
-            f"Клуб должен быть удален, но он все еще существует: {get_club_by_id_response.json()}"
+    def test_delete_bookclub_requires_owner_role(self, api):
+        owner = AuthFlow.register(api)
+        created = BookclubFlow.create(api, auth=owner)
+        outsider = AuthFlow.register(api)
 
-    def test_delete_bookclub_not_found(self, client: TestClient):
-        # Тест на удаление клуба, который не существует
-        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
-        response = APIRouter.BookClubs.delete_book_club(client, club_id=999999, headers=auth_data.headers)
-
-        assert response.status_code == 404, \
-            f"Ожидался статус 404, но получен {response.status_code}: {response.json()}"
-
-    def test_delete_bookclub_unauthorized(self, client: TestClient):
-        # Тест на удаление клуба без авторизации
-        response = APIRouter.BookClubs.delete_book_club(client, club_id=1, headers={})
-
-        assert response.status_code == 401, \
-            f"Ожидался статус 401, но получен {response.status_code}: {response.json()}"
-
-    def test_delete_bookclub_forbidden(self, client: TestClient):
-        # Тест на удаление клуба, когда пользователь не является владельцем
-        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
-        create_response = BookclubFlow.create_bookclub(client, auth_data=auth_data)
-        club_id = create_response.json()["data"]["id"]
-
-        another_user_auth_data: AuthenticatedUser = AuthTestFlow.register(client)
-        response = APIRouter.BookClubs.delete_book_club(client, club_id, another_user_auth_data.headers)
-
-        assert response.status_code == 403, \
-            f"Ожидался статус 403, но получен {response.status_code}: {response.json()}"
-        assert response.json()["message"] == "Пользователь не является владельцем книжного клуба", \
-            f"Сообщение об ошибке не совпадает с ожидаемым: {response.json()}"
+        response = api.delete_bookclub(created.json()["data"]["id"], headers=outsider.headers)
+        assert_status_code(response, 403)
+        assert response.json()["message"] == "Пользователь не является владельцем книжного клуба"

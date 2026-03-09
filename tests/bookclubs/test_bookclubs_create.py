@@ -1,78 +1,58 @@
 import pytest
 from faker import Faker
-from fastapi.testclient import TestClient
-from tests.utils.flows.SSOFlow import AuthenticatedUser, AuthTestFlow
-from tests.utils.flows.BookclubFlow import BookclubFlow
-from tests.utils.mock_factories.BookclubPayloadFactory import BookclubPayloadFactory
+
+from tests.support.assertions import assert_status_code
+from tests.support.factories import BookclubFactory
+from tests.support.flows import AuthFlow, BookclubFlow
 
 faker = Faker()
 
 class TestBookclubsCreate:
-    def test_create_book_club(self, client: TestClient):
-        # Тест на создание клуба
-        payload = BookclubPayloadFactory.create_bookclub_payload()
-        response = BookclubFlow.create_bookclub(client, payload=payload)
+    def test_create_bookclub_returns_created_entity(self, api):
+        payload = BookclubFactory.payload()
+        response = BookclubFlow.create(api, payload=payload)
+        data = response.json()["data"]
 
-        assert response.status_code == 201, \
-            f"Ошибка при создании клуба: {response.json()}"
-        assert response.json()["data"]["name"] == payload["name"], \
-            "Имя клуба не совпадает с ожидаемым"
-        assert response.json()["data"]["description"] == payload["description"], \
-            f"Описание клуба не совпадает с ожидаемым"
+        assert_status_code(response, 201)
+        assert data["name"] == payload["name"]
+        assert data["description"] == payload["description"]
 
     @pytest.mark.parametrize("name",
                              ["", faker.pystr(min_chars=0, max_chars=2), faker.pystr(min_chars=100, max_chars=200)])
-    def test_create_bookc_club__name_validation_error(self, client: TestClient, name):
-        # Тест на валидацию названия при создании клуба с некорректными данными (имя должно быть от 3 до 100 символов)
-        payload = BookclubPayloadFactory.create_bookclub_payload(name=name,
-                                                                 description=faker.pystr(min_chars=3, max_chars=500))
-        response = BookclubFlow.create_bookclub(client, payload=payload)
-
-        assert response.status_code == 409, \
-            f"Ожидался статус 409, но получен {response.status_code}: {response.json()}"
+    def test_create_bookclub_validates_name(self, api, name):
+        payload = BookclubFactory.payload(
+            name=name,
+            description=faker.pystr(min_chars=3, max_chars=500),
+        )
+        assert_status_code(BookclubFlow.create(api, payload=payload), 409)
 
     @pytest.mark.parametrize("description",
                              ["", faker.pystr(min_chars=0, max_chars=2), faker.pystr(min_chars=501, max_chars=1000)])
-    def test_create_bookc_club__description_validation_error(self, client: TestClient, description):
-        # Тест на валидацию описания при создании клуба с некорректными данными (описание должно быть от 3 до 500 символов)
-        payload = BookclubPayloadFactory.create_bookclub_payload(name=faker.pystr(min_chars=3, max_chars=100),
-                                                                 description=description)
-        response = BookclubFlow.create_bookclub(client, payload=payload)
+    def test_create_bookclub_validates_description(self, api, description):
+        payload = BookclubFactory.payload(
+            name=faker.pystr(min_chars=3, max_chars=100),
+            description=description,
+        )
+        assert_status_code(BookclubFlow.create(api, payload=payload), 409)
 
-        assert response.status_code == 409, \
-            f"Ожидался статус 409, но получен {response.status_code}: {response.json()}"
+    def test_create_bookclub_assigns_owner(self, api):
+        auth = AuthFlow.register(api)
+        response = BookclubFlow.create(api, auth=auth)
 
-    def test_user_is_owner_of_created_club(self, client: TestClient):
-        # Тест на проверку, что пользователь является владельцем созданного клуба
-        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
-        response = BookclubFlow.create_bookclub(client, auth_data=auth_data)
+        assert_status_code(response, 201)
+        assert response.json()["data"]["owner_id"] == auth.user_id
 
-        assert response.status_code == 201, \
-            f"Ошибка при создании клуба: {response.json()}"
-        assert response.json()["data"]["owner_id"] == auth_data.user_id, \
-            f"ID владельца клуба не совпадает с ожидаемым"
+    def test_create_bookclub_adds_owner_to_members(self, api):
+        auth = AuthFlow.register(api)
+        response = BookclubFlow.create(api, auth=auth)
 
-    def test_user_is_member_of_created_club(self, client: TestClient):
-        # Тест на проверку, что пользователь является участником созданного клуба
-        auth_data: AuthenticatedUser = AuthTestFlow.register(client)
-        response = BookclubFlow.create_bookclub(client, auth_data)
+        assert_status_code(response, 201)
+        assert auth.user_id in response.json()["data"]["members_ids"]
 
-        assert response.status_code == 201, \
-            f"Ошибка при создании клуба: {response.json()}"
-        assert auth_data.user_id in response.json()["data"]["members_ids"], \
-            f"ID владельца клуба должен быть в списке участников"
+    def test_create_bookclub_rejects_duplicate_name(self, api):
+        payload = BookclubFactory.payload(name=faker.pystr(min_chars=4, max_chars=99))
+        assert_status_code(BookclubFlow.create(api, payload=payload), 201)
 
-    def test_create_bookclub__with_existing_name(self, client: TestClient):
-        # Тест на создание клуба с уже существующим именем
-        payload = BookclubPayloadFactory.create_bookclub_payload(name=faker.pystr(min_chars=4, max_chars=99))
-        response = BookclubFlow.create_bookclub(client, payload=payload)
-
-        assert response.status_code == 201, \
-            f"Ошибка при создании клуба: {response.json()}"
-
-        response2 = BookclubFlow.create_bookclub(client, payload=payload)
-
-        assert response2.status_code == 409, \
-            f"Ожидался статус 409, но получен {response.status_code}: {response.json()}"
-        assert response2.json()["message"] == "Клуб с таким названием уже существует", \
-            f"Сообщение об ошибке не совпадает с ожидаемым: {response2.json()}"
+        response = BookclubFlow.create(api, payload=payload)
+        assert_status_code(response, 409)
+        assert response.json()["message"] == "Клуб с таким названием уже существует"

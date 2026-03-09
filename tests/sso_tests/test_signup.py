@@ -1,40 +1,33 @@
 import pytest
-from fastapi.testclient import TestClient
 
-from tests.APIRouter import APIRouter
-from tests.utils.mock_factories.AuthMockFactory import AuthMockFactory
+from tests.support.assertions import assert_contains_keys, assert_status_code
+from tests.support.factories import AuthFactory
+
 
 class TestSignUp:
-    # Тест на регистрацию пользователя
-    def test_sign_up(self, client: TestClient):
-        response = APIRouter.SSO.sign_up(client, AuthMockFactory.make_register_payload())
+    def test_register_returns_created_user(self, api):
+        response = api.register(AuthFactory.register_payload())
+        assert_status_code(response, 201)
 
-        assert response.status_code == 201, f"Ошибка при регистрации пользователя: {response.json()}"
-
-    # Тест на проверку полей после регистрации
-    def test_sign_up_fields(self, client: TestClient):
-        payload = AuthMockFactory.make_register_payload()
-        response = APIRouter.SSO.sign_up(client, payload)
+    def test_register_returns_expected_fields(self, api):
+        payload = AuthFactory.register_payload()
+        response = api.register(payload)
         data = response.json()["data"]
 
-        assert data["phone_number"] == int(payload["phone_number"]), \
-            f"Номер телефона не совпадает: {data['phone_number']} != {payload['phone_number']}"
-        assert data["name"] == payload["name"], \
-            f"Имя пользователя не совпадает: {data['name']} != {payload['name']}"
+        assert_contains_keys(data, {"id", "name", "phone_number", "session_id", "created_at"})
+        assert data["phone_number"] == int(payload["phone_number"])
+        assert data["name"] == payload["name"]
 
-    # Тест на проверку, что нельзя зарегистрировать пользователя с уже существующим номером телефона
-    def test_sign_up_exist(self, client: TestClient):
-        payload = AuthMockFactory.make_register_payload()
-        APIRouter.SSO.sign_up(client, payload)
+    def test_register_rejects_existing_phone_number(self, api):
+        payload = AuthFactory.register_payload()
+        api.register(payload)
 
-        response = APIRouter.SSO.sign_up(client, payload)
-        assert response.status_code == 409, \
-            f"Нельзя зарегистрировать пользователя с уже существующим номером телефона: {response.json()}"
+        response = api.register(payload)
+        assert_status_code(response, 409)
 
-    # Тест на валидацию номера телефона
     @pytest.mark.parametrize("invalid_phone", ["test", "-1", 123.4, 112312312312312312])
-    def test_sign_up_phone_number(self, client: TestClient, invalid_phone):
-        payload = AuthMockFactory.make_register_payload(phone_number=invalid_phone)
-        response = APIRouter.SSO.sign_up(client, payload)
+    def test_register_validates_phone_number(self, api, invalid_phone):
+        payload = AuthFactory.register_payload(phone_number=invalid_phone)
+        response = api.register(payload)
 
-        assert response.status_code == 422
+        assert_status_code(response, 422)
