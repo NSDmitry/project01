@@ -27,6 +27,9 @@ class ApiClient:
     def update_user(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.put("/api/users", json=payload, headers=headers)
 
+    def change_password(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.put("/api/users/password", json=payload, headers=headers)
+
     def create_bookclub(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.post("/api/bookclubs", json=payload, headers=headers)
 

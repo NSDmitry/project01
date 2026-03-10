@@ -45,3 +45,25 @@ class TestAuthLogin:
         )
         assert_status_code(response, 401)
         assert_status_code(api.current_user(), 401)
+
+    def test_login_accepts_updated_password(self, api):
+        signup_payload = AuthFactory.register_payload(password="ValidPass1")
+        auth_response = api.register(signup_payload)
+        headers = {"X-Session-Id": auth_response.json()["data"]["session_id"]}
+
+        api.change_password(
+            {
+                "current_password": "ValidPass1",
+                "new_password": "NewValidPass1",
+            },
+            headers=headers,
+        )
+
+        assert_status_code(
+            api.login(AuthFactory.login_payload(phone_number=signup_payload["phone_number"], password="ValidPass1")),
+            401,
+        )
+        assert_status_code(
+            api.login(AuthFactory.login_payload(phone_number=signup_payload["phone_number"], password="NewValidPass1")),
+            200,
+        )

@@ -31,3 +31,7 @@ class UserSessionRepository:
 
     def get_user_session(self, sid_hash: str) -> DBUserSession:
         return self.db.query(DBUserSession).filter(DBUserSession.sid_hash == sid_hash).first()
+
+    def delete_all_user_sessions(self, user_id: int):
+        self.db.query(DBUserSession).filter(DBUserSession.user_id == user_id).delete()
+        self.db.commit()

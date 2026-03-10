@@ -31,3 +31,19 @@ class TestSignUp:
         response = api.register(payload)
 
         assert_status_code(response, 422)
+
+    @pytest.mark.parametrize(
+        "invalid_password",
+        [
+            "short1A",
+            "alllowercase1",
+            "ALLUPPERCASE1",
+            "NoDigitsHere",
+            "        ",
+        ],
+    )
+    def test_register_validates_password_policy(self, api, invalid_password):
+        payload = AuthFactory.register_payload(password=invalid_password)
+        response = api.register(payload)
+
+        assert_status_code(response, 400)
