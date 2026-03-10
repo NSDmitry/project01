@@ -19,7 +19,7 @@ class AuthFactory:
         *,
         name: str = "Test User",
         phone_number: str | int | None = None,
-        password: str = "123456",
+        password: str = "ValidPass1",
     ) -> dict[str, str | int]:
         return {
             "name": name,
@@ -41,6 +41,13 @@ class UserFactory:
         return {
             "name": name,
             "phone_number": phone_number,
+        }
+
+    @staticmethod
+    def change_password_payload(*, current_password: str, new_password: str) -> dict[str, str]:
+        return {
+            "current_password": current_password,
+            "new_password": new_password,
         }
 
 

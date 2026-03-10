@@ -91,3 +91,12 @@ class UserRepository:
         self.db.refresh(db_user)
 
         return db_user
+
+    def update_user_password(self, user_id: int, password: str) -> DBUser:
+        db_user = self.get_user_by_id(user_id)
+        db_user.password = password
+
+        self.db.commit()
+        self.db.refresh(db_user)
+
+        return db_user
