@@ -36,6 +36,9 @@ class UserSessionService:
         sid_hash = self._sid_hash(sid)
         self.user_session_repository.delete_user_session(sid_hash)
 
+    def logout_all_user_sessions(self, user_id: int):
+        self.user_session_repository.delete_all_user_sessions(user_id)
+
     @staticmethod
     def _generate_sid() -> str:
         return secrets.token_urlsafe(32)

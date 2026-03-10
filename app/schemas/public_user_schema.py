@@ -23,3 +23,8 @@ class PrivateUserResponseModel(BaseModel):
 class UpdateUserRequestModel(BaseModel):
     name: str
     phone_number: int
+
+
+class ChangePasswordRequestModel(BaseModel):
+    current_password: str
+    new_password: str

@@ -1,4 +1,5 @@
 import uuid
+import re
 import bcrypt
 
 from app.api.services.user_session_service import UserSessionService
@@ -33,6 +34,7 @@ class AuthService:
         """
 
         self.user_service.validate_phone_number(model.phone_number)
+        self.validate_password_policy(model.password)
 
         hashed_password = self._hash_password(model.password)
 
@@ -94,10 +96,28 @@ class AuthService:
                 model.name
             )
 
-            sid = self.user_session_service.create_user_session(db_user.id)
+            sid = self.user_session_service.create_user_session(new_user.id)
             response = self._make_auth_response(new_user, sid)
 
             return ResponseModel.success_response(response)
+
+    def change_password(self, user, current_password: str, new_password: str) -> ResponseModel[None]:
+        if not self._verify_password(current_password, user.password):
+            raise Unauthorized(errors=["Неверный текущий пароль"])
+
+        self.validate_password_policy(new_password)
+
+        if self._verify_password(new_password, user.password):
+            raise BadRequest(errors=["Новый пароль должен отличаться от текущего"])
+
+        hashed_password = self._hash_password(new_password)
+        self.user_repository.update_user_password(user.id, hashed_password)
+        self.user_session_service.logout_all_user_sessions(user.id)
+
+        return ResponseModel.success_response(
+            None,
+            message="Пароль обновлен. Все активные сессии завершены",
+        )
 
     @staticmethod
     def _verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -119,6 +139,21 @@ class AuthService:
         salt = bcrypt.gensalt()
         hashed = bcrypt.hashpw(plain_password.encode('utf-8'), salt)
         return hashed.decode('utf-8')
+
+    @staticmethod
+    def validate_password_policy(password: str) -> None:
+        if len(password) < 8:
+            raise BadRequest(errors=["Пароль должен быть не короче 8 символов"])
+        if len(password) > 128:
+            raise BadRequest(errors=["Пароль должен быть не длиннее 128 символов"])
+        if password.strip() != password or not password.strip():
+            raise BadRequest(errors=["Пароль не должен быть пустым или состоять только из пробелов"])
+        if not re.search(r"[A-Z]", password):
+            raise BadRequest(errors=["Пароль должен содержать хотя бы одну заглавную букву"])
+        if not re.search(r"[a-z]", password):
+            raise BadRequest(errors=["Пароль должен содержать хотя бы одну строчную букву"])
+        if not re.search(r"\d", password):
+            raise BadRequest(errors=["Пароль должен содержать хотя бы одну цифру"])
 
     @staticmethod
     def _make_auth_response(db_user, sid: str) -> PrivateUserResponseModel:
