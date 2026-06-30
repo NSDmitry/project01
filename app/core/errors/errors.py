@@ -29,7 +29,7 @@ class Conflict(APIException):
 
 class UnprocessableEntity(APIException):
     def __init__(self, message="Невозможно обработать запрос", errors=None):
-        super().__init__(message, status.HTTP_422_UNPROCESSABLE_CONTENT, errors)
+        super().__init__(message, status.HTTP_422_UNPROCESSABLE_ENTITY, errors)
 
 
 class InternalServerError(APIException):
