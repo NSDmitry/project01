@@ -22,5 +22,12 @@ AsyncSessionLocal = async_sessionmaker(bind=async_engine, autoflush=False, expir
 
 
 async def get_db() -> AsyncSession:
+    # Граница транзакции - запрос: репозитории только flush-ат, фиксируем здесь
+    # один раз. Любая ошибка (в т.ч. APIException) откатывает всю транзакцию.
     async with AsyncSessionLocal() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise

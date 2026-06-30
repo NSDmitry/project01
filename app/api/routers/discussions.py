@@ -1,42 +1,43 @@
-from typing import List
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.api.services.discussion_service import DiscussionService
 from app.core.deps.deps import get_discussion_service
 from app.core.deps.get_current_user import get_current_user
+from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
-from app.schemas.discussions_schema import DisscussionResponseModel, DiscussionCreateRequestModel, \
+from app.schemas.discussions_schema import DiscussionResponseModel, DiscussionCreateRequestModel, \
     DiscussionUpdateRequestModel
 
-router = APIRouter(prefix="/api/disscussions", tags=["discussions"])
+router = APIRouter(prefix="/api/discussions", tags=["discussions"])
 
 @router.get(
     "/{club_id}",
-    response_model=ResponseModel[List[DisscussionResponseModel]],
-    summary="Получение всех обсуждений книжного клуба",
+    response_model=ResponseModel[Page[DiscussionResponseModel]],
+    summary="Получение обсуждений книжного клуба (постранично, последние сверху)",
     description="",
     responses={
-        200: {"description": "Успешный ответ с данными обсуждений"},
+        200: {"description": "Страница обсуждений клуба"},
         404: {"description": "Книжный клуб с таким id не найден"},
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-async def get_disscussions(
+async def get_discussions(
     club_id: int,
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     service: DiscussionService = Depends(get_discussion_service)
 ):
-    return await service.get_disscussions(book_club_id=club_id)
+    return await service.get_discussions(book_club_id=club_id, limit=limit, offset=offset)
 
 @router.post(
     "",
-    response_model=ResponseModel[DisscussionResponseModel],
+    response_model=ResponseModel[DiscussionResponseModel],
     summary="Создание обсуждения",
     description=(
         "Создание обсуждения в книжном клубе.\n\n"
         "**Требуется авторизация** с заголовком:\n"
-        "`Authorization: Bearer <your_token>`\n\n"
+        "`X-Session-Id: <session_id>`\n\n"
     ),
     status_code=201,
     responses={
@@ -44,7 +45,7 @@ async def get_disscussions(
         400: {"description": "Ошибка валидации данных обсуждения"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
         404: {"description": "Книжный клуб с таким id не найден"},
-        409: {"description": "Создавать обсуждения могут только участники клуба"},
+        403: {"description": "Создавать обсуждения могут только участники клуба"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
@@ -64,7 +65,7 @@ async def create_discussion(
         200: {"description": "Обсуждение успешно удалено"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
         404: {"description": "Обсуждение с таким id не найдено"},
-        409: {"description": "Удалять обсуждения может только автор обсуждения"},
+        403: {"description": "Удалять обсуждения может только автор обсуждения"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
@@ -77,20 +78,20 @@ async def delete_discussion(
 
 @router.put(
     "/{discussion_id}",
-    response_model=ResponseModel[DisscussionResponseModel],
+    response_model=ResponseModel[DiscussionResponseModel],
     status_code=200,
     responses={
         200: {"description": "Обсуждение успешно обновлено"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
         404: {"description": "Обсуждение с таким id не найдено"},
-        409: {"description": "Удалять обсуждения может только автор обсуждения, или владелец клуба"},
+        403: {"description": "Изменять обсуждение может только автор обсуждения, или владелец клуба"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
 async def update_discussion(
     discussion_id: int,
     model: DiscussionUpdateRequestModel,
-    user: str = Depends(get_current_user),
+    user: DBUser = Depends(get_current_user),
     service: DiscussionService = Depends(get_discussion_service)
 ):
     return await service.update_discussion(user=user, discussion_id=discussion_id, model=model)

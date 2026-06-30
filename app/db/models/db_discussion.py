@@ -1,13 +1,16 @@
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy.orm import relationship
 
 from app.db.database import Base
-from app.db.models import DBBaseModel
+from app.db.models.db_base_model import DBBaseModel
 
 
-class DBDiscussion(DBBaseModel, Base):
+class DBDiscussion(Base, DBBaseModel):
     __tablename__ = "discussions"
 
-    club_id = Column(Integer, nullable=False)
-    author_id = Column(Integer, nullable=False)
+    club_id = Column(Integer, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String, nullable=False)
     content = Column(Text, nullable=True)
+
+    author = relationship("DBUser", lazy="selectin")

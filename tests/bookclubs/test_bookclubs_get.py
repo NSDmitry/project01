@@ -26,7 +26,7 @@ class TestAllClubs:
         response = api.owned_bookclubs(headers=auth.headers)
 
         assert_status_code(response, 200)
-        assert all(club["owner_id"] == auth.user_id for club in response.json()["data"])
+        assert all(club["owner"]["id"] == auth.user_id for club in response.json()["data"])
 
     def test_get_bookclub_returns_requested_entity(self, api):
         auth = AuthFlow.register(api)

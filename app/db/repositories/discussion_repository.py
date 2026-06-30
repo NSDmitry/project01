@@ -1,6 +1,6 @@
-from typing import List
+from typing import List, Tuple
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors.errors import NotFound
@@ -14,10 +14,19 @@ class DiscussionRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_discussions(self, book_club_id: int) -> List[DBDiscussion]:
-        result = await self.db.execute(select(DBDiscussion).where(DBDiscussion.club_id == book_club_id))
+    async def get_discussions(self, club_id: int, limit: int, offset: int) -> Tuple[List[DBDiscussion], int]:
+        total = await self.db.scalar(
+            select(func.count()).select_from(DBDiscussion).where(DBDiscussion.club_id == club_id)
+        )
+        result = await self.db.execute(
+            select(DBDiscussion)
+            .where(DBDiscussion.club_id == club_id)
+            .order_by(DBDiscussion.created_at.desc(), DBDiscussion.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
 
-        return result.scalars().all()
+        return result.scalars().all(), total
 
     async def get_discussion(self, discussion_id: int) -> DBDiscussion:
         result = await self.db.execute(select(DBDiscussion).where(DBDiscussion.id == discussion_id))
@@ -36,17 +45,16 @@ class DiscussionRepository:
         new_discussion.content = model.content
 
         self.db.add(new_discussion)
-        await self.db.commit()
-        await self.db.refresh(new_discussion)
+        await self.db.flush()
 
-        return new_discussion
+        return await self.get_discussion(new_discussion.id)
 
     async def delete_discussion(self, discussion_id: int) -> DBDiscussion:
         result = await self.db.execute(select(DBDiscussion).where(DBDiscussion.id == discussion_id))
         discussion = result.scalar_one_or_none()
         if discussion:
             await self.db.delete(discussion)
-            await self.db.commit()
+            await self.db.flush()
 
         return discussion
 
@@ -54,7 +62,6 @@ class DiscussionRepository:
         discussion.title = model.title
         discussion.content = model.content
 
-        await self.db.commit()
-        await self.db.refresh(discussion)
+        await self.db.flush()
 
-        return discussion
+        return await self.get_discussion(discussion.id)
