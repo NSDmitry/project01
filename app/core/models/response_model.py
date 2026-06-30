@@ -13,15 +13,9 @@ class ResponseModel(BaseModel, Generic[T]):
     errors: List[str] = Field(default_factory=list)
 
     @classmethod
-    def success_response(cls, data: Optional[T] = None, message: str = "Операция выполнена успешно") -> "ResponseModel[T]":
+    def ok(cls, data: Optional[T] = None, message: str = "Операция выполнена успешно") -> "ResponseModel[T]":
         return cls(success=True, message=message, data=data)
 
     @classmethod
-    def error_response(cls, message: str = "Произошла ошибка", errors: Optional[List[str]] = None) -> "ResponseModel[None]":
+    def fail(cls, message: str = "Произошла ошибка", errors: Optional[List[str]] = None) -> "ResponseModel[None]":
         return cls(success=False, message=message, errors=errors or [])
-
-    def to_dict(self) -> dict:
-        return self.model_dump()
-
-    def to_json(self, **kwargs) -> str:
-        return self.json(**kwargs)

@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
 def get_current_user_public_info(
     user: DBUser = Depends(get_current_user)
 ):
-    return ResponseModel.success_response(PublicUserResponseModel.model_validate(user))
+    return ResponseModel.ok(PublicUserResponseModel.model_validate(user))
 
 @router.get(
     "/public",

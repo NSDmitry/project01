@@ -43,7 +43,7 @@ class AuthService:
         sid = await self.user_session_service.create_user_session(db_user.id)
         response = self._make_auth_response(db_user, sid)
 
-        return ResponseModel.success_response(response)
+        return ResponseModel.ok(response)
 
 
     async def login(self, model: SignInRequestModel) -> ResponseModel[PrivateUserResponseModel] :
@@ -67,7 +67,7 @@ class AuthService:
 
         response = self._make_auth_response(db_user, sid)
 
-        return ResponseModel.success_response(response)
+        return ResponseModel.ok(response)
 
     async def logout(self, sid: str | None) -> ResponseModel[None]:
         """
@@ -79,7 +79,7 @@ class AuthService:
             raise Unauthorized(errors=["Missing session"])
 
         await self.user_session_service.logout_user_session(sid)
-        return ResponseModel.success_response(None, message="Успешный выход из системы")
+        return ResponseModel.ok(message="Успешный выход из системы")
 
     async def telegram_login(self, model: TelegramSignInRequestModel) -> ResponseModel[PrivateUserResponseModel]:
         db_user = await self.user_repository.get_user_by_telegram_id(model.telegram_id)
@@ -87,7 +87,7 @@ class AuthService:
         if db_user:
             sid = await self.user_session_service.create_user_session(db_user.id)
             response = self._make_auth_response(db_user, sid)
-            return ResponseModel.success_response(response)
+            return ResponseModel.ok(response)
         else:
             hashed_password = await self._hash_password(str(uuid.uuid4()))
 
@@ -100,7 +100,7 @@ class AuthService:
             sid = await self.user_session_service.create_user_session(new_user.id)
             response = self._make_auth_response(new_user, sid)
 
-            return ResponseModel.success_response(response)
+            return ResponseModel.ok(response)
 
     async def change_password(self, user, current_password: str, new_password: str) -> ResponseModel[None]:
         if not await self._verify_password(current_password, user.password):
@@ -115,7 +115,7 @@ class AuthService:
         await self.user_repository.update_user_password(user.id, hashed_password)
         await self.user_session_service.logout_all_user_sessions(user.id)
 
-        return ResponseModel.success_response(
+        return ResponseModel.ok(
             None,
             message="Пароль обновлен. Все активные сессии завершены",
         )
