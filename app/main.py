@@ -1,6 +1,9 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from app.core.errors.APIException import APIException
+from app.core.models.response_model import ResponseModel
 from app.api.routers import auth, users, book_club, discussions
 from fastapi.middleware.cors import CORSMiddleware
 from app.settings import settings
@@ -31,3 +34,12 @@ ins.expose(
 @app.exception_handler(APIException)
 def api_exception_handler(request: Request, exc: APIException):
     return exc.as_response()
+
+
+@app.exception_handler(RequestValidationError)
+def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = [e["msg"].removeprefix("Value error, ") for e in exc.errors()]
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=ResponseModel.fail(message="Невозможно обработать запрос", errors=errors).model_dump(),
+    )
