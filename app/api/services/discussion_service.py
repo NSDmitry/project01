@@ -34,7 +34,7 @@ class DiscussionService:
         club = await self.book_club_repository.get_book_club(club_id=book_club_id)
         discussions = await self.discussion_repository.get_discussions(book_club_id=club.id)
 
-        return ResponseModel.success_response([DisscussionResponseModel(**discussion.to_dict()) for discussion in discussions])
+        return ResponseModel.success_response([DisscussionResponseModel.model_validate(discussion) for discussion in discussions])
 
     async def create_discussion(self, user: DBUser, model: DiscussionCreateRequestModel) -> ResponseModel[DisscussionResponseModel]:
         """
@@ -51,7 +51,7 @@ class DiscussionService:
 
         db_disscussion = await self.discussion_repository.create_discussion(user.id, model)
 
-        return ResponseModel.success_response(DisscussionResponseModel(**db_disscussion.to_dict()))
+        return ResponseModel.success_response(DisscussionResponseModel.model_validate(db_disscussion))
 
     async def delete_discussion(self, user: DBUser, discussion_id: int) -> ResponseModel:
         """
@@ -91,4 +91,4 @@ class DiscussionService:
 
         db_disscussion = await self.discussion_repository.update_discussion(db_disscussion, model)
 
-        return ResponseModel.success_response(DisscussionResponseModel(**db_disscussion.to_dict()))
+        return ResponseModel.success_response(DisscussionResponseModel.model_validate(db_disscussion))

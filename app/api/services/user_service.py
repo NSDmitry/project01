@@ -17,13 +17,13 @@ class UserService:
         if db_user is None:
             raise NotFound(errors=["Пользователь с таким id не найден"])
 
-        return ResponseModel.success_response(PublicUserResponseModel(**db_user.to_dict()))
+        return ResponseModel.success_response(PublicUserResponseModel.model_validate(db_user))
 
     async def update_user_info(self, user: DBUser, model: UpdateUserRequestModel) -> PublicUserResponseModel:
         await self.validate_phone_number(model.phone_number, exclude_user_id=user.id)
         updated_user: DBUser = await self.user_repository.update_user_info(user.id, model.name, model.phone_number)
 
-        return ResponseModel.success_response(PublicUserResponseModel(**updated_user.to_dict()))
+        return ResponseModel.success_response(PublicUserResponseModel.model_validate(updated_user))
 
     async def validate_phone_number(self, phone_number: int, exclude_user_id: int | None = None):
         phone_str = str(phone_number)

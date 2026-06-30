@@ -25,22 +25,22 @@ class BookClubSerivce:
 
         db_book_club: DBBookClub = await self.book_club_repository.create_book_blub(owner, model)
 
-        return ResponseModel.success_response(BookClubResponseModel(**db_book_club.to_dict()))
+        return ResponseModel.success_response(BookClubResponseModel.model_validate(db_book_club))
 
     async def get_book_clubs(self) -> ResponseModel[List[BookClubResponseModel]]:
         db_clubs: List[DBBookClub] = await self.book_club_repository.get_book_clubs()
-        clubs = [BookClubResponseModel(**club.to_dict()) for club in db_clubs]
+        clubs = [BookClubResponseModel.model_validate(club) for club in db_clubs]
 
         return ResponseModel.success_response(clubs)
 
     async def get_book_club(self, club_id: int) -> ResponseModel[BookClubResponseModel]:
         db_club: DBBookClub = await self.book_club_repository.get_book_club(club_id)
 
-        return ResponseModel.success_response(BookClubResponseModel(**db_club.to_dict()))
+        return ResponseModel.success_response(BookClubResponseModel.model_validate(db_club))
 
     async def get_owned_book_clubs(self, owner: DBUser) -> ResponseModel[List[BookClubResponseModel]]:
         db_clubs: List[DBBookClub] = await self.book_club_repository.get_owned_book_blubs(owner)
-        clubs = [BookClubResponseModel(**club.to_dict()) for club in db_clubs]
+        clubs = [BookClubResponseModel.model_validate(club) for club in db_clubs]
 
         return ResponseModel.success_response(clubs)
 
@@ -51,14 +51,14 @@ class BookClubSerivce:
 
     async def join(self, user: DBUser, club_id: int) -> ResponseModel[BookClubResponseModel]:
         db_club: DBBookClub = await self.book_club_repository.join_book_club(user=user, club_id=club_id)
-        club = BookClubResponseModel(**db_club.to_dict())
+        club = BookClubResponseModel.model_validate(db_club)
 
         return ResponseModel.success_response(club)
 
 
     async def leave(self, user: DBUser, club_id: int) -> ResponseModel[BookClubResponseModel]:
         db_club: DBBookClub = await self.book_club_repository.remove_member(user, club_id)
-        club = BookClubResponseModel(**db_club.to_dict())
+        club = BookClubResponseModel.model_validate(db_club)
 
         return ResponseModel.success_response(club)
 
