@@ -2,10 +2,12 @@ import hashlib
 from datetime import datetime, timedelta, timezone
 import secrets
 
+from app.core.errors.errors import Unauthorized
 from app.db.models.db_user_session import DBUserSession
 from app.db.repositories.user_session_repository import UserSessionRepository
 
-SESSION_TTL_DAYS = 30
+LAST_USED_THRESHOLD = timedelta(minutes=5)
+SESSION_MAX_IDLE = timedelta(days=30)
 
 class UserSessionService:
     user_session_repository: UserSessionRepository
@@ -18,19 +20,34 @@ class UserSessionService:
 
         sid = self._generate_sid()
         sid_hash = self._sid_hash(sid)
-        expires_at = now + timedelta(days=SESSION_TTL_DAYS)
 
         _ = self.user_session_repository.create_user_session(
             user_id=user_id,
             sid_hash=sid_hash,
-            expires_at=expires_at
+            last_used=now
         )
 
         return sid
 
     def get_user_session(self, sid: str) -> DBUserSession:
         sid_hash = self._sid_hash(sid)
-        return self.user_session_repository.get_user_session(sid_hash)
+        session = self.user_session_repository.get_user_session(sid_hash)
+
+        if not session:
+            return None
+
+        now = self._utcnow()
+
+        if session.last_used is None or session.last_used < now - SESSION_MAX_IDLE:
+            raise Unauthorized(
+                message="Сессия истекла из-за длительной неактивности",
+                errors=["session_expired"],
+            )
+
+        if session.last_used < now - LAST_USED_THRESHOLD:
+            self.user_session_repository.update_last_used(session, now)
+
+        return session
 
     def logout_user_session(self, sid: str):
         sid_hash = self._sid_hash(sid)
@@ -38,6 +55,10 @@ class UserSessionService:
 
     def logout_all_user_sessions(self, user_id: int):
         self.user_session_repository.delete_all_user_sessions(user_id)
+
+    def cleanup_idle_sessions(self) -> int:
+        cutoff = self._utcnow() - SESSION_MAX_IDLE
+        return self.user_session_repository.delete_idle_sessions(cutoff)
 
     @staticmethod
     def _generate_sid() -> str:
