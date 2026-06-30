@@ -11,7 +11,7 @@ faker = Faker()
 class AuthFactory:
     @staticmethod
     def phone_number() -> str:
-        return "79" + str(uuid.uuid4().int)[0:9]
+        return "+79" + str(uuid.uuid4().int)[0:9]
 
     @classmethod
     def register_payload(
