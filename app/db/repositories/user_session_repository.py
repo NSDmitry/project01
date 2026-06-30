@@ -17,7 +17,7 @@ class UserSessionRepository:
         session.last_used = last_used
 
         self.db.add(session)
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(session)
 
         return session
@@ -28,7 +28,7 @@ class UserSessionRepository:
 
         if session:
             await self.db.delete(session)
-            await self.db.commit()
+            await self.db.flush()
 
     async def get_user_session(self, sid_hash: str) -> DBUserSession:
         result = await self.db.execute(select(DBUserSession).where(DBUserSession.sid_hash == sid_hash))
@@ -37,13 +37,13 @@ class UserSessionRepository:
 
     async def update_last_used(self, session: DBUserSession, last_used: DateTime) -> DBUserSession:
         session.last_used = last_used
-        await self.db.commit()
+        await self.db.flush()
 
         return session
 
     async def delete_all_user_sessions(self, user_id: int):
         await self.db.execute(delete(DBUserSession).where(DBUserSession.user_id == user_id))
-        await self.db.commit()
+        await self.db.flush()
 
     async def delete_idle_sessions(self, cutoff: DateTime) -> int:
         result = await self.db.execute(
@@ -54,6 +54,6 @@ class UserSessionRepository:
                 )
             )
         )
-        await self.db.commit()
+        await self.db.flush()
 
         return result.rowcount

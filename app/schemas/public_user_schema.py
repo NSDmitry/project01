@@ -8,6 +8,10 @@ from typing import Optional
 
 from app.schemas.base import ResponseSchema
 
+class UserSummaryModel(ResponseSchema):
+    id: int
+    name: str
+
 class PublicUserResponseModel(ResponseSchema):
     id: int
     name: str
@@ -19,8 +23,6 @@ class PrivateUserResponseModel(ResponseSchema):
     phone_number: Optional[int]
     created_at: datetime
     session_id: str
-    is_telegram_user: bool
-    telegram_id: Optional[int]
 
 class UpdateUserRequestModel(BaseModel):
     name: str

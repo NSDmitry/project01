@@ -1,57 +1,60 @@
-from typing import List
-
-from app.core.errors.errors import Conflict
+from app.core.errors.errors import Forbidden
+from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
 from app.db.repositories.book_club_repository import BookClubRepository
 from app.db.repositories.discussion_repository import DiscussionRepository
-from app.db.repositories.user_repository import UserRepository
-from app.schemas.discussions_schema import DisscussionResponseModel, DiscussionCreateRequestModel
+from app.schemas.discussions_schema import DiscussionResponseModel, DiscussionCreateRequestModel
 
 
 class DiscussionService:
     discussion_repository: DiscussionRepository
     book_club_repository: BookClubRepository
-    user_repository: UserRepository
 
     def __init__(
             self,
             discussion_repository: DiscussionRepository,
             book_club_repository: BookClubRepository,
-            user_repository: UserRepository
         ) -> None:
 
         self.discussion_repository = discussion_repository
         self.book_club_repository = book_club_repository
-        self.user_repository = user_repository
 
-    async def get_disscussions(self, book_club_id: int) -> ResponseModel[List[DisscussionResponseModel]]:
+    async def get_discussions(self, book_club_id: int, limit: int, offset: int) -> ResponseModel[Page[DiscussionResponseModel]]:
         """
-        Получение всех обсуждений книжного клуба.
+        Получение обсуждений книжного клуба (последние сверху, постранично).
         :param book_club_id: Id книжного клуба
-        :return: Список обсуждений
+        :param limit: Размер страницы
+        :param offset: Смещение
+        :return: Страница обсуждений
         """
         club = await self.book_club_repository.get_book_club(club_id=book_club_id)
-        discussions = await self.discussion_repository.get_discussions(book_club_id=club.id)
+        discussions, total = await self.discussion_repository.get_discussions(club.id, limit=limit, offset=offset)
 
-        return ResponseModel.ok([DisscussionResponseModel.model_validate(discussion) for discussion in discussions])
+        page = Page(
+            items=[DiscussionResponseModel.model_validate(discussion) for discussion in discussions],
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
 
-    async def create_discussion(self, user: DBUser, model: DiscussionCreateRequestModel) -> ResponseModel[DisscussionResponseModel]:
+        return ResponseModel.ok(page)
+
+    async def create_discussion(self, user: DBUser, model: DiscussionCreateRequestModel) -> ResponseModel[DiscussionResponseModel]:
         """
         Создание обсуждения в книжном клубе.
         :param user: токен доступа
         :param model: DiscussionCreateRequestModel
-        :return: ResponseModel[DisscussionResponseModel]
+        :return: ResponseModel[DiscussionResponseModel]
         """
-        user = await self.user_repository.get_user_by_id(user.id)
-        db_book_club = await self.book_club_repository.get_book_club(model.club_id)
+        await self.book_club_repository.get_book_club(model.club_id)
 
-        if user.id not in db_book_club.members_ids:
-            raise Conflict(errors=["Создавать обсуждения могут только участники клуба"])
+        if not await self.book_club_repository.is_member(model.club_id, user.id):
+            raise Forbidden(errors=["Создавать обсуждения могут только участники клуба"])
 
-        db_disscussion = await self.discussion_repository.create_discussion(user.id, model)
+        db_discussion = await self.discussion_repository.create_discussion(user.id, model)
 
-        return ResponseModel.ok(DisscussionResponseModel.model_validate(db_disscussion))
+        return ResponseModel.ok(DiscussionResponseModel.model_validate(db_discussion))
 
     async def delete_discussion(self, user: DBUser, discussion_id: int) -> ResponseModel:
         """
@@ -61,10 +64,10 @@ class DiscussionService:
         :return:
         """
 
-        db_disscussion = await self.discussion_repository.get_discussion(discussion_id)
+        db_discussion = await self.discussion_repository.get_discussion(discussion_id)
 
-        if db_disscussion.author_id != user.id:
-            raise Conflict(errors=["Удалять обсуждения может только автор обсуждения"])
+        if db_discussion.author_id != user.id:
+            raise Forbidden(errors=["Удалять обсуждения может только автор обсуждения"])
 
         await self.discussion_repository.delete_discussion(discussion_id)
 
@@ -75,7 +78,7 @@ class DiscussionService:
         user: DBUser,
         discussion_id: int,
         model: DiscussionCreateRequestModel
-    ) -> ResponseModel[DisscussionResponseModel]:
+    ) -> ResponseModel[DiscussionResponseModel]:
         """
         Обновление обсуждения.
         :param user:
@@ -83,12 +86,12 @@ class DiscussionService:
         :param model:
         :return:
         """
-        db_disscussion = await self.discussion_repository.get_discussion(discussion_id)
-        db_club = await self.book_club_repository.get_book_club(db_disscussion.club_id)
+        db_discussion = await self.discussion_repository.get_discussion(discussion_id)
+        db_club = await self.book_club_repository.get_book_club(db_discussion.club_id)
 
-        if db_disscussion.author_id != user.id or user.id != db_club.owner_id:
-            raise Conflict(errors=["Изменять обсуждение может только автор обсуждения, или владелец клуба"])
+        if db_discussion.author_id != user.id and user.id != db_club.owner_id:
+            raise Forbidden(errors=["Изменять обсуждение может только автор обсуждения, или владелец клуба"])
 
-        db_disscussion = await self.discussion_repository.update_discussion(db_disscussion, model)
+        db_discussion = await self.discussion_repository.update_discussion(db_discussion, model)
 
-        return ResponseModel.ok(DisscussionResponseModel.model_validate(db_disscussion))
+        return ResponseModel.ok(DiscussionResponseModel.model_validate(db_discussion))

@@ -28,8 +28,15 @@ AsyncTestingSessionLocal = async_sessionmaker(bind=async_engine, autoflush=False
 
 
 async def override_get_db():
+    # Зеркалит prod-границу транзакции (commit на успехе), иначе записи между
+    # запросами в тестах не будут видны.
     async with AsyncTestingSessionLocal() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 # Конфиг Alembic с абсолютными путями, чтобы не зависеть от cwd при запуске тестов
 _BASE_DIR = Path(__file__).resolve().parents[1]

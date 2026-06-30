@@ -1,3 +1,5 @@
+from sqlalchemy import text
+
 from tests.support.assertions import assert_status_code
 from tests.support.flows import AuthFlow, BookclubFlow
 
@@ -11,6 +13,21 @@ class TestBookclubsDelete:
         assert_status_code(response, 200)
         assert response.json()["message"] == "Книжный клуб успешно удален"
         assert_status_code(api.bookclub(club_id, headers=auth.headers), 404)
+
+    def test_delete_bookclub_cascades_members(self, api, db):
+        owner = AuthFlow.register(api)
+        created = BookclubFlow.create(api, auth=owner)
+        club_id = created.json()["data"]["id"]
+        member = AuthFlow.register(api)
+        assert_status_code(api.join_bookclub(club_id, headers=member.headers), 200)
+
+        assert_status_code(api.delete_bookclub(club_id, headers=owner.headers), 200)
+
+        remaining = db.execute(
+            text("SELECT count(*) FROM club_members WHERE club_id = :club_id"),
+            {"club_id": club_id},
+        ).scalar()
+        assert remaining == 0
 
     def test_delete_bookclub_returns_not_found_for_unknown_id(self, api):
         auth = AuthFlow.register(api)

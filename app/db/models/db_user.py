@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Boolean, String, BigInteger
+from sqlalchemy import Column, String, BigInteger
 
 from app.db.database import Base
 from app.db.models.db_base_model import DBBaseModel
@@ -10,5 +10,3 @@ class DBUser(Base, DBBaseModel):
     name = Column(String, nullable=False)
     phone_number = Column(BigInteger, unique=True, nullable=True)
     password = Column(String, nullable=False)
-    telegram_id = Column(BigInteger, unique=True, nullable=True)
-    is_telegram_user = Column(Boolean, default=False)

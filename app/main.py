@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Request
 
-from app.core.errors.APIExeption import APIException
+from app.core.errors.APIException import APIException
 from app.api.routers import auth, users, book_club, discussions
 from fastapi.middleware.cors import CORSMiddleware
 from app.settings import settings

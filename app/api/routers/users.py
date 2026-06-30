@@ -13,11 +13,11 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
 @router.get(
     "/current",
     response_model=ResponseModel[PublicUserResponseModel],
-    summary="Получение публичной информации о текущем пользвателе",
+    summary="Получение публичной информации о текущем пользователе",
     description=
     """
     **Требуется авторизация** с заголовком:  
-    `Authorization: Bearer <your_token>`
+    `X-Session-Id: <session_id>`
     """,
     responses={
         200: {"description": "Успешный ответ с данными пользователя"},
@@ -37,7 +37,7 @@ def get_current_user_public_info(
     description=
     """
     **Требуется авторизация** с заголовком:  
-    `Authorization: Bearer <your_token>`
+    `X-Session-Id: <session_id>`
     """,
     responses={
         200: {"description": "Успешный ответ с данными пользователя"},

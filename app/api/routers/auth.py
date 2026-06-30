@@ -6,7 +6,7 @@ from app.core.deps.deps import get_auth_service
 from app.core.deps.get_current_user import session_header
 from app.core.models.response_model import ResponseModel
 from app.schemas.public_user_schema import PrivateUserResponseModel
-from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
+from app.schemas.sso_schema import SignUpRequestModel, SignInRequestModel
 from app.api.services.auth_service import AuthService
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
     }
 )
 async def register(
-    model: SingUpRequestModel,
+    model: SignUpRequestModel,
     sso_service: AuthService = Depends(get_auth_service)
 ):
     return await sso_service.register(model=model)
@@ -61,21 +61,3 @@ async def logout(
     sid: str = Security(session_header)
 ):
     return await sso_service.logout(sid=sid)
-
-@router.post(
-    "/telegram/login",
-    response_model=ResponseModel[PrivateUserResponseModel],
-    summary="SSO: Авторизация через Telegram. Если пользователь не зарегистрирован, то он будет зарегистрирован автоматически",
-    status_code=201,
-    responses={
-        201: {"description": "Успешный ответ с данными пользователя"},
-        422: {"description": "Ошибка валидации Telegram ID"},
-        409: {"description": "Пользователь с таким номером телефона уже зарегистрирован"},
-        500: {"description": "Внутренняя ошибка сервера"},
-    }
-)
-async def telegram_sign_in(
-    model: TelegramSignInRequestModel,
-    sso_service: AuthService = Depends(get_auth_service)
-):
-    return await sso_service.telegram_login(model=model)

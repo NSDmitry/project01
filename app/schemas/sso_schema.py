@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-class SingUpRequestModel(BaseModel):
+class SignUpRequestModel(BaseModel):
     name: str
     phone_number: int
     password: str
@@ -8,7 +8,3 @@ class SingUpRequestModel(BaseModel):
 class SignInRequestModel(BaseModel):
     phone_number: int
     password: str
-
-class TelegramSignInRequestModel(BaseModel):
-    telegram_id: int
-    name: str

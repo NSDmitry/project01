@@ -24,4 +24,9 @@ async def get_current_user(
     if not user_session:
         raise Unauthorized(errors=["Invalid session"])
 
-    return await user_repository.get_user_by_id(user_session.user_id)
+    user = await user_repository.get_user_by_id(user_session.user_id)
+
+    if not user:
+        raise Unauthorized(errors=["Invalid session"])
+
+    return user
