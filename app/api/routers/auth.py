@@ -23,11 +23,11 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def register(
+async def register(
     model: SingUpRequestModel,
     sso_service: AuthService = Depends(get_auth_service)
 ):
-    return sso_service.register(model=model)
+    return await sso_service.register(model=model)
 
 @router.post(
     "/login",
@@ -40,11 +40,11 @@ def register(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def login(
+async def login(
     model: SignInRequestModel,
     sso_service: AuthService = Depends(get_auth_service)
 ):
-    return sso_service.login(model=model)
+    return await sso_service.login(model=model)
 
 @router.post(
     "/logout",
@@ -56,11 +56,11 @@ def login(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def logout(
+async def logout(
     sso_service: AuthService = Depends(get_auth_service),
     sid: str = Security(session_header)
 ):
-    return sso_service.logout(sid=sid)
+    return await sso_service.logout(sid=sid)
 
 @router.post(
     "/telegram/login",
@@ -74,8 +74,8 @@ def logout(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def telegram_sign_in(
+async def telegram_sign_in(
     model: TelegramSignInRequestModel,
     sso_service: AuthService = Depends(get_auth_service)
 ):
-    return sso_service.telegram_login(model=model)
+    return await sso_service.telegram_login(model=model)

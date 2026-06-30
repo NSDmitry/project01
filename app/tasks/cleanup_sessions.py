@@ -4,21 +4,20 @@
 
     python -m app.tasks.cleanup_sessions
 """
+import asyncio
+
 from app.api.services.user_session_service import UserSessionService
-from app.db.database import SessionLocal
+from app.db.database import AsyncSessionLocal
 from app.db.repositories.user_session_repository import UserSessionRepository
 
 
-def main() -> int:
-    db = SessionLocal()
-    try:
+async def main() -> int:
+    async with AsyncSessionLocal() as db:
         service = UserSessionService(UserSessionRepository(db))
-        deleted = service.cleanup_idle_sessions()
+        deleted = await service.cleanup_idle_sessions()
         print(f"Deleted {deleted} idle user session(s)")
         return deleted
-    finally:
-        db.close()
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

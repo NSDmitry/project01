@@ -23,11 +23,11 @@ router = APIRouter(prefix="/api/disscussions", tags=["discussions"])
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def get_disscussions(
+async def get_disscussions(
     club_id: int,
     service: DiscussionService = Depends(get_discussion_service)
 ):
-    return service.get_disscussions(book_club_id=club_id)
+    return await service.get_disscussions(book_club_id=club_id)
 
 @router.post(
     "",
@@ -48,12 +48,12 @@ def get_disscussions(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def create_discussion(
+async def create_discussion(
     model: DiscussionCreateRequestModel,
     user: DBUser = Depends(get_current_user),
     service: DiscussionService = Depends(get_discussion_service)
 ):
-    return service.create_discussion(user=user, model=model)
+    return await service.create_discussion(user=user, model=model)
 
 @router.delete(
     "/{discussion_id}",
@@ -68,12 +68,12 @@ def create_discussion(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def delete_discussion(
+async def delete_discussion(
     discussion_id: int,
     user: DBUser = Depends(get_current_user),
     service: DiscussionService = Depends(get_discussion_service)
 ):
-    return service.delete_discussion(user=user, discussion_id=discussion_id)
+    return await service.delete_discussion(user=user, discussion_id=discussion_id)
 
 @router.put(
     "/{discussion_id}",
@@ -87,10 +87,10 @@ def delete_discussion(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def update_discussion(
+async def update_discussion(
     discussion_id: int,
     model: DiscussionUpdateRequestModel,
     user: str = Depends(get_current_user),
     service: DiscussionService = Depends(get_discussion_service)
 ):
-    return service.update_discussion(user=user, discussion_id=discussion_id, model=model)
+    return await service.update_discussion(user=user, discussion_id=discussion_id, model=model)

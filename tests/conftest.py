@@ -6,6 +6,8 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.pool import NullPool
 from app.db.database import Base, get_db
 from app.settings import settings
 from fastapi.testclient import TestClient
@@ -13,9 +15,21 @@ from app.main import app
 
 from tests.support.api import ApiClient
 
-# Подключаемся к тестовой БД
+# Синхронный движок - схема (Alembic), очистка таблиц и прямые проверки в тестах.
 engine = create_engine(settings.database_url)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Асинхронный движок - путь запроса (через override get_db). NullPool: каждое
+# соединение свежее и закрывается со своей сессией, иначе asyncpg переиспользует
+# соединение из пула в другом event loop и падает с "attached to a different loop".
+async_test_url = settings.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+async_engine = create_async_engine(async_test_url, poolclass=NullPool)
+AsyncTestingSessionLocal = async_sessionmaker(bind=async_engine, autoflush=False, expire_on_commit=False)
+
+
+async def override_get_db():
+    async with AsyncTestingSessionLocal() as session:
+        yield session
 
 # Конфиг Alembic с абсолютными путями, чтобы не зависеть от cwd при запуске тестов
 _BASE_DIR = Path(__file__).resolve().parents[1]
@@ -53,10 +67,14 @@ def db():
         db.close()
 
 @pytest.fixture()
-def client(db):
-    # Переопределим зависимость get_db на тестовую
-    def override_get_db():
-        yield db
+async def async_db():
+    async with AsyncTestingSessionLocal() as session:
+        yield session
+
+
+@pytest.fixture()
+def client():
+    # Путь запроса ходит в БД через async-сессию, отдельную от синхронной `db`.
     app.dependency_overrides[get_db] = override_get_db
     yield TestClient(app)
     app.dependency_overrides.clear()

@@ -11,21 +11,21 @@ class UserService:
     def __init__(self, user_repository: UserRepository) -> None:
         self.user_repository = user_repository
 
-    def get_user_by_id(self, user_id: int) -> PublicUserResponseModel:
-        db_user: DBUser = self.user_repository.get_user_by_id(user_id)
+    async def get_user_by_id(self, user_id: int) -> PublicUserResponseModel:
+        db_user: DBUser = await self.user_repository.get_user_by_id(user_id)
 
         if db_user is None:
             raise NotFound(errors=["Пользователь с таким id не найден"])
 
         return ResponseModel.success_response(PublicUserResponseModel(**db_user.to_dict()))
 
-    def update_user_info(self, user: DBUser, model: UpdateUserRequestModel) -> PublicUserResponseModel:
-        self.validate_phone_number(model.phone_number, exclude_user_id=user.id)
-        updated_user: DBUser = self.user_repository.update_user_info(user.id, model.name, model.phone_number)
+    async def update_user_info(self, user: DBUser, model: UpdateUserRequestModel) -> PublicUserResponseModel:
+        await self.validate_phone_number(model.phone_number, exclude_user_id=user.id)
+        updated_user: DBUser = await self.user_repository.update_user_info(user.id, model.name, model.phone_number)
 
         return ResponseModel.success_response(PublicUserResponseModel(**updated_user.to_dict()))
 
-    def validate_phone_number(self, phone_number: int, exclude_user_id: int | None = None):
+    async def validate_phone_number(self, phone_number: int, exclude_user_id: int | None = None):
         phone_str = str(phone_number)
 
         if phone_number is None:
@@ -37,11 +37,11 @@ class UserService:
         if len(phone_str) < 10 or len(phone_str) > 15:
             raise UnprocessableEntity(errors=["Номер телефона должен быть от 10 до 15 символов"])
 
-        if not self.__is_unique_phone_number(phone_number, exclude_user_id=exclude_user_id):
+        if not await self.__is_unique_phone_number(phone_number, exclude_user_id=exclude_user_id):
             raise Conflict(errors=["Пользователь с таким номером телефона уже зарегистрирован"])
 
-    def __is_unique_phone_number(self, phone_number: int, exclude_user_id: int | None = None) -> bool:
-        user = self.user_repository.get_user_by_phone_number(phone_number)
+    async def __is_unique_phone_number(self, phone_number: int, exclude_user_id: int | None = None) -> bool:
+        user = await self.user_repository.get_user_by_phone_number(phone_number)
 
         if user and user.id != exclude_user_id:
             return False

@@ -1,5 +1,5 @@
 from fastapi import Depends
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.database import get_db
 from app.db.repositories.user_repository import UserRepository
@@ -16,16 +16,16 @@ from app.api.services.user_session_service import UserSessionService
 
 ######## repositories ########
 
-def get_user_repository(db: Session = Depends(get_db)) -> UserRepository:
+def get_user_repository(db: AsyncSession = Depends(get_db)) -> UserRepository:
     return UserRepository(db)
 
-def get_club_repository(db: Session = Depends(get_db)) -> BookClubRepository:
+def get_club_repository(db: AsyncSession = Depends(get_db)) -> BookClubRepository:
     return BookClubRepository(db)
 
-def get_discussion_repository(db: Session = Depends(get_db)) -> DiscussionRepository:
+def get_discussion_repository(db: AsyncSession = Depends(get_db)) -> DiscussionRepository:
     return DiscussionRepository(db)
 
-def get_user_session_repository(db: Session = Depends(get_db)):
+def get_user_session_repository(db: AsyncSession = Depends(get_db)):
     return UserSessionRepository(db)
 
 
