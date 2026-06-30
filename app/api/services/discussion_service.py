@@ -1,40 +1,44 @@
-from typing import List
-
 from app.core.errors.errors import Conflict
+from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
 from app.db.repositories.book_club_repository import BookClubRepository
 from app.db.repositories.discussion_repository import DiscussionRepository
-from app.db.repositories.user_repository import UserRepository
 from app.schemas.discussions_schema import DiscussionResponseModel, DiscussionCreateRequestModel
 
 
 class DiscussionService:
     discussion_repository: DiscussionRepository
     book_club_repository: BookClubRepository
-    user_repository: UserRepository
 
     def __init__(
             self,
             discussion_repository: DiscussionRepository,
             book_club_repository: BookClubRepository,
-            user_repository: UserRepository
         ) -> None:
 
         self.discussion_repository = discussion_repository
         self.book_club_repository = book_club_repository
-        self.user_repository = user_repository
 
-    async def get_discussions(self, book_club_id: int) -> ResponseModel[List[DiscussionResponseModel]]:
+    async def get_discussions(self, book_club_id: int, limit: int, offset: int) -> ResponseModel[Page[DiscussionResponseModel]]:
         """
-        Получение всех обсуждений книжного клуба.
+        Получение обсуждений книжного клуба (последние сверху, постранично).
         :param book_club_id: Id книжного клуба
-        :return: Список обсуждений
+        :param limit: Размер страницы
+        :param offset: Смещение
+        :return: Страница обсуждений
         """
         club = await self.book_club_repository.get_book_club(club_id=book_club_id)
-        discussions = await self.discussion_repository.get_discussions(book_club_id=club.id)
+        discussions, total = await self.discussion_repository.get_discussions(club.id, limit=limit, offset=offset)
 
-        return ResponseModel.ok([DiscussionResponseModel.model_validate(discussion) for discussion in discussions])
+        page = Page(
+            items=[DiscussionResponseModel.model_validate(discussion) for discussion in discussions],
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
+
+        return ResponseModel.ok(page)
 
     async def create_discussion(self, user: DBUser, model: DiscussionCreateRequestModel) -> ResponseModel[DiscussionResponseModel]:
         """
@@ -43,10 +47,9 @@ class DiscussionService:
         :param model: DiscussionCreateRequestModel
         :return: ResponseModel[DiscussionResponseModel]
         """
-        user = await self.user_repository.get_user_by_id(user.id)
-        db_book_club = await self.book_club_repository.get_book_club(model.club_id)
+        await self.book_club_repository.get_book_club(model.club_id)
 
-        if user.id not in db_book_club.members_ids:
+        if not await self.book_club_repository.is_member(model.club_id, user.id):
             raise Conflict(errors=["Создавать обсуждения могут только участники клуба"])
 
         db_discussion = await self.discussion_repository.create_discussion(user.id, model)

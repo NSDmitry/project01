@@ -1,10 +1,9 @@
-from typing import List
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.api.services.discussion_service import DiscussionService
 from app.core.deps.deps import get_discussion_service
 from app.core.deps.get_current_user import get_current_user
+from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
 from app.schemas.discussions_schema import DiscussionResponseModel, DiscussionCreateRequestModel, \
@@ -14,20 +13,22 @@ router = APIRouter(prefix="/api/discussions", tags=["discussions"])
 
 @router.get(
     "/{club_id}",
-    response_model=ResponseModel[List[DiscussionResponseModel]],
-    summary="Получение всех обсуждений книжного клуба",
+    response_model=ResponseModel[Page[DiscussionResponseModel]],
+    summary="Получение обсуждений книжного клуба (постранично, последние сверху)",
     description="",
     responses={
-        200: {"description": "Успешный ответ с данными обсуждений"},
+        200: {"description": "Страница обсуждений клуба"},
         404: {"description": "Книжный клуб с таким id не найден"},
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
 async def get_discussions(
     club_id: int,
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     service: DiscussionService = Depends(get_discussion_service)
 ):
-    return await service.get_discussions(book_club_id=club_id)
+    return await service.get_discussions(book_club_id=club_id, limit=limit, offset=offset)
 
 @router.post(
     "",

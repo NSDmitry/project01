@@ -1,12 +1,13 @@
-from typing import List
+from typing import List, Tuple
 
-from sqlalchemy import select
-from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors.errors import NotFound, Forbidden, Conflict
 from app.db.models.db_user import DBUser
 from app.db.models.db_book_club import DBBookClub
+from app.db.models.db_club_member import DBClubMember
 from app.schemas.book_club_schema import CreateBookClubRequestModel
 
 
@@ -21,13 +22,14 @@ class BookClubRepository:
         new_book_club.name = model.name
         new_book_club.description = model.description
         new_book_club.owner_id = owner.id
-        new_book_club.members_ids = [owner.id]
 
         self.db.add(new_book_club)
-        await self.db.commit()
-        await self.db.refresh(new_book_club)
+        await self.db.flush()
 
-        return new_book_club
+        self.db.add(DBClubMember(club_id=new_book_club.id, user_id=owner.id))
+        await self.db.commit()
+
+        return await self.get_book_club(club_id=new_book_club.id)
 
     async def get_book_clubs(self) -> List[DBBookClub]:
         result = await self.db.execute(select(DBBookClub))
@@ -48,12 +50,28 @@ class BookClubRepository:
 
         return club
 
-    async def delete_book_club(self, owner: DBUser, club_id: int):
-        result = await self.db.execute(select(DBBookClub).where(DBBookClub.id == club_id))
-        club = result.scalar_one_or_none()
+    async def is_member(self, club_id: int, user_id: int) -> bool:
+        member = await self.db.get(DBClubMember, {"club_id": club_id, "user_id": user_id})
 
-        if club is None:
-            raise NotFound("Книжный клуб с таким id не найден")
+        return member is not None
+
+    async def get_members(self, club_id: int, limit: int, offset: int) -> Tuple[List[DBUser], int]:
+        total = await self.db.scalar(
+            select(func.count()).select_from(DBClubMember).where(DBClubMember.club_id == club_id)
+        )
+        result = await self.db.execute(
+            select(DBUser)
+            .join(DBClubMember, DBClubMember.user_id == DBUser.id)
+            .where(DBClubMember.club_id == club_id)
+            .order_by(DBUser.id)
+            .limit(limit)
+            .offset(offset)
+        )
+
+        return result.scalars().all(), total
+
+    async def delete_book_club(self, owner: DBUser, club_id: int):
+        club = await self.get_book_club(club_id=club_id)
 
         if club.owner_id != owner.id:
             raise Forbidden("Пользователь не является владельцем книжного клуба")
@@ -62,28 +80,27 @@ class BookClubRepository:
         await self.db.commit()
 
     async def join_book_club(self, user: DBUser, club_id: int) -> DBBookClub:
-        club: DBBookClub = await self.get_book_club(club_id=club_id)
+        await self.get_book_club(club_id=club_id)
 
-        if user.id not in club.members_ids:
-            club.members_ids.append(user.id)
-            flag_modified(club, "members_ids")
+        self.db.add(DBClubMember(club_id=club_id, user_id=user.id))
+
+        try:
             await self.db.commit()
-            await self.db.refresh(club)
-        else:
+        except IntegrityError:
+            await self.db.rollback()
             raise Conflict(errors=["Пользователь уже является участником клуба, повторное добавление не требуется"])
 
-        return club
+        return await self.get_book_club(club_id=club_id)
 
     async def remove_member(self, user: DBUser, club_id: int) -> DBBookClub:
-        club: DBBookClub = await self.get_book_club(club_id=club_id)
+        await self.get_book_club(club_id=club_id)
 
-        if user.id not in club.members_ids:
+        member = await self.db.get(DBClubMember, {"club_id": club_id, "user_id": user.id})
+
+        if member is None:
             raise Conflict(errors=["Пользователь не состоит в клубе"])
 
-        club.members_ids.remove(user.id)
-        flag_modified(club, "members_ids")
-
+        await self.db.delete(member)
         await self.db.commit()
-        await self.db.refresh(club)
 
-        return club
+        return await self.get_book_club(club_id=club_id)

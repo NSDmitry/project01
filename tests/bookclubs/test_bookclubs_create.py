@@ -40,14 +40,17 @@ class TestBookclubsCreate:
         response = BookclubFlow.create(api, auth=auth)
 
         assert_status_code(response, 201)
-        assert response.json()["data"]["owner_id"] == auth.user_id
+        assert response.json()["data"]["owner"]["id"] == auth.user_id
 
     def test_create_bookclub_adds_owner_to_members(self, api):
         auth = AuthFlow.register(api)
         response = BookclubFlow.create(api, auth=auth)
+        club_id = response.json()["data"]["id"]
 
         assert_status_code(response, 201)
-        assert auth.user_id in response.json()["data"]["members_ids"]
+        assert response.json()["data"]["members_count"] == 1
+        members = api.bookclub_members(club_id, headers=auth.headers)
+        assert auth.user_id in [member["id"] for member in members.json()["data"]["items"]]
 
     def test_create_bookclub_rejects_duplicate_name(self, api):
         payload = BookclubFactory.payload(name=faker.pystr(min_chars=4, max_chars=99))

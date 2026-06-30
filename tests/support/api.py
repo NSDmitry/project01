@@ -42,6 +42,14 @@ class ApiClient:
     def bookclub(self, club_id: int, headers: dict[str, str] | None = None):
         return self._client.get(f"/api/bookclubs/{club_id}", headers=headers)
 
+    def bookclub_members(
+        self,
+        club_id: int,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        return self._client.get(f"/api/bookclubs/{club_id}/members", params=params, headers=headers)
+
     def delete_bookclub(self, club_id: int, headers: dict[str, str] | None = None):
         return self._client.delete(f"/api/bookclubs/{club_id}", headers=headers)
 
@@ -54,8 +62,13 @@ class ApiClient:
     def create_discussion(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.post("/api/discussions", json=payload, headers=headers)
 
-    def discussions(self, club_id: int, headers: dict[str, str] | None = None):
-        return self._client.get(f"/api/discussions/{club_id}", headers=headers)
+    def discussions(
+        self,
+        club_id: int,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        return self._client.get(f"/api/discussions/{club_id}", params=params, headers=headers)
 
     def update_discussion(self, discussion_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.put(f"/api/discussions/{discussion_id}", json=payload, headers=headers)

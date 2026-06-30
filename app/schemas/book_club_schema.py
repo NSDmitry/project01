@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from typing import List
-
 from pydantic import BaseModel
 from datetime import datetime
 
 from app.schemas.base import ResponseSchema
+from app.schemas.public_user_schema import UserSummaryModel
 
 class CreateBookClubRequestModel(BaseModel):
     name: str
@@ -16,5 +15,6 @@ class BookClubResponseModel(ResponseSchema):
     name: str
     description: str
     created_at: datetime
-    owner_id: int
-    members_ids: List[int]
+    owner: UserSummaryModel
+    members_count: int
+    discussions_count: int

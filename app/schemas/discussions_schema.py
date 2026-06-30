@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.schemas.base import ResponseSchema
+from app.schemas.public_user_schema import UserSummaryModel
 
 
 class DiscussionResponseModel(ResponseSchema):
@@ -12,7 +13,7 @@ class DiscussionResponseModel(ResponseSchema):
     title: str
     content: str
     club_id: int
-    author_id: int
+    author: UserSummaryModel
 
 class DiscussionCreateRequestModel(BaseModel):
     title: str

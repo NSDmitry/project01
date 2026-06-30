@@ -8,6 +8,10 @@ from typing import Optional
 
 from app.schemas.base import ResponseSchema
 
+class UserSummaryModel(ResponseSchema):
+    id: int
+    name: str
+
 class PublicUserResponseModel(ResponseSchema):
     id: int
     name: str

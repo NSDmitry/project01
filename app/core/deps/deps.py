@@ -48,12 +48,10 @@ def get_book_club_service(
 def get_discussion_service(
     discussion_repository: DiscussionRepository = Depends(get_discussion_repository),
     book_club_repository: BookClubRepository = Depends(get_club_repository),
-    user_repository: UserRepository = Depends(get_user_repository),
 ) -> DiscussionService:
     return DiscussionService(
         discussion_repository=discussion_repository,
         book_club_repository=book_club_repository,
-        user_repository=user_repository,
     )
 
 def get_user_session_service(

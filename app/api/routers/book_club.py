@@ -1,12 +1,14 @@
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.api.services.book_club_service import BookClubService
 from app.core.deps.deps import get_book_club_service
+from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
 from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel
+from app.schemas.public_user_schema import UserSummaryModel
 from app.core.deps.get_current_user import get_current_user
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
@@ -96,6 +98,30 @@ async def get_book_club(
     service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.get_book_club(club_id)
+
+@router.get(
+    "/{club_id}/members",
+    response_model=ResponseModel[Page[UserSummaryModel]],
+    summary="Получение участников книжного клуба (постранично)",
+    description=(
+        "**Требуется авторизация** с заголовком:\n"
+        "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Страница участников клуба"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def get_book_club_members(
+    club_id: int,
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    _: DBUser = Depends(get_current_user),
+    service: BookClubService = Depends(get_book_club_service)
+):
+    return await service.get_members(club_id, limit=limit, offset=offset)
 
 @router.delete(
     "/{club_id}",
