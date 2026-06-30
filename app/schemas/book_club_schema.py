@@ -5,11 +5,13 @@ from typing import List
 from pydantic import BaseModel
 from datetime import datetime
 
+from app.schemas.base import ResponseSchema
+
 class CreateBookClubRequestModel(BaseModel):
     name: str
     description: str
 
-class BookClubResponseModel(BaseModel):
+class BookClubResponseModel(ResponseSchema):
     id: int
     name: str
     description: str

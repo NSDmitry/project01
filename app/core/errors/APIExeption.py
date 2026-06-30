@@ -17,7 +17,7 @@ class APIException(Exception):
     def as_response(self) -> JSONResponse:
         return JSONResponse(
             status_code=self.status_code,
-            content=ResponseModel.error_response(
+            content=ResponseModel.fail(
                 message=self.message,
                 errors=self.errors
             ).model_dump()
