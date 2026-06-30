@@ -45,12 +45,12 @@ def get_current_user_public_info(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def get_user_by_id(
+async def get_user_by_id(
     user_id: int,
     _: DBUser = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)
 ):
-    return user_service.get_user_by_id(user_id)
+    return await user_service.get_user_by_id(user_id)
 
 @router.put(
     "",
@@ -62,12 +62,12 @@ def get_user_by_id(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def change_user_info(
+async def change_user_info(
     model: UpdateUserRequestModel = Body(...),
     user: DBUser = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)
 ):
-    return user_service.update_user_info(user=user, model=model)
+    return await user_service.update_user_info(user=user, model=model)
 
 
 @router.put(
@@ -81,12 +81,12 @@ def change_user_info(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def change_password(
+async def change_password(
     model: ChangePasswordRequestModel = Body(...),
     user: DBUser = Depends(get_current_user),
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    return auth_service.change_password(
+    return await auth_service.change_password(
         user=user,
         current_password=model.current_password,
         new_password=model.new_password,
