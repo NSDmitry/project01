@@ -8,7 +8,3 @@ class SignUpRequestModel(BaseModel):
 class SignInRequestModel(BaseModel):
     phone_number: int
     password: str
-
-class TelegramSignInRequestModel(BaseModel):
-    telegram_id: int
-    name: str

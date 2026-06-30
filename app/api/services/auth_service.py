@@ -1,5 +1,4 @@
 import asyncio
-import uuid
 import re
 import bcrypt
 
@@ -7,7 +6,7 @@ from app.api.services.user_session_service import UserSessionService
 from app.core.errors.errors import NotFound, Unauthorized, BadRequest
 from app.core.models.response_model import ResponseModel
 from app.db.repositories.user_repository import UserRepository
-from app.schemas.sso_schema import SignUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
+from app.schemas.sso_schema import SignUpRequestModel, SignInRequestModel
 from app.schemas.public_user_schema import PrivateUserResponseModel
 from app.api.services.user_service import UserService
 
@@ -81,27 +80,6 @@ class AuthService:
         await self.user_session_service.logout_user_session(sid)
         return ResponseModel.ok(message="Успешный выход из системы")
 
-    async def telegram_login(self, model: TelegramSignInRequestModel) -> ResponseModel[PrivateUserResponseModel]:
-        db_user = await self.user_repository.get_user_by_telegram_id(model.telegram_id)
-
-        if db_user:
-            sid = await self.user_session_service.create_user_session(db_user.id)
-            response = self._make_auth_response(db_user, sid)
-            return ResponseModel.ok(response)
-        else:
-            hashed_password = await self._hash_password(str(uuid.uuid4()))
-
-            new_user = await self.user_repository.create_user_by_telegram(
-                model.telegram_id,
-                hashed_password,
-                model.name
-            )
-
-            sid = await self.user_session_service.create_user_session(new_user.id)
-            response = self._make_auth_response(new_user, sid)
-
-            return ResponseModel.ok(response)
-
     async def change_password(self, user, current_password: str, new_password: str) -> ResponseModel[None]:
         if not await self._verify_password(current_password, user.password):
             raise Unauthorized(errors=["Неверный текущий пароль"])
@@ -171,8 +149,6 @@ class AuthService:
             "phone_number": db_user.phone_number,
             "created_at": db_user.created_at,
             "session_id": sid,
-            "is_telegram_user": db_user.is_telegram_user,
-            "telegram_id": db_user.telegram_id
         }
 
         return PrivateUserResponseModel(**payload)

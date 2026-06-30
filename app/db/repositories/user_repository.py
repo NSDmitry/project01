@@ -55,30 +55,6 @@ class UserRepository:
 
         return user_db_model
 
-    async def get_user_by_telegram_id(self, telegram_id: int) -> DBUser:
-        result = await self.db.execute(select(DBUser).where(DBUser.telegram_id == telegram_id))
-
-        return result.scalar_one_or_none()
-
-    async def create_user_by_telegram(self, telegram_id: int, password: str, name: str) -> DBUser:
-        user_db_model = DBUser()
-        user_db_model.name = name
-        user_db_model.password = password
-        user_db_model.telegram_id = telegram_id
-        user_db_model.is_telegram_user = True
-
-        try:
-            self.db.add(user_db_model)
-            await self.db.flush()
-        except IntegrityError as e:
-            await self.db.rollback()
-            self.logger.error(f"IntegrityError: {str(e)}")
-            raise Conflict(errors=["Пользователь с таким Telegram ID уже зарегистрирован."])
-
-        await self.db.refresh(user_db_model)
-
-        return user_db_model
-
     async def update_user_info(self, user_id: int, name: str, phone_number: str) -> DBUser:
         db_user = await self.get_user_by_id(user_id)
 
