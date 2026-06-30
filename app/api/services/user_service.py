@@ -1,4 +1,4 @@
-from app.core.errors.errors import UnprocessableEntity, Conflict, NotFound
+from app.core.errors.errors import Conflict, NotFound
 from app.core.models.response_model import ResponseModel
 from app.db.models.db_user import DBUser
 from app.db.repositories.user_repository import UserRepository
@@ -25,22 +25,11 @@ class UserService:
 
         return ResponseModel.ok(PublicUserResponseModel.model_validate(updated_user))
 
-    async def validate_phone_number(self, phone_number: int, exclude_user_id: int | None = None):
-        if phone_number is None:
-            raise UnprocessableEntity(errors=["Номер телефона не может быть пустым"])
-
-        phone_str = str(phone_number)
-
-        if not phone_str.isdigit():
-            raise UnprocessableEntity(errors=["Номер должен содержать только цифры"])
-
-        if len(phone_str) < 10 or len(phone_str) > 15:
-            raise UnprocessableEntity(errors=["Номер телефона должен быть от 10 до 15 символов"])
-
+    async def validate_phone_number(self, phone_number: str, exclude_user_id: int | None = None):
         if not await self.__is_unique_phone_number(phone_number, exclude_user_id=exclude_user_id):
             raise Conflict(errors=["Пользователь с таким номером телефона уже зарегистрирован"])
 
-    async def __is_unique_phone_number(self, phone_number: int, exclude_user_id: int | None = None) -> bool:
+    async def __is_unique_phone_number(self, phone_number: str, exclude_user_id: int | None = None) -> bool:
         user = await self.user_repository.get_user_by_phone_number(phone_number)
 
         if user and user.id != exclude_user_id:

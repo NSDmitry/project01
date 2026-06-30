@@ -30,8 +30,12 @@ class TestAuthLogin:
 
     def test_login_rejects_unknown_phone_number(self, api):
         api.register(AuthFactory.register_payload())
-        response = api.login(AuthFactory.login_payload(phone_number="12312312", password="123456"))
+        response = api.login(AuthFactory.login_payload(phone_number=AuthFactory.phone_number(), password="123456"))
         assert_status_code(response, 404)
+
+    def test_login_validates_phone_number_format(self, api):
+        response = api.login(AuthFactory.login_payload(phone_number="not-a-phone", password="ValidPass1"))
+        assert_status_code(response, 422)
 
     def test_failed_login_does_not_authorize_user(self, api):
         signup_payload = AuthFactory.register_payload()

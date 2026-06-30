@@ -25,12 +25,12 @@ class UserRepository:
 
         return db_user
 
-    async def get_user_by_phone_number(self, phone_number: int) -> DBUser:
+    async def get_user_by_phone_number(self, phone_number: str) -> DBUser:
         result = await self.db.execute(select(DBUser).where(DBUser.phone_number == phone_number))
 
         return result.scalar_one_or_none()
 
-    async def create_user(self, name: str, phone_number: int, password: str) -> DBUser:
+    async def create_user(self, name: str, phone_number: str, password: str) -> DBUser:
         user_db_model = DBUser()
         user_db_model.name = name
         user_db_model.phone_number = phone_number

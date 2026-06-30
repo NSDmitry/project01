@@ -15,7 +15,7 @@ class TestSignUp:
         data = response.json()["data"]
 
         assert_contains_keys(data, {"id", "name", "phone_number", "session_id", "created_at"})
-        assert data["phone_number"] == int(payload["phone_number"])
+        assert data["phone_number"] == payload["phone_number"]
         assert data["name"] == payload["name"]
 
     def test_register_rejects_existing_phone_number(self, api):
@@ -25,12 +25,15 @@ class TestSignUp:
         response = api.register(payload)
         assert_status_code(response, 409)
 
-    @pytest.mark.parametrize("invalid_phone", ["test", "-1", 123.4, 112312312312312312])
+    @pytest.mark.parametrize("invalid_phone", ["test", "-1", "79991234567", "+0123456789"])
     def test_register_validates_phone_number(self, api, invalid_phone):
         payload = AuthFactory.register_payload(phone_number=invalid_phone)
         response = api.register(payload)
 
         assert_status_code(response, 422)
+        body = response.json()
+        assert body["success"] is False
+        assert body["errors"]
 
     @pytest.mark.parametrize(
         "invalid_password",
