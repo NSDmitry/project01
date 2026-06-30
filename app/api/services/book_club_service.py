@@ -12,7 +12,7 @@ from app.db.repositories.user_repository import UserRepository
 from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel
 
 
-class BookClubSerivce:
+class BookClubService:
     user_repository: UserRepository
     book_club_repository: BookClubRepository
 
@@ -23,7 +23,7 @@ class BookClubSerivce:
     async def create_book_club(self, model: CreateBookClubRequestModel, owner: DBUser) -> ResponseModel[BookClubResponseModel]:
         await self.__validate_create_book_club_request(model)
 
-        db_book_club: DBBookClub = await self.book_club_repository.create_book_blub(owner, model)
+        db_book_club: DBBookClub = await self.book_club_repository.create_book_club(owner, model)
 
         return ResponseModel.ok(BookClubResponseModel.model_validate(db_book_club))
 
@@ -39,7 +39,7 @@ class BookClubSerivce:
         return ResponseModel.ok(BookClubResponseModel.model_validate(db_club))
 
     async def get_owned_book_clubs(self, owner: DBUser) -> ResponseModel[List[BookClubResponseModel]]:
-        db_clubs: List[DBBookClub] = await self.book_club_repository.get_owned_book_blubs(owner)
+        db_clubs: List[DBBookClub] = await self.book_club_repository.get_owned_book_clubs(owner)
         clubs = [BookClubResponseModel.model_validate(club) for club in db_clubs]
 
         return ResponseModel.ok(clubs)

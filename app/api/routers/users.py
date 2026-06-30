@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
 @router.get(
     "/current",
     response_model=ResponseModel[PublicUserResponseModel],
-    summary="Получение публичной информации о текущем пользвателе",
+    summary="Получение публичной информации о текущем пользователе",
     description=
     """
     **Требуется авторизация** с заголовком:  

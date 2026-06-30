@@ -7,7 +7,7 @@ from app.api.services.user_session_service import UserSessionService
 from app.core.errors.errors import NotFound, Unauthorized, BadRequest
 from app.core.models.response_model import ResponseModel
 from app.db.repositories.user_repository import UserRepository
-from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
+from app.schemas.sso_schema import SignUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
 from app.schemas.public_user_schema import PrivateUserResponseModel
 from app.api.services.user_service import UserService
 
@@ -27,10 +27,10 @@ class AuthService:
         self.user_repository = user_repository
         self.user_session_service = user_session_service
 
-    async def register(self, model: SingUpRequestModel) -> ResponseModel[PrivateUserResponseModel]:
+    async def register(self, model: SignUpRequestModel) -> ResponseModel[PrivateUserResponseModel]:
         """
         Регистрация нового пользователя.
-        :param model: SingUpRequestModel
+        :param model: SignUpRequestModel
         :return: Сообщение об успешной регистрации
         """
 

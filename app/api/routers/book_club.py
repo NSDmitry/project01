@@ -2,7 +2,7 @@ from typing import List
 
 from fastapi import APIRouter, Depends
 
-from app.api.services.book_club_service import BookClubSerivce
+from app.api.services.book_club_service import BookClubService
 from app.core.deps.deps import get_book_club_service
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
@@ -31,7 +31,7 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 async def create(
         model: CreateBookClubRequestModel,
         user: DBUser = Depends(get_current_user),
-        service: BookClubSerivce = Depends(get_book_club_service)
+        service: BookClubService = Depends(get_book_club_service)
 ):
     response: BookClubResponseModel = await service.create_book_club(model, user)
 
@@ -52,7 +52,7 @@ async def create(
 )
 async def get_all_book_clubs(
     _: DBUser = Depends(get_current_user),
-    service: BookClubSerivce = Depends(get_book_club_service)
+    service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.get_book_clubs()
 
@@ -72,7 +72,7 @@ async def get_all_book_clubs(
 )
 async def get_owned_book_clubs(
     user: DBUser = Depends(get_current_user),
-    service: BookClubSerivce = Depends(get_book_club_service)
+    service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.get_owned_book_clubs(user)
 
@@ -93,7 +93,7 @@ async def get_owned_book_clubs(
 async def get_book_club(
     club_id: int,
     _: DBUser = Depends(get_current_user),
-    service: BookClubSerivce = Depends(get_book_club_service)
+    service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.get_book_club(club_id)
 
@@ -115,7 +115,7 @@ async def get_book_club(
 async def delete_book_club(
     club_id: int,
     user: DBUser = Depends(get_current_user),
-    service: BookClubSerivce = Depends(get_book_club_service)
+    service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.delete_book_club(user, club_id)
 
@@ -136,7 +136,7 @@ async def delete_book_club(
 async def join(
     club_id: int,
     user: DBUser = Depends(get_current_user),
-    service: BookClubSerivce = Depends(get_book_club_service)
+    service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.join(user, club_id)
 
@@ -158,6 +158,6 @@ async def join(
 async def leave(
     club_id: int,
     user: DBUser = Depends(get_current_user),
-    service: BookClubSerivce = Depends(get_book_club_service)
+    service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.leave(user, club_id)

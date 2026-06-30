@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from app.schemas.base import ResponseSchema
 
 
-class DisscussionResponseModel(ResponseSchema):
+class DiscussionResponseModel(ResponseSchema):
     id: int
     created_at: datetime
     updated_at: datetime

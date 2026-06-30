@@ -6,7 +6,7 @@ from app.core.deps.deps import get_auth_service
 from app.core.deps.get_current_user import session_header
 from app.core.models.response_model import ResponseModel
 from app.schemas.public_user_schema import PrivateUserResponseModel
-from app.schemas.sso_schema import SingUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
+from app.schemas.sso_schema import SignUpRequestModel, SignInRequestModel, TelegramSignInRequestModel
 from app.api.services.auth_service import AuthService
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
     }
 )
 async def register(
-    model: SingUpRequestModel,
+    model: SignUpRequestModel,
     sso_service: AuthService = Depends(get_auth_service)
 ):
     return await sso_service.register(model=model)

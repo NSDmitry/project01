@@ -7,14 +7,14 @@ from app.core.deps.deps import get_discussion_service
 from app.core.deps.get_current_user import get_current_user
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
-from app.schemas.discussions_schema import DisscussionResponseModel, DiscussionCreateRequestModel, \
+from app.schemas.discussions_schema import DiscussionResponseModel, DiscussionCreateRequestModel, \
     DiscussionUpdateRequestModel
 
-router = APIRouter(prefix="/api/disscussions", tags=["discussions"])
+router = APIRouter(prefix="/api/discussions", tags=["discussions"])
 
 @router.get(
     "/{club_id}",
-    response_model=ResponseModel[List[DisscussionResponseModel]],
+    response_model=ResponseModel[List[DiscussionResponseModel]],
     summary="Получение всех обсуждений книжного клуба",
     description="",
     responses={
@@ -23,15 +23,15 @@ router = APIRouter(prefix="/api/disscussions", tags=["discussions"])
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-async def get_disscussions(
+async def get_discussions(
     club_id: int,
     service: DiscussionService = Depends(get_discussion_service)
 ):
-    return await service.get_disscussions(book_club_id=club_id)
+    return await service.get_discussions(book_club_id=club_id)
 
 @router.post(
     "",
-    response_model=ResponseModel[DisscussionResponseModel],
+    response_model=ResponseModel[DiscussionResponseModel],
     summary="Создание обсуждения",
     description=(
         "Создание обсуждения в книжном клубе.\n\n"
@@ -77,7 +77,7 @@ async def delete_discussion(
 
 @router.put(
     "/{discussion_id}",
-    response_model=ResponseModel[DisscussionResponseModel],
+    response_model=ResponseModel[DiscussionResponseModel],
     status_code=200,
     responses={
         200: {"description": "Обсуждение успешно обновлено"},

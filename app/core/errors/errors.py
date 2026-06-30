@@ -1,4 +1,4 @@
-from app.core.errors.APIExeption import APIException
+from app.core.errors.APIException import APIException
 from fastapi import status
 
 

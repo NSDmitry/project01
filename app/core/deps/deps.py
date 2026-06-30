@@ -7,7 +7,7 @@ from app.db.repositories.book_club_repository import BookClubRepository
 from app.db.repositories.discussion_repository import DiscussionRepository
 
 from app.api.services.user_service import UserService
-from app.api.services.book_club_service import BookClubSerivce
+from app.api.services.book_club_service import BookClubService
 from app.api.services.discussion_service import DiscussionService
 from app.api.services.auth_service import AuthService
 from app.db.repositories.user_session_repository import UserSessionRepository
@@ -39,8 +39,8 @@ def get_user_service(
 def get_book_club_service(
     user_repository: UserRepository = Depends(get_user_repository),
     book_club_repository: BookClubRepository = Depends(get_club_repository),
-) -> BookClubSerivce:
-    return BookClubSerivce(
+) -> BookClubService:
+    return BookClubService(
         user_repository=user_repository,
         book_club_repository=book_club_repository,
     )

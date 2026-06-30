@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-class SingUpRequestModel(BaseModel):
+class SignUpRequestModel(BaseModel):
     name: str
     phone_number: int
     password: str

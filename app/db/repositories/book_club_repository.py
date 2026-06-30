@@ -16,7 +16,7 @@ class BookClubRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def create_book_blub(self, owner: DBUser, model: CreateBookClubRequestModel) -> DBBookClub:
+    async def create_book_club(self, owner: DBUser, model: CreateBookClubRequestModel) -> DBBookClub:
         new_book_club = DBBookClub()
         new_book_club.name = model.name
         new_book_club.description = model.description
@@ -34,7 +34,7 @@ class BookClubRepository:
 
         return result.scalars().all()
 
-    async def get_owned_book_blubs(self, owner: DBUser) -> List[DBBookClub]:
+    async def get_owned_book_clubs(self, owner: DBUser) -> List[DBBookClub]:
         result = await self.db.execute(select(DBBookClub).where(DBBookClub.owner_id == owner.id))
 
         return result.scalars().all()
@@ -70,7 +70,7 @@ class BookClubRepository:
             await self.db.commit()
             await self.db.refresh(club)
         else:
-            raise Conflict(errors=["Пользователь уже является участником клуба, повторное добавлние не требуется"])
+            raise Conflict(errors=["Пользователь уже является участником клуба, повторное добавление не требуется"])
 
         return club
 

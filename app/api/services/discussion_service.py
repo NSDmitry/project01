@@ -6,7 +6,7 @@ from app.db.models import DBUser
 from app.db.repositories.book_club_repository import BookClubRepository
 from app.db.repositories.discussion_repository import DiscussionRepository
 from app.db.repositories.user_repository import UserRepository
-from app.schemas.discussions_schema import DisscussionResponseModel, DiscussionCreateRequestModel
+from app.schemas.discussions_schema import DiscussionResponseModel, DiscussionCreateRequestModel
 
 
 class DiscussionService:
@@ -25,7 +25,7 @@ class DiscussionService:
         self.book_club_repository = book_club_repository
         self.user_repository = user_repository
 
-    async def get_disscussions(self, book_club_id: int) -> ResponseModel[List[DisscussionResponseModel]]:
+    async def get_discussions(self, book_club_id: int) -> ResponseModel[List[DiscussionResponseModel]]:
         """
         Получение всех обсуждений книжного клуба.
         :param book_club_id: Id книжного клуба
@@ -34,14 +34,14 @@ class DiscussionService:
         club = await self.book_club_repository.get_book_club(club_id=book_club_id)
         discussions = await self.discussion_repository.get_discussions(book_club_id=club.id)
 
-        return ResponseModel.ok([DisscussionResponseModel.model_validate(discussion) for discussion in discussions])
+        return ResponseModel.ok([DiscussionResponseModel.model_validate(discussion) for discussion in discussions])
 
-    async def create_discussion(self, user: DBUser, model: DiscussionCreateRequestModel) -> ResponseModel[DisscussionResponseModel]:
+    async def create_discussion(self, user: DBUser, model: DiscussionCreateRequestModel) -> ResponseModel[DiscussionResponseModel]:
         """
         Создание обсуждения в книжном клубе.
         :param user: токен доступа
         :param model: DiscussionCreateRequestModel
-        :return: ResponseModel[DisscussionResponseModel]
+        :return: ResponseModel[DiscussionResponseModel]
         """
         user = await self.user_repository.get_user_by_id(user.id)
         db_book_club = await self.book_club_repository.get_book_club(model.club_id)
@@ -49,9 +49,9 @@ class DiscussionService:
         if user.id not in db_book_club.members_ids:
             raise Conflict(errors=["Создавать обсуждения могут только участники клуба"])
 
-        db_disscussion = await self.discussion_repository.create_discussion(user.id, model)
+        db_discussion = await self.discussion_repository.create_discussion(user.id, model)
 
-        return ResponseModel.ok(DisscussionResponseModel.model_validate(db_disscussion))
+        return ResponseModel.ok(DiscussionResponseModel.model_validate(db_discussion))
 
     async def delete_discussion(self, user: DBUser, discussion_id: int) -> ResponseModel:
         """
@@ -61,9 +61,9 @@ class DiscussionService:
         :return:
         """
 
-        db_disscussion = await self.discussion_repository.get_discussion(discussion_id)
+        db_discussion = await self.discussion_repository.get_discussion(discussion_id)
 
-        if db_disscussion.author_id != user.id:
+        if db_discussion.author_id != user.id:
             raise Conflict(errors=["Удалять обсуждения может только автор обсуждения"])
 
         await self.discussion_repository.delete_discussion(discussion_id)
@@ -75,7 +75,7 @@ class DiscussionService:
         user: DBUser,
         discussion_id: int,
         model: DiscussionCreateRequestModel
-    ) -> ResponseModel[DisscussionResponseModel]:
+    ) -> ResponseModel[DiscussionResponseModel]:
         """
         Обновление обсуждения.
         :param user:
@@ -83,12 +83,12 @@ class DiscussionService:
         :param model:
         :return:
         """
-        db_disscussion = await self.discussion_repository.get_discussion(discussion_id)
-        db_club = await self.book_club_repository.get_book_club(db_disscussion.club_id)
+        db_discussion = await self.discussion_repository.get_discussion(discussion_id)
+        db_club = await self.book_club_repository.get_book_club(db_discussion.club_id)
 
-        if db_disscussion.author_id != user.id and user.id != db_club.owner_id:
+        if db_discussion.author_id != user.id and user.id != db_club.owner_id:
             raise Conflict(errors=["Изменять обсуждение может только автор обсуждения, или владелец клуба"])
 
-        db_disscussion = await self.discussion_repository.update_discussion(db_disscussion, model)
+        db_discussion = await self.discussion_repository.update_discussion(db_discussion, model)
 
-        return ResponseModel.ok(DisscussionResponseModel.model_validate(db_disscussion))
+        return ResponseModel.ok(DiscussionResponseModel.model_validate(db_discussion))
