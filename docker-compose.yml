@@ -34,5 +34,23 @@ services:
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     working_dir: /app
 
+  cleanup:
+    image: nsdmitrij/project01:latest
+    container_name: project1_cleanup
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - .env
+    working_dir: /app
+    command: >
+      sh -c "while true; do
+               now=$$(date +%s);
+               next=$$(date -d 'today 03:00' +%s);
+               [ $$next -le $$now ] && next=$$(date -d 'tomorrow 03:00' +%s);
+               sleep $$((next - now));
+               python -m app.tasks.cleanup_sessions;
+             done"
+
 volumes:
   postgres_data:
