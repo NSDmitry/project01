@@ -28,12 +28,12 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def create(
+async def create(
         model: CreateBookClubRequestModel,
         user: DBUser = Depends(get_current_user),
         service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    response: BookClubResponseModel = service.create_book_club(model, user)
+    response: BookClubResponseModel = await service.create_book_club(model, user)
 
     return response
 
@@ -50,11 +50,11 @@ def create(
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def get_all_book_clubs(
+async def get_all_book_clubs(
     _: DBUser = Depends(get_current_user),
     service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    return service.get_book_clubs()
+    return await service.get_book_clubs()
 
 @router.get(
     "/owned",
@@ -70,11 +70,11 @@ def get_all_book_clubs(
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def get_owned_book_clubs(
+async def get_owned_book_clubs(
     user: DBUser = Depends(get_current_user),
     service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    return service.get_owned_book_clubs(user)
+    return await service.get_owned_book_clubs(user)
 
 @router.get(
     "/{club_id}",
@@ -90,12 +90,12 @@ def get_owned_book_clubs(
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
-def get_book_club(
+async def get_book_club(
     club_id: int,
     _: DBUser = Depends(get_current_user),
     service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    return service.get_book_club(club_id)
+    return await service.get_book_club(club_id)
 
 @router.delete(
     "/{club_id}",
@@ -112,12 +112,12 @@ def get_book_club(
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def delete_book_club(
+async def delete_book_club(
     club_id: int,
     user: DBUser = Depends(get_current_user),
     service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    return service.delete_book_club(user, club_id)
+    return await service.delete_book_club(user, club_id)
 
 @router.post(
     "/{club_id}/join",
@@ -133,12 +133,12 @@ def delete_book_club(
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def join(
+async def join(
     club_id: int,
     user: DBUser = Depends(get_current_user),
     service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    return service.join(user, club_id)
+    return await service.join(user, club_id)
 
 @router.delete(
     "/{club_id}/leave",
@@ -155,9 +155,9 @@ def join(
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-def join(
+async def join(
     club_id: int,
     user: DBUser = Depends(get_current_user),
     service: BookClubSerivce = Depends(get_book_club_service)
 ):
-    return service.leave(user, club_id)
+    return await service.leave(user, club_id)

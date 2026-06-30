@@ -15,13 +15,13 @@ class UserSessionService:
     def __init__(self, user_session_repository: UserSessionRepository) -> None:
         self.user_session_repository = user_session_repository
 
-    def create_user_session(self, user_id: int) -> str:
+    async def create_user_session(self, user_id: int) -> str:
         now = self._utcnow()
 
         sid = self._generate_sid()
         sid_hash = self._sid_hash(sid)
 
-        _ = self.user_session_repository.create_user_session(
+        _ = await self.user_session_repository.create_user_session(
             user_id=user_id,
             sid_hash=sid_hash,
             last_used=now
@@ -29,9 +29,9 @@ class UserSessionService:
 
         return sid
 
-    def get_user_session(self, sid: str) -> DBUserSession:
+    async def get_user_session(self, sid: str) -> DBUserSession:
         sid_hash = self._sid_hash(sid)
-        session = self.user_session_repository.get_user_session(sid_hash)
+        session = await self.user_session_repository.get_user_session(sid_hash)
 
         if not session:
             return None
@@ -45,20 +45,20 @@ class UserSessionService:
             )
 
         if session.last_used < now - LAST_USED_THRESHOLD:
-            self.user_session_repository.update_last_used(session, now)
+            await self.user_session_repository.update_last_used(session, now)
 
         return session
 
-    def logout_user_session(self, sid: str):
+    async def logout_user_session(self, sid: str):
         sid_hash = self._sid_hash(sid)
-        self.user_session_repository.delete_user_session(sid_hash)
+        await self.user_session_repository.delete_user_session(sid_hash)
 
-    def logout_all_user_sessions(self, user_id: int):
-        self.user_session_repository.delete_all_user_sessions(user_id)
+    async def logout_all_user_sessions(self, user_id: int):
+        await self.user_session_repository.delete_all_user_sessions(user_id)
 
-    def cleanup_idle_sessions(self) -> int:
+    async def cleanup_idle_sessions(self) -> int:
         cutoff = self._utcnow() - SESSION_MAX_IDLE
-        return self.user_session_repository.delete_idle_sessions(cutoff)
+        return await self.user_session_repository.delete_idle_sessions(cutoff)
 
     @staticmethod
     def _generate_sid() -> str:
