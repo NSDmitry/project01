@@ -40,3 +40,6 @@ archive.zip
 # Локальные среды
 .env
 .env.test
+
+# graphify - локальный граф знаний
+graphify-out/
