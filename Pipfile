@@ -14,10 +14,12 @@ psycopg2-binary = "*"
 python-dotenv = "*"
 prometheus-fastapi-instrumentator = "*"
 pydantic-settings = "*"
+httpx = "*"
 pytest = "8.3.5"
 faker = "37.3.0"
+bcrypt = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.9"
+python_version = "3.11"

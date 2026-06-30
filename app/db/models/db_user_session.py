@@ -13,3 +13,4 @@ class DBUserSession(Base, DBBaseModel):
     user_id = Column(Integer, nullable=False)
     sid_hash = Column(String(64), nullable=False)
     expires_at = Column(DateTime(timezone=True), nullable=False)
+    last_used = Column(DateTime(timezone=True), nullable=True)

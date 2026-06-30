@@ -1,4 +1,9 @@
+import os
+from pathlib import Path
+
 import pytest
+from alembic import command
+from alembic.config import Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.db.database import Base, get_db
@@ -12,11 +17,32 @@ from tests.support.api import ApiClient
 engine = create_engine(settings.database_url)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Перед каждым тестом пересоздаем таблицы
+# Конфиг Alembic с абсолютными путями, чтобы не зависеть от cwd при запуске тестов
+_BASE_DIR = Path(__file__).resolve().parents[1]
+_alembic_cfg = Config(str(_BASE_DIR / "alembic.ini"))
+_alembic_cfg.set_main_option("script_location", str(_BASE_DIR / "migrations"))
+_alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
+
+# migrations/env.py берёт URL из os.getenv("DATABASE_URL") и через load_dotenv()
+# может подхватить дев-.env (5432). Прибиваем тестовый URL, чтобы миграции в тестах
+# гарантированно шли в тестовую БД, а не в дев.
+os.environ["DATABASE_URL"] = settings.database_url
+
+
+def _reset_schema():
+    # Полностью чистим схему, включая alembic_version, иначе upgrade станет no-op
+    Base.metadata.drop_all(bind=engine)
+    with engine.begin() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
+
+
+# Перед сессией тестов строим схему ровно так же, как в проде - через миграции
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    _reset_schema()
+    command.upgrade(_alembic_cfg, "head")
+    yield
+    _reset_schema()
 
 @pytest.fixture()
 def db():
