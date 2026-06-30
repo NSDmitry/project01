@@ -15,6 +15,7 @@ async def main() -> int:
     async with AsyncSessionLocal() as db:
         service = UserSessionService(UserSessionRepository(db))
         deleted = await service.cleanup_idle_sessions()
+        await db.commit()
         print(f"Deleted {deleted} idle user session(s)")
         return deleted
 

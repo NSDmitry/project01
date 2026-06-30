@@ -41,7 +41,7 @@ class UserRepository:
 
         try:
             self.db.add(user_db_model)
-            await self.db.commit()
+            await self.db.flush()
         except IntegrityError as e:
             await self.db.rollback()
             self.logger.error(f"IntegrityError: {str(e)}")  # Логируем ошибку
@@ -69,7 +69,7 @@ class UserRepository:
 
         try:
             self.db.add(user_db_model)
-            await self.db.commit()
+            await self.db.flush()
         except IntegrityError as e:
             await self.db.rollback()
             self.logger.error(f"IntegrityError: {str(e)}")
@@ -85,7 +85,7 @@ class UserRepository:
         db_user.name = name
         db_user.phone_number = phone_number
 
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(db_user)
 
         return db_user
@@ -94,7 +94,7 @@ class UserRepository:
         db_user = await self.get_user_by_id(user_id)
         db_user.password = password
 
-        await self.db.commit()
+        await self.db.flush()
         await self.db.refresh(db_user)
 
         return db_user

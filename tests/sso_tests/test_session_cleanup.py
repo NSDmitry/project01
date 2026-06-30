@@ -21,6 +21,7 @@ class TestIdleSessionCleanup:
         db.commit()
 
         deleted = await self._service(async_db).cleanup_idle_sessions()
+        await async_db.commit()
 
         assert deleted == 1
         assert self._session(db, idle.user_id) is None
@@ -29,6 +30,7 @@ class TestIdleSessionCleanup:
         active = AuthFlow.register(api)
 
         deleted = await self._service(async_db).cleanup_idle_sessions()
+        await async_db.commit()
 
         assert deleted == 0
         assert self._session(db, active.user_id) is not None
@@ -40,6 +42,7 @@ class TestIdleSessionCleanup:
         db.commit()
 
         deleted = await self._service(async_db).cleanup_idle_sessions()
+        await async_db.commit()
 
         assert deleted == 1
         assert self._session(db, legacy.user_id) is None

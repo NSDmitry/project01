@@ -45,7 +45,7 @@ class DiscussionRepository:
         new_discussion.content = model.content
 
         self.db.add(new_discussion)
-        await self.db.commit()
+        await self.db.flush()
 
         return await self.get_discussion(new_discussion.id)
 
@@ -54,7 +54,7 @@ class DiscussionRepository:
         discussion = result.scalar_one_or_none()
         if discussion:
             await self.db.delete(discussion)
-            await self.db.commit()
+            await self.db.flush()
 
         return discussion
 
@@ -62,6 +62,6 @@ class DiscussionRepository:
         discussion.title = model.title
         discussion.content = model.content
 
-        await self.db.commit()
+        await self.db.flush()
 
         return await self.get_discussion(discussion.id)

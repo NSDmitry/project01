@@ -35,7 +35,7 @@ class BookClubRepository:
             )
 
         self.db.add(DBClubMember(club_id=new_book_club.id, user_id=owner.id))
-        await self.db.commit()
+        await self.db.flush()
 
         return await self.get_book_club(club_id=new_book_club.id)
 
@@ -85,7 +85,7 @@ class BookClubRepository:
             raise Forbidden("Пользователь не является владельцем книжного клуба")
 
         await self.db.delete(club)
-        await self.db.commit()
+        await self.db.flush()
 
     async def join_book_club(self, user: DBUser, club_id: int) -> DBBookClub:
         await self.get_book_club(club_id=club_id)
@@ -93,7 +93,7 @@ class BookClubRepository:
         self.db.add(DBClubMember(club_id=club_id, user_id=user.id))
 
         try:
-            await self.db.commit()
+            await self.db.flush()
         except IntegrityError:
             await self.db.rollback()
             raise Conflict(errors=["Пользователь уже является участником клуба, повторное добавление не требуется"])
@@ -109,6 +109,6 @@ class BookClubRepository:
             raise Conflict(errors=["Пользователь не состоит в клубе"])
 
         await self.db.delete(member)
-        await self.db.commit()
+        await self.db.flush()
 
         return await self.get_book_club(club_id=club_id)
