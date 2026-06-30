@@ -26,10 +26,10 @@ class UserService:
         return ResponseModel.ok(PublicUserResponseModel.model_validate(updated_user))
 
     async def validate_phone_number(self, phone_number: int, exclude_user_id: int | None = None):
-        phone_str = str(phone_number)
-
         if phone_number is None:
             raise UnprocessableEntity(errors=["Номер телефона не может быть пустым"])
+
+        phone_str = str(phone_number)
 
         if not phone_str.isdigit():
             raise UnprocessableEntity(errors=["Номер должен содержать только цифры"])

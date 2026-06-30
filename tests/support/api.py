@@ -50,3 +50,15 @@ class ApiClient:
 
     def leave_bookclub(self, club_id: int, headers: dict[str, str] | None = None):
         return self._client.delete(f"/api/bookclubs/{club_id}/leave", headers=headers)
+
+    def create_discussion(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.post("/api/disscussions", json=payload, headers=headers)
+
+    def discussions(self, club_id: int, headers: dict[str, str] | None = None):
+        return self._client.get(f"/api/disscussions/{club_id}", headers=headers)
+
+    def update_discussion(self, discussion_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.put(f"/api/disscussions/{discussion_id}", json=payload, headers=headers)
+
+    def delete_discussion(self, discussion_id: int, headers: dict[str, str] | None = None):
+        return self._client.delete(f"/api/disscussions/{discussion_id}", headers=headers)

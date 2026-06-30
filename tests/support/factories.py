@@ -58,3 +58,20 @@ class BookclubFactory:
             "name": name if name is not None else faker.pystr(min_chars=4, max_chars=99),
             "description": description if description is not None else faker.pystr(min_chars=4, max_chars=499),
         }
+
+
+class DiscussionFactory:
+    @staticmethod
+    def create_payload(*, club_id: int, title: str | None = None, content: str | None = None) -> dict[str, str | int]:
+        return {
+            "title": title if title is not None else faker.sentence(nb_words=4),
+            "content": content if content is not None else faker.paragraph(),
+            "club_id": club_id,
+        }
+
+    @staticmethod
+    def update_payload(*, title: str | None = None, content: str | None = None) -> dict[str, str]:
+        return {
+            "title": title if title is not None else faker.sentence(nb_words=4),
+            "content": content if content is not None else faker.paragraph(),
+        }

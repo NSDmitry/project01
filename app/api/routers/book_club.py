@@ -155,7 +155,7 @@ async def join(
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-async def join(
+async def leave(
     club_id: int,
     user: DBUser = Depends(get_current_user),
     service: BookClubSerivce = Depends(get_book_club_service)

@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.db_user import DBUser
-from app.core.errors.errors import NotFound, Conflict, InternalServerError, Unauthorized
+from app.core.errors.errors import NotFound, Conflict, InternalServerError
 
 
 class UserRepository:
@@ -15,15 +15,6 @@ class UserRepository:
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
-
-    async def get_user_by_sid(self, sid: str) -> DBUser:
-        result = await self.db.execute(select(DBUser).where(DBUser.access_token == sid))
-        user = result.scalar_one_or_none()
-
-        if not user:
-            raise Unauthorized()
-
-        return user
 
     async def get_user_by_id(self, user_id: int) -> DBUser:
         result = await self.db.execute(select(DBUser).where(DBUser.id == user_id))
