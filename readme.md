@@ -12,7 +12,7 @@ Backend-сервис для книжного клуба на `FastAPI`.
 
 ## Стек
 
-- `Python 3.9`
+- `Python 3.11`
 - `FastAPI`
 - `SQLAlchemy`
 - `PostgreSQL`
@@ -75,7 +75,26 @@ X-Session-Id: <session_id>
 
 ## Быстрый старт
 
-### 1. Поднять PostgreSQL
+### 1. Установить зависимости
+
+Требуется `Python 3.11`.
+
+Вариант с `pip` (так же ставит зависимости Docker и CI):
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Либо через `Pipenv`:
+
+```bash
+pipenv --python 3.11 install --dev
+pipenv shell
+```
+
+### 2. Поднять PostgreSQL
 
 Локальная база поднимается через `docker-compose.yml`:
 
@@ -85,7 +104,7 @@ docker compose up -d db
 
 По умолчанию контейнер публикует PostgreSQL на `localhost:5432`.
 
-### 2. Создать `.env`
+### 3. Создать `.env`
 
 Пример минимального `.env`:
 
@@ -98,13 +117,15 @@ ORIGIN_URLS=["http://localhost:3000","http://localhost:5173"]
 - `DATABASE_URL` - строка подключения к основной базе данных
 - `ORIGIN_URLS` - список origin'ов для CORS
 
-### 3. Применить миграции
+### 4. Применить миграции
+
+Схема базы управляется только `Alembic` - приложение не создаёт таблицы при старте, поэтому миграции нужно применить вручную:
 
 ```bash
 alembic upgrade head
 ```
 
-### 4. Запустить приложение
+### 5. Запустить приложение
 
 ```bash
 uvicorn app.main:app --reload --log-level debug
@@ -134,7 +155,9 @@ docker compose -f docker-compose.test.yml up -d
 
 Тестовая база публикуется на `localhost:5433`.
 
-### 2. Создать `.env.test`
+### 2. Проверить `.env.test`
+
+Файл `.env.test` уже есть в репозитории:
 
 ```env
 DATABASE_URL=postgresql://test_admin:test_password@localhost:5433/test_database
@@ -147,7 +170,15 @@ ORIGIN_URLS=["http://localhost:3000"]
 IS_TEST=true pytest -s -v
 ```
 
-`IS_TEST=true` переключает приложение на чтение настроек из `.env.test`.
+`IS_TEST=true` переключает приложение на чтение настроек из `.env.test`. Схему тестовой базы фикстура `setup_test_db` поднимает сама через `alembic upgrade head` (тот же путь, что и в проде), отдельно мигрировать тестовую базу не нужно.
+
+Если зависимости установлены через `Pipenv`, отключите автозагрузку дев-`.env` - иначе `Pipenv` подставит `DATABASE_URL` из основного `.env` и тесты уйдут в дев-базу:
+
+```bash
+PIPENV_DONT_LOAD_ENV=1 IS_TEST=true pipenv run pytest -s -v
+```
+
+Тесты прогоняются в CI на каждый PR в `main` - см. `.github/workflows/tests.yml` (Python 3.11, та же тестовая база через `docker-compose.test.yml`).
 
 ## Миграции
 

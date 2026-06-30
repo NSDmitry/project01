@@ -12,8 +12,6 @@ Base = declarative_base()
 
 db_session = SessionLocal()
 
-Base.metadata.create_all(bind=engine)
-
 def get_db():
     return db_session
 
