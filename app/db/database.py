@@ -10,10 +10,9 @@ engine = create_engine(settings.database_url, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=True)
 Base = declarative_base()
 
-db_session = SessionLocal()
-
 def get_db():
-    return db_session
-
-def close_db():
-    db_session.close()
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
