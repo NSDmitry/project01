@@ -4,7 +4,7 @@ from app.db.database import Base
 from app.db.models import DBBaseModel
 
 
-class DBDiscussion(DBBaseModel, Base):
+class DBDiscussion(Base, DBBaseModel):
     __tablename__ = "discussions"
 
     club_id = Column(Integer, nullable=False)

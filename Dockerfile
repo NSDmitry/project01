@@ -14,5 +14,5 @@ COPY . .
 # Открываем порт
 EXPOSE 8000
 
-# Указываем команду запуска
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+# Указываем команду запуска. Миграции выполняются отдельным шагом (см. docker-compose), не в старте приложения.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

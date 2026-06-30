@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
     description=(
         "Создание книжного клуба.\n\n"
         "**Требуется авторизация** с заголовком:\n"
-        "`Authorization: Bearer <your_token>`\n\n"
+        "`X-Session-Id: <session_id>`\n\n"
     ),
     status_code=201,
     responses={
@@ -43,7 +43,7 @@ async def create(
     summary="Получение всех книжных клубов",
     description=(
         "**Требуется авторизация** с заголовком:\n"
-        "`Authorization: Bearer <your_token>`\n\n"
+        "`X-Session-Id: <session_id>`\n\n"
     ),
     responses={
         200: {"description": "Успешный ответ с данными книжных клубов"},
@@ -62,7 +62,7 @@ async def get_all_book_clubs(
     summary="Получение всех книжных клубов, в которых пользователь владелец",
     description=(
         "**Требуется авторизация** с заголовком:\n"
-        "`Authorization: Bearer <your_token>`\n\n"
+        "`X-Session-Id: <session_id>`\n\n"
     ),
     responses={
         200: {"description": "Успешный ответ с данными книжных клубов"},
@@ -82,7 +82,7 @@ async def get_owned_book_clubs(
     summary="Получение книжного клуба по id",
     description=(
         "**Требуется авторизация** с заголовком:\n"
-        "`Authorization: Bearer <your_token>`\n\n"
+        "`X-Session-Id: <session_id>`\n\n"
     ),
     responses = {
         200: {"description": "Успешный ответ с данными книжного клуба"},
@@ -103,7 +103,7 @@ async def get_book_club(
     summary="Удаление книжного клуба",
     description=(
         "**Требуется авторизация** с заголовком:\n"
-        "`Authorization: Bearer <your_token>`\n\n"
+        "`X-Session-Id: <session_id>`\n\n"
     ),
     responses={
         200: {"description": "Успешный ответ с сообщением об успешном удалении"},
@@ -125,7 +125,7 @@ async def delete_book_club(
     summary="Вступить в книжный клуб",
     description=(
         "**Требуется авторизация** с заголовком:\n"
-        "`Authorization: Bearer <your_token>`\n\n"
+        "`X-Session-Id: <session_id>`\n\n"
     ),
     responses={
         200: {"description": "Модель измененного книжного клуба"},
@@ -146,7 +146,7 @@ async def join(
     summary="Выйти из участников клуба",
     description=(
         "**Требуется авторизация** с заголовком:\n"
-        "`Authorization: Bearer <your_token>`\n\n"
+        "`X-Session-Id: <session_id>`\n\n"
     ),
     responses={
         200: {"description": "Модель измененного книжного клуба"},

@@ -36,7 +36,7 @@ async def get_discussions(
     description=(
         "Создание обсуждения в книжном клубе.\n\n"
         "**Требуется авторизация** с заголовком:\n"
-        "`Authorization: Bearer <your_token>`\n\n"
+        "`X-Session-Id: <session_id>`\n\n"
     ),
     status_code=201,
     responses={
@@ -83,14 +83,14 @@ async def delete_discussion(
         200: {"description": "Обсуждение успешно обновлено"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
         404: {"description": "Обсуждение с таким id не найдено"},
-        409: {"description": "Удалять обсуждения может только автор обсуждения, или владелец клуба"},
+        409: {"description": "Изменять обсуждение может только автор обсуждения, или владелец клуба"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
 async def update_discussion(
     discussion_id: int,
     model: DiscussionUpdateRequestModel,
-    user: str = Depends(get_current_user),
+    user: DBUser = Depends(get_current_user),
     service: DiscussionService = Depends(get_discussion_service)
 ):
     return await service.update_discussion(user=user, discussion_id=discussion_id, model=model)

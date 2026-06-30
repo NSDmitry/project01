@@ -25,7 +25,7 @@ def get_club_repository(db: AsyncSession = Depends(get_db)) -> BookClubRepositor
 def get_discussion_repository(db: AsyncSession = Depends(get_db)) -> DiscussionRepository:
     return DiscussionRepository(db)
 
-def get_user_session_repository(db: AsyncSession = Depends(get_db)):
+def get_user_session_repository(db: AsyncSession = Depends(get_db)) -> UserSessionRepository:
     return UserSessionRepository(db)
 
 
