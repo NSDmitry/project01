@@ -10,7 +10,7 @@ from app.db.models.db_discussion import DBDiscussion
 class DBBookClub(Base, DBBaseModel):
     __tablename__ = "book_clubs"
 
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=False, unique=True)
     description = Column(String, nullable=False)
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 

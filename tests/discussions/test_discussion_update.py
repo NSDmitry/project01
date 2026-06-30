@@ -55,4 +55,4 @@ class TestDiscussionUpdate:
             discussion_id, DiscussionFactory.update_payload(), headers=outsider.headers
         )
 
-        assert_status_code(response, 409)
+        assert_status_code(response, 403)

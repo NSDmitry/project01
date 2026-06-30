@@ -1,4 +1,4 @@
-from app.core.errors.errors import Conflict
+from app.core.errors.errors import Forbidden
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
@@ -50,7 +50,7 @@ class DiscussionService:
         await self.book_club_repository.get_book_club(model.club_id)
 
         if not await self.book_club_repository.is_member(model.club_id, user.id):
-            raise Conflict(errors=["Создавать обсуждения могут только участники клуба"])
+            raise Forbidden(errors=["Создавать обсуждения могут только участники клуба"])
 
         db_discussion = await self.discussion_repository.create_discussion(user.id, model)
 
@@ -67,7 +67,7 @@ class DiscussionService:
         db_discussion = await self.discussion_repository.get_discussion(discussion_id)
 
         if db_discussion.author_id != user.id:
-            raise Conflict(errors=["Удалять обсуждения может только автор обсуждения"])
+            raise Forbidden(errors=["Удалять обсуждения может только автор обсуждения"])
 
         await self.discussion_repository.delete_discussion(discussion_id)
 
@@ -90,7 +90,7 @@ class DiscussionService:
         db_club = await self.book_club_repository.get_book_club(db_discussion.club_id)
 
         if db_discussion.author_id != user.id and user.id != db_club.owner_id:
-            raise Conflict(errors=["Изменять обсуждение может только автор обсуждения, или владелец клуба"])
+            raise Forbidden(errors=["Изменять обсуждение может только автор обсуждения, или владелец клуба"])
 
         db_discussion = await self.discussion_repository.update_discussion(db_discussion, model)
 

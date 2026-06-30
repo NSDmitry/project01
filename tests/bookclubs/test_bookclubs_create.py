@@ -24,7 +24,7 @@ class TestBookclubsCreate:
             name=name,
             description=faker.pystr(min_chars=3, max_chars=500),
         )
-        assert_status_code(BookclubFlow.create(api, payload=payload), 409)
+        assert_status_code(BookclubFlow.create(api, payload=payload), 422)
 
     @pytest.mark.parametrize("description",
                              ["", faker.pystr(min_chars=0, max_chars=2), faker.pystr(min_chars=501, max_chars=1000)])
@@ -33,7 +33,7 @@ class TestBookclubsCreate:
             name=faker.pystr(min_chars=3, max_chars=100),
             description=description,
         )
-        assert_status_code(BookclubFlow.create(api, payload=payload), 409)
+        assert_status_code(BookclubFlow.create(api, payload=payload), 422)
 
     def test_create_bookclub_assigns_owner(self, api):
         auth = AuthFlow.register(api)

@@ -24,7 +24,15 @@ class BookClubRepository:
         new_book_club.owner_id = owner.id
 
         self.db.add(new_book_club)
-        await self.db.flush()
+
+        try:
+            await self.db.flush()
+        except IntegrityError:
+            await self.db.rollback()
+            raise Conflict(
+                message="Клуб с таким названием уже существует",
+                errors=["field: name, message: Это имя уже используется"],
+            )
 
         self.db.add(DBClubMember(club_id=new_book_club.id, user_id=owner.id))
         await self.db.commit()
