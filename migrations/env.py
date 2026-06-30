@@ -16,6 +16,9 @@ database_url = os.getenv("DATABASE_URL")
 
 # ⬇️ Импортируй здесь Base из своего проекта
 from app.db.database import Base # убедись, что путь корректный
+# Импортируем все модели, чтобы они зарегистрировались в Base.metadata
+# и autogenerate видел полную схему (единый источник истины - Alembic).
+import app.db.models  # noqa: F401
 
 # Alembic config
 config = context.config
