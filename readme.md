@@ -26,6 +26,7 @@ Backend-сервис для книжного клуба на `FastAPI`.
 
 - `POST /api/auth/register` - регистрация по имени, номеру телефона и паролю
 - `POST /api/auth/login` - вход по номеру телефона и паролю
+- `POST /api/auth/telegram` - вход и регистрация через Telegram Mini App по подписанным данным `initData`
 - `POST /api/auth/logout` - завершение текущей сессии по заголовку `X-Session-Id`
 
 ### Пользователи

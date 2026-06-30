@@ -14,3 +14,6 @@ class SignInRequestModel(BaseModel):
     password: str
 
     _validate_phone = field_validator("phone_number")(validate_e164)
+
+class TelegramAuthRequestModel(BaseModel):
+    init_data: str

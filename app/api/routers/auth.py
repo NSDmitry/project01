@@ -6,7 +6,7 @@ from app.core.deps.deps import get_auth_service
 from app.core.deps.get_current_user import session_header
 from app.core.models.response_model import ResponseModel
 from app.schemas.public_user_schema import PrivateUserResponseModel
-from app.schemas.sso_schema import SignUpRequestModel, SignInRequestModel
+from app.schemas.sso_schema import SignUpRequestModel, SignInRequestModel, TelegramAuthRequestModel
 from app.api.services.auth_service import AuthService
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -45,6 +45,23 @@ async def login(
     sso_service: AuthService = Depends(get_auth_service)
 ):
     return await sso_service.login(model=model)
+
+@router.post(
+    "/telegram",
+    response_model=ResponseModel[PrivateUserResponseModel],
+    summary="SSO: Вход и регистрация через Telegram Mini App (initData)",
+    responses={
+        200: {"description": "Успешный ответ с данными пользователя"},
+        401: {"description": "Неверная подпись или устаревшие данные Telegram"},
+        422: {"description": "Некорректное тело запроса"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+async def telegram(
+    model: TelegramAuthRequestModel,
+    sso_service: AuthService = Depends(get_auth_service)
+):
+    return await sso_service.login_with_telegram(model=model)
 
 @router.post(
     "/logout",

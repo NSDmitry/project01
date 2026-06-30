@@ -1,11 +1,20 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
+import time
 import uuid
+from urllib.parse import urlencode
 
 from faker import Faker
 
 
 faker = Faker()
+
+# Токен фиктивного бота, общий для генерации initData в тестах и для настройки
+# приложения через фикстуру telegram_bot_token.
+TELEGRAM_TEST_BOT_TOKEN = "123456:TEST-telegram-bot-token"
 
 
 class AuthFactory:
@@ -49,6 +58,40 @@ class UserFactory:
             "current_password": current_password,
             "new_password": new_password,
         }
+
+
+class TelegramFactory:
+    @staticmethod
+    def user(**overrides) -> dict:
+        user = {
+            "id": uuid.uuid4().int % (10 ** 12),
+            "first_name": "Telegram",
+            "username": "tg_user",
+        }
+        user.update(overrides)
+        return user
+
+    @staticmethod
+    def init_data(
+        *,
+        bot_token: str = TELEGRAM_TEST_BOT_TOKEN,
+        user: dict | None = None,
+        auth_date: int | None = None,
+        tamper_hash: bool = False,
+    ) -> str:
+        user = user if user is not None else TelegramFactory.user()
+        fields = {
+            "auth_date": str(auth_date if auth_date is not None else int(time.time())),
+            "query_id": "AAEtest",
+            "user": json.dumps(user, separators=(",", ":"), ensure_ascii=False),
+        }
+
+        data_check_string = "\n".join(f"{key}={fields[key]}" for key in sorted(fields))
+        secret_key = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()
+        signature = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        fields["hash"] = "0" * 64 if tamper_hash else signature
+        return urlencode(fields)
 
 
 class BookclubFactory:
