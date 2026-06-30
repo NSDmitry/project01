@@ -2,8 +2,10 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.schemas.base import ResponseSchema
 
-class DisscussionResponseModel(BaseModel):
+
+class DisscussionResponseModel(ResponseSchema):
     id: int
     created_at: datetime
     updated_at: datetime

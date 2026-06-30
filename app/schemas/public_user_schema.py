@@ -6,12 +6,14 @@ from pydantic import BaseModel
 
 from typing import Optional
 
-class PublicUserResponseModel(BaseModel):
+from app.schemas.base import ResponseSchema
+
+class PublicUserResponseModel(ResponseSchema):
     id: int
     name: str
     phone_number: Optional[int]
 
-class PrivateUserResponseModel(BaseModel):
+class PrivateUserResponseModel(ResponseSchema):
     id: int
     name: str
     phone_number: Optional[int]
