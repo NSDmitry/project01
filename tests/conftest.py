@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 from tests.support.api import ApiClient
+from tests.support.factories import TELEGRAM_TEST_BOT_TOKEN
 
 # Синхронный движок - схема (Alembic), очистка таблиц и прямые проверки в тестах.
 engine = create_engine(settings.database_url)
@@ -90,6 +91,23 @@ def client():
 @pytest.fixture()
 def api(client: TestClient) -> ApiClient:
     return ApiClient(client)
+
+@pytest.fixture()
+def telegram_bot_token():
+    # Прокидываем тестовый токен в настройки приложения на время теста, чтобы
+    # подпись initData из TelegramFactory совпала с проверкой на сервере.
+    original = settings.telegram_bot_token
+    settings.telegram_bot_token = TELEGRAM_TEST_BOT_TOKEN
+    yield TELEGRAM_TEST_BOT_TOKEN
+    settings.telegram_bot_token = original
+
+@pytest.fixture()
+def telegram_bot_token_unset():
+    # Гарантируем пустой токен независимо от .env.test - для проверки misconfig.
+    original = settings.telegram_bot_token
+    settings.telegram_bot_token = ""
+    yield
+    settings.telegram_bot_token = original
 
 @pytest.fixture(autouse=True)
 def clear_db(db):
