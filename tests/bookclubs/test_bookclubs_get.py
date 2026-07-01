@@ -20,13 +20,50 @@ class TestAllClubs:
         assert_status_code(response, 200)
         assert len(response.json()["data"]) > 0
 
-    def test_list_owned_bookclubs_returns_only_owned_clubs(self, api):
+    def test_list_bookclubs_relation_owner_returns_only_owned_clubs(self, api):
         auth = AuthFlow.register(api)
         BookclubFlow.create(api, auth=auth)
-        response = api.owned_bookclubs(headers=auth.headers)
+        BookclubFlow.create(api)
+        response = api.bookclubs(headers=auth.headers, relation="owner")
 
         assert_status_code(response, 200)
-        assert all(club["owner"]["id"] == auth.user_id for club in response.json()["data"])
+        data = response.json()["data"]
+        assert len(data) == 1
+        assert all(club["owner"]["id"] == auth.user_id for club in data)
+
+    def test_list_bookclubs_relation_member_returns_joined_clubs(self, api):
+        owner_auth = AuthFlow.register(api)
+        own_club = BookclubFlow.create(api, auth=owner_auth)
+        own_club_id = own_club.json()["data"]["id"]
+
+        member_auth = AuthFlow.register(api)
+        joined = BookclubFlow.create(api)
+        joined_club_id = joined.json()["data"]["id"]
+        api.join_bookclub(joined_club_id, headers=member_auth.headers)
+
+        response = api.bookclubs(headers=member_auth.headers, relation="member")
+
+        assert_status_code(response, 200)
+        club_ids = {club["id"] for club in response.json()["data"]}
+        assert club_ids == {joined_club_id}
+        assert own_club_id not in club_ids
+
+    def test_list_bookclubs_relation_member_includes_owned_clubs(self, api):
+        auth = AuthFlow.register(api)
+        own_club = BookclubFlow.create(api, auth=auth)
+        own_club_id = own_club.json()["data"]["id"]
+
+        response = api.bookclubs(headers=auth.headers, relation="member")
+
+        assert_status_code(response, 200)
+        club_ids = {club["id"] for club in response.json()["data"]}
+        assert own_club_id in club_ids
+
+    def test_list_bookclubs_rejects_invalid_relation(self, api):
+        auth = AuthFlow.register(api)
+        response = api.bookclubs(headers=auth.headers, relation="stranger")
+
+        assert_status_code(response, 422)
 
     def test_get_bookclub_returns_requested_entity(self, api):
         auth = AuthFlow.register(api)

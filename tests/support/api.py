@@ -36,11 +36,13 @@ class ApiClient:
     def create_bookclub(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.post("/api/bookclubs", json=payload, headers=headers)
 
-    def bookclubs(self, headers: dict[str, str] | None = None):
-        return self._client.get("/api/bookclubs", headers=headers)
-
-    def owned_bookclubs(self, headers: dict[str, str] | None = None):
-        return self._client.get("/api/bookclubs/owned", headers=headers)
+    def bookclubs(
+        self,
+        headers: dict[str, str] | None = None,
+        relation: str | None = None,
+    ):
+        params = {"relation": relation} if relation is not None else None
+        return self._client.get("/api/bookclubs", params=params, headers=headers)
 
     def bookclub(self, club_id: int, headers: dict[str, str] | None = None):
         return self._client.get(f"/api/bookclubs/{club_id}", headers=headers)

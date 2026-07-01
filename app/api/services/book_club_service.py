@@ -9,7 +9,7 @@ from app.db.models.db_book_club import DBBookClub
 from app.db.repositories.book_club_repository import BookClubRepository
 from app.db.repositories.user_repository import UserRepository
 
-from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel
+from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel, BookClubRelation
 from app.schemas.public_user_schema import UserSummaryModel
 
 
@@ -26,8 +26,8 @@ class BookClubService:
 
         return ResponseModel.ok(BookClubResponseModel.model_validate(db_book_club))
 
-    async def get_book_clubs(self) -> ResponseModel[List[BookClubResponseModel]]:
-        db_clubs: List[DBBookClub] = await self.book_club_repository.get_book_clubs()
+    async def get_book_clubs(self, user: DBUser, relation: BookClubRelation | None = None) -> ResponseModel[List[BookClubResponseModel]]:
+        db_clubs: List[DBBookClub] = await self.book_club_repository.get_book_clubs(user, relation)
         clubs = [BookClubResponseModel.model_validate(club) for club in db_clubs]
 
         return ResponseModel.ok(clubs)
@@ -36,12 +36,6 @@ class BookClubService:
         db_club: DBBookClub = await self.book_club_repository.get_book_club(club_id)
 
         return ResponseModel.ok(BookClubResponseModel.model_validate(db_club))
-
-    async def get_owned_book_clubs(self, owner: DBUser) -> ResponseModel[List[BookClubResponseModel]]:
-        db_clubs: List[DBBookClub] = await self.book_club_repository.get_owned_book_clubs(owner)
-        clubs = [BookClubResponseModel.model_validate(club) for club in db_clubs]
-
-        return ResponseModel.ok(clubs)
 
     async def get_members(self, club_id: int, limit: int, offset: int) -> ResponseModel[Page[UserSummaryModel]]:
         await self.book_club_repository.get_book_club(club_id)
