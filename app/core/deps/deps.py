@@ -12,6 +12,7 @@ from app.api.services.discussion_service import DiscussionService
 from app.api.services.auth_service import AuthService
 from app.db.repositories.user_session_repository import UserSessionRepository
 from app.api.services.user_session_service import UserSessionService
+from app.settings import settings
 
 
 ######## repositories ########
@@ -68,4 +69,5 @@ def get_auth_service(
         user_service=user_service,
         user_repository=user_repository,
         user_session_service=user_session_service,
+        telegram_bot_token=settings.telegram_bot_token,
     )

@@ -30,6 +30,28 @@ class UserRepository:
 
         return result.scalar_one_or_none()
 
+    async def get_user_by_telegram_id(self, telegram_id: int) -> DBUser:
+        result = await self.db.execute(select(DBUser).where(DBUser.telegram_id == telegram_id))
+
+        return result.scalar_one_or_none()
+
+    async def create_telegram_user(self, telegram_id: int, name: str) -> DBUser:
+        user_db_model = DBUser()
+        user_db_model.name = name
+        user_db_model.telegram_id = telegram_id
+
+        try:
+            self.db.add(user_db_model)
+            await self.db.flush()
+        except IntegrityError:
+            # Параллельный первый вход уже создал запись - используем существующую.
+            await self.db.rollback()
+            return await self.get_user_by_telegram_id(telegram_id)
+
+        await self.db.refresh(user_db_model)
+
+        return user_db_model
+
     async def create_user(self, name: str, phone_number: str, password: str) -> DBUser:
         user_db_model = DBUser()
         user_db_model.name = name

@@ -5,8 +5,9 @@ import bcrypt
 from app.api.services.user_session_service import UserSessionService
 from app.core.errors.errors import NotFound, Unauthorized, BadRequest
 from app.core.models.response_model import ResponseModel
+from app.core.security.telegram import verify_init_data
 from app.db.repositories.user_repository import UserRepository
-from app.schemas.sso_schema import SignUpRequestModel, SignInRequestModel
+from app.schemas.sso_schema import SignUpRequestModel, SignInRequestModel, TelegramAuthRequestModel
 from app.schemas.public_user_schema import PrivateUserResponseModel
 from app.api.services.user_service import UserService
 
@@ -15,16 +16,19 @@ class AuthService:
     user_service: UserService
     user_session_service: UserSessionService
     user_repository: UserRepository
+    telegram_bot_token: str
 
     def __init__(
         self,
         user_service: UserService,
         user_repository: UserRepository,
-        user_session_service: UserSessionService
+        user_session_service: UserSessionService,
+        telegram_bot_token: str = ""
     ) -> None:
         self.user_service = user_service
         self.user_repository = user_repository
         self.user_session_service = user_session_service
+        self.telegram_bot_token = telegram_bot_token
 
     async def register(self, model: SignUpRequestModel) -> ResponseModel[PrivateUserResponseModel]:
         """
@@ -64,6 +68,26 @@ class AuthService:
         if not sid:
             raise BadRequest(errors=["Не удалось создать сессию пользователя"])
 
+        response = self._make_auth_response(db_user, sid)
+
+        return ResponseModel.ok(response)
+
+    async def login_with_telegram(self, model: TelegramAuthRequestModel) -> ResponseModel[PrivateUserResponseModel]:
+        """
+        Вход и регистрация через Telegram Mini App по подписанным данным инициализации.
+        :param model: TelegramAuthRequestModel
+        :return: Данные пользователя и идентификатор сессии
+        """
+        tg_user = verify_init_data(model.init_data, self.telegram_bot_token)
+
+        telegram_id = int(tg_user["id"])
+        name = tg_user.get("first_name") or tg_user.get("username") or f"tg_{telegram_id}"
+
+        db_user = await self.user_repository.get_user_by_telegram_id(telegram_id)
+        if db_user is None:
+            db_user = await self.user_repository.create_telegram_user(telegram_id, name)
+
+        sid = await self.user_session_service.create_user_session(db_user.id)
         response = self._make_auth_response(db_user, sid)
 
         return ResponseModel.ok(response)
