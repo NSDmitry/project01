@@ -7,7 +7,7 @@ from app.core.deps.deps import get_book_club_service
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
-from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel
+from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel, BookClubRelation
 from app.schemas.public_user_schema import UserSummaryModel
 from app.core.deps.get_current_user import get_current_user
 
@@ -43,27 +43,12 @@ async def create(
 @router.get(
     "",
     response_model=ResponseModel[List[BookClubResponseModel]],
-    summary="Получение всех книжных клубов",
+    summary="Получение книжных клубов",
     description=(
-        "**Требуется авторизация** с заголовком:\n"
-        "`X-Session-Id: <session_id>`\n\n"
-    ),
-    responses={
-        200: {"description": "Успешный ответ с данными книжных клубов"},
-        500: {"description": "Внутренняя ошибка сервера"},
-    },
-)
-async def get_all_book_clubs(
-    _: DBUser = Depends(get_current_user),
-    service: BookClubService = Depends(get_book_club_service)
-):
-    return await service.get_book_clubs()
-
-@router.get(
-    "/owned",
-    response_model=ResponseModel[List[BookClubResponseModel]],
-    summary="Получение всех книжных клубов, в которых пользователь владелец",
-    description=(
+        "Возвращает книжные клубы. По умолчанию - все клубы.\n\n"
+        "Параметр `relation` ограничивает выборку клубами текущего пользователя:\n"
+        "- `owner` - клубы, где пользователь владелец;\n"
+        "- `member` - клубы, в которых пользователь состоит (включая собственные).\n\n"
         "**Требуется авторизация** с заголовком:\n"
         "`X-Session-Id: <session_id>`\n\n"
     ),
@@ -73,11 +58,15 @@ async def get_all_book_clubs(
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
-async def get_owned_book_clubs(
+async def get_all_book_clubs(
+    relation: BookClubRelation | None = Query(
+        None,
+        description="Фильтр по связи с текущим пользователем: owner или member",
+    ),
     user: DBUser = Depends(get_current_user),
     service: BookClubService = Depends(get_book_club_service)
 ):
-    return await service.get_owned_book_clubs(user)
+    return await service.get_book_clubs(user, relation)
 
 @router.get(
     "/{club_id}",
