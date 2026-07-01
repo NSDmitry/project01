@@ -5,8 +5,8 @@ from app.db.database import Base
 from app.db.models.db_base_model import DBBaseModel
 
 
-class DBDiscussion(Base, DBBaseModel):
-    __tablename__ = "discussions"
+class DBThread(Base, DBBaseModel):
+    __tablename__ = "threads"
 
     club_id = Column(Integer, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)

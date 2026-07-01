@@ -23,4 +23,4 @@ class BookClubResponseModel(ResponseSchema):
     created_at: datetime
     owner: UserSummaryModel
     members_count: int
-    discussions_count: int
+    threads_count: int

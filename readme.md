@@ -6,7 +6,7 @@ Backend-сервис для книжного клуба на `FastAPI`.
 - регистрация и авторизация пользователей;
 - работа с пользовательским профилем;
 - создание и управление книжными клубами;
-- создание и сопровождение обсуждений внутри клубов.
+- создание и сопровождение тредов внутри клубов.
 
 Сервис использует `PostgreSQL`, `SQLAlchemy`, `Alembic` и отдаёт метрики в `Prometheus`.
 
@@ -45,12 +45,12 @@ Backend-сервис для книжного клуба на `FastAPI`.
 - `POST /api/bookclubs/{club_id}/join` - вступить в клуб
 - `DELETE /api/bookclubs/{club_id}/leave` - выйти из клуба
 
-### Обсуждения
+### Треды
 
-- `GET /api/discussions/{club_id}` - получить обсуждения клуба
-- `POST /api/discussions` - создать обсуждение
-- `PUT /api/discussions/{discussion_id}` - обновить обсуждение
-- `DELETE /api/discussions/{discussion_id}` - удалить обсуждение
+- `GET /api/threads/{club_id}` - получить треды клуба
+- `POST /api/threads` - создать тред
+- `PUT /api/threads/{thread_id}` - обновить тред
+- `DELETE /api/threads/{thread_id}` - удалить тред
 
 Примечание: для защищённых методов проект использует заголовок `X-Session-Id`, а не `Authorization: Bearer`.
 
