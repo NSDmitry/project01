@@ -39,8 +39,7 @@ Backend-сервис для книжного клуба на `FastAPI`.
 ### Книжные клубы
 
 - `POST /api/bookclubs` - создать клуб
-- `GET /api/bookclubs` - получить список клубов
-- `GET /api/bookclubs/owned` - клубы, которыми владеет текущий пользователь
+- `GET /api/bookclubs` - получить список клубов; параметр `relation=owner` - клубы, где пользователь владелец, `relation=member` - клубы, в которых он состоит
 - `GET /api/bookclubs/{club_id}` - получить клуб по `id`
 - `DELETE /api/bookclubs/{club_id}` - удалить клуб
 - `POST /api/bookclubs/{club_id}/join` - вступить в клуб
@@ -48,10 +47,10 @@ Backend-сервис для книжного клуба на `FastAPI`.
 
 ### Обсуждения
 
-- `GET /api/disscussions/{club_id}` - получить обсуждения клуба
-- `POST /api/disscussions` - создать обсуждение
-- `PUT /api/disscussions/{discussion_id}` - обновить обсуждение
-- `DELETE /api/disscussions/{discussion_id}` - удалить обсуждение
+- `GET /api/discussions/{club_id}` - получить обсуждения клуба
+- `POST /api/discussions` - создать обсуждение
+- `PUT /api/discussions/{discussion_id}` - обновить обсуждение
+- `DELETE /api/discussions/{discussion_id}` - удалить обсуждение
 
 Примечание: для защищённых методов проект использует заголовок `X-Session-Id`, а не `Authorization: Bearer`.
 

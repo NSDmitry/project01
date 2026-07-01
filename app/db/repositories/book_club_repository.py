@@ -8,7 +8,7 @@ from app.core.errors.errors import NotFound, Forbidden, Conflict
 from app.db.models.db_user import DBUser
 from app.db.models.db_book_club import DBBookClub
 from app.db.models.db_club_member import DBClubMember
-from app.schemas.book_club_schema import CreateBookClubRequestModel
+from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubRelation
 
 
 class BookClubRepository:
@@ -39,13 +39,19 @@ class BookClubRepository:
 
         return await self.get_book_club(club_id=new_book_club.id)
 
-    async def get_book_clubs(self) -> List[DBBookClub]:
-        result = await self.db.execute(select(DBBookClub))
+    async def get_book_clubs(self, user: DBUser, relation: BookClubRelation | None = None) -> List[DBBookClub]:
+        query = select(DBBookClub)
 
-        return result.scalars().all()
+        if relation == BookClubRelation.owner:
+            query = query.where(DBBookClub.owner_id == user.id)
+        elif relation == BookClubRelation.member:
+            query = query.where(
+                DBBookClub.id.in_(
+                    select(DBClubMember.club_id).where(DBClubMember.user_id == user.id)
+                )
+            )
 
-    async def get_owned_book_clubs(self, owner: DBUser) -> List[DBBookClub]:
-        result = await self.db.execute(select(DBBookClub).where(DBBookClub.owner_id == owner.id))
+        result = await self.db.execute(query)
 
         return result.scalars().all()
 
