@@ -1,6 +1,6 @@
 # Book Club API
 
-FastAPI + SQLAlchemy + PostgreSQL. Серверные сессии (X-Session-Id), Alembic-only управление схемой (см. readme.md).
+FastAPI + SQLAlchemy + PostgreSQL. Серверные сессии (X-Session-Id), Alembic-only управление схемой (см. docs/migrations.md).
 
 ## graphify-first: сначала граф, потом код
 
