@@ -18,7 +18,8 @@ class TestPublicUserInfo:
         assert "access_token" not in data
         assert "password" not in data
         assert "session_id" not in data
-        assert {"id", "name", "phone_number"}.issubset(data.keys())
+        assert "phone_number" not in data
+        assert {"id", "name"}.issubset(data.keys())
 
     def test_public_user_info_requires_authorization(self, api):
         auth = AuthFlow.register(api)

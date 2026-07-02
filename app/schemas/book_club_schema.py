@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -21,6 +22,6 @@ class BookClubResponseModel(ResponseSchema):
     name: str
     description: str
     created_at: datetime
-    owner: UserSummaryModel
+    owner: Optional[UserSummaryModel] = None
     members_count: int
-    discussions_count: int
+    threads_count: int

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -6,20 +7,20 @@ from app.schemas.base import ResponseSchema
 from app.schemas.public_user_schema import UserSummaryModel
 
 
-class DiscussionResponseModel(ResponseSchema):
+class ThreadResponseModel(ResponseSchema):
     id: int
     created_at: datetime
     updated_at: datetime
     title: str
     content: str
     club_id: int
-    author: UserSummaryModel
+    author: Optional[UserSummaryModel] = None
 
-class DiscussionCreateRequestModel(BaseModel):
+class ThreadCreateRequestModel(BaseModel):
     title: str
     content: str
     club_id: int
 
-class DiscussionUpdateRequestModel(BaseModel):
+class ThreadUpdateRequestModel(BaseModel):
     title: str
     content: str

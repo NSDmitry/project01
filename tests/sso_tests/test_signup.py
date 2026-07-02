@@ -9,14 +9,22 @@ class TestSignUp:
         response = api.register(AuthFactory.register_payload())
         assert_status_code(response, 201)
 
-    def test_register_returns_expected_fields(self, api):
+    def test_register_returns_session_id(self, api):
         payload = AuthFactory.register_payload()
         response = api.register(payload)
         data = response.json()["data"]
 
-        assert_contains_keys(data, {"id", "name", "phone_number", "session_id", "created_at"})
-        assert data["phone_number"] == payload["phone_number"]
-        assert data["name"] == payload["name"]
+        assert_contains_keys(data, {"session_id"})
+
+    def test_register_current_user_matches_payload(self, api):
+        payload = AuthFactory.register_payload()
+        session_id = api.register(payload).json()["data"]["session_id"]
+
+        current = api.current_user(headers={"X-Session-Id": session_id}).json()["data"]
+
+        assert_contains_keys(current, {"id", "name", "phone_number", "created_at"})
+        assert current["phone_number"] == payload["phone_number"]
+        assert current["name"] == payload["name"]
 
     def test_register_rejects_existing_phone_number(self, api):
         payload = AuthFactory.register_payload()

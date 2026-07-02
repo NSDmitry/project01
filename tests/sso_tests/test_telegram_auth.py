@@ -10,9 +10,11 @@ class TestTelegramAuth:
 
         assert_status_code(response, 200)
         data = response.json()["data"]
-        assert_contains_keys(data, {"id", "name", "phone_number", "session_id", "created_at"})
-        assert data["phone_number"] is None
-        assert data["session_id"]
+        assert_contains_keys(data, {"session_id"})
+
+        current = api.current_user(headers={"X-Session-Id": data["session_id"]}).json()["data"]
+        assert_contains_keys(current, {"id", "name", "phone_number", "created_at"})
+        assert current["phone_number"] is None
 
     def test_repeated_login_returns_same_user(self, api, telegram_bot_token):
         user = TelegramFactory.user()
@@ -21,8 +23,13 @@ class TestTelegramAuth:
         second = api.telegram({"init_data": TelegramFactory.init_data(user=user)})
 
         assert_status_code(second, 200)
-        assert first.json()["data"]["id"] == second.json()["data"]["id"]
-        assert first.json()["data"]["session_id"] != second.json()["data"]["session_id"]
+        first_sid = first.json()["data"]["session_id"]
+        second_sid = second.json()["data"]["session_id"]
+        assert first_sid != second_sid
+
+        first_id = api.current_user(headers={"X-Session-Id": first_sid}).json()["data"]["id"]
+        second_id = api.current_user(headers={"X-Session-Id": second_sid}).json()["data"]["id"]
+        assert first_id == second_id
 
     def test_session_authorizes_protected_endpoint(self, api, telegram_bot_token):
         login = api.telegram({"init_data": TelegramFactory.init_data()})

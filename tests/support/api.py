@@ -64,19 +64,19 @@ class ApiClient:
     def leave_bookclub(self, club_id: int, headers: dict[str, str] | None = None):
         return self._client.delete(f"/api/bookclubs/{club_id}/leave", headers=headers)
 
-    def create_discussion(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
-        return self._client.post("/api/discussions", json=payload, headers=headers)
+    def create_thread(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.post("/api/threads", json=payload, headers=headers)
 
-    def discussions(
+    def threads(
         self,
         club_id: int,
         headers: dict[str, str] | None = None,
         params: dict[str, Any] | None = None,
     ):
-        return self._client.get(f"/api/discussions/{club_id}", params=params, headers=headers)
+        return self._client.get(f"/api/threads/{club_id}", params=params, headers=headers)
 
-    def update_discussion(self, discussion_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
-        return self._client.put(f"/api/discussions/{discussion_id}", json=payload, headers=headers)
+    def update_thread(self, thread_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.put(f"/api/threads/{thread_id}", json=payload, headers=headers)
 
-    def delete_discussion(self, discussion_id: int, headers: dict[str, str] | None = None):
-        return self._client.delete(f"/api/discussions/{discussion_id}", headers=headers)
+    def delete_thread(self, thread_id: int, headers: dict[str, str] | None = None):
+        return self._client.delete(f"/api/threads/{thread_id}", headers=headers)
