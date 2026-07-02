@@ -118,3 +118,17 @@ class ThreadFactory:
             "title": title if title is not None else faker.sentence(nb_words=4),
             "content": content if content is not None else faker.paragraph(),
         }
+
+
+class CommentFactory:
+    @staticmethod
+    def create_payload(*, content: str | None = None) -> dict[str, str]:
+        return {
+            "content": content if content is not None else faker.paragraph(),
+        }
+
+    @staticmethod
+    def update_payload(*, content: str | None = None) -> dict[str, str]:
+        return {
+            "content": content if content is not None else faker.paragraph(),
+        }
