@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -13,7 +14,7 @@ class ThreadResponseModel(ResponseSchema):
     title: str
     content: str
     club_id: int
-    author: UserSummaryModel
+    author: Optional[UserSummaryModel] = None
 
 class ThreadCreateRequestModel(BaseModel):
     title: str

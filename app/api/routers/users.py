@@ -3,17 +3,17 @@ from fastapi import APIRouter, Depends, Body
 from app.core.deps.deps import get_user_service, get_auth_service
 from app.core.deps.get_current_user import get_current_user
 from app.api.services.auth_service import AuthService
-from app.api.services.user_service import UserService, PublicUserResponseModel, UpdateUserRequestModel
+from app.api.services.user_service import UserService, OwnUserResponseModel, UpdateUserRequestModel
 from app.core.models.response_model import ResponseModel
 from app.db.models import DBUser
-from app.schemas.public_user_schema import ChangePasswordRequestModel
+from app.schemas.public_user_schema import ChangePasswordRequestModel, UserSummaryModel
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 @router.get(
     "/current",
-    response_model=ResponseModel[PublicUserResponseModel],
-    summary="Получение публичной информации о текущем пользователе",
+    response_model=ResponseModel[OwnUserResponseModel],
+    summary="Получение информации о текущем пользователе",
     description=
     """
     **Требуется авторизация** с заголовком:  
@@ -28,11 +28,11 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
 def get_current_user_public_info(
     user: DBUser = Depends(get_current_user)
 ):
-    return ResponseModel.ok(PublicUserResponseModel.model_validate(user))
+    return ResponseModel.ok(OwnUserResponseModel.model_validate(user))
 
 @router.get(
     "/public",
-    response_model=ResponseModel[PublicUserResponseModel],
+    response_model=ResponseModel[UserSummaryModel],
     summary="Получить публичную инфо о пользователе по ID",
     description=
     """
@@ -54,8 +54,8 @@ async def get_user_by_id(
 
 @router.put(
     "",
-    response_model=ResponseModel[PublicUserResponseModel],
-    summary="Изменить публичные данные о пользователе (имя и номер телефона)",
+    response_model=ResponseModel[OwnUserResponseModel],
+    summary="Изменить данные о пользователе (имя и номер телефона)",
     responses={
         200: {"description": "Информация о пользователе успешно изменена"},
         404: {"description": "Пользователь не найден"},

@@ -12,7 +12,7 @@ class DBBookClub(Base, DBBaseModel):
 
     name = Column(String, nullable=False, unique=True)
     description = Column(String, nullable=False)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     owner = relationship("DBUser", lazy="selectin")
 

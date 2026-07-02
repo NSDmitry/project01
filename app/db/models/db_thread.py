@@ -9,8 +9,9 @@ class DBThread(Base, DBBaseModel):
     __tablename__ = "threads"
 
     club_id = Column(Integer, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False)
-    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     title = Column(String, nullable=False)
     content = Column(Text, nullable=True)
 
     author = relationship("DBUser", lazy="selectin")
+    club = relationship("DBBookClub", lazy="selectin")
