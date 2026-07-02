@@ -5,10 +5,12 @@ from app.db.database import get_db
 from app.db.repositories.user_repository import UserRepository
 from app.db.repositories.book_club_repository import BookClubRepository
 from app.db.repositories.thread_repository import ThreadRepository
+from app.db.repositories.comment_repository import CommentRepository
 
 from app.api.services.user_service import UserService
 from app.api.services.book_club_service import BookClubService
 from app.api.services.thread_service import ThreadService
+from app.api.services.comment_service import CommentService
 from app.api.services.auth_service import AuthService
 from app.db.repositories.user_session_repository import UserSessionRepository
 from app.api.services.user_session_service import UserSessionService
@@ -25,6 +27,9 @@ def get_club_repository(db: AsyncSession = Depends(get_db)) -> BookClubRepositor
 
 def get_thread_repository(db: AsyncSession = Depends(get_db)) -> ThreadRepository:
     return ThreadRepository(db)
+
+def get_comment_repository(db: AsyncSession = Depends(get_db)) -> CommentRepository:
+    return CommentRepository(db)
 
 def get_user_session_repository(db: AsyncSession = Depends(get_db)) -> UserSessionRepository:
     return UserSessionRepository(db)
@@ -51,6 +56,17 @@ def get_thread_service(
     book_club_repository: BookClubRepository = Depends(get_club_repository),
 ) -> ThreadService:
     return ThreadService(
+        thread_repository=thread_repository,
+        book_club_repository=book_club_repository,
+    )
+
+def get_comment_service(
+    comment_repository: CommentRepository = Depends(get_comment_repository),
+    thread_repository: ThreadRepository = Depends(get_thread_repository),
+    book_club_repository: BookClubRepository = Depends(get_club_repository),
+) -> CommentService:
+    return CommentService(
+        comment_repository=comment_repository,
         thread_repository=thread_repository,
         book_club_repository=book_club_repository,
     )

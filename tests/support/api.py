@@ -80,3 +80,20 @@ class ApiClient:
 
     def delete_thread(self, thread_id: int, headers: dict[str, str] | None = None):
         return self._client.delete(f"/api/threads/{thread_id}", headers=headers)
+
+    def create_comment(self, thread_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.post(f"/api/threads/{thread_id}/comments", json=payload, headers=headers)
+
+    def comments(
+        self,
+        thread_id: int,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        return self._client.get(f"/api/threads/{thread_id}/comments", params=params, headers=headers)
+
+    def update_comment(self, comment_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.put(f"/api/comments/{comment_id}", json=payload, headers=headers)
+
+    def delete_comment(self, comment_id: int, headers: dict[str, str] | None = None):
+        return self._client.delete(f"/api/comments/{comment_id}", headers=headers)

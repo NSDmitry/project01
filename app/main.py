@@ -4,7 +4,7 @@ from fastapi.responses import JSONResponse
 
 from app.core.errors.APIException import APIException
 from app.core.models.response_model import ResponseModel
-from app.api.routers import auth, users, book_club, threads
+from app.api.routers import auth, users, book_club, threads, comments
 from fastapi.middleware.cors import CORSMiddleware
 from app.settings import settings
 
@@ -14,6 +14,7 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(book_club.router)
 app.include_router(threads.router)
+app.include_router(comments.router)
 
 app.add_middleware(
     CORSMiddleware,

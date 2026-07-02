@@ -54,6 +54,13 @@ Backend-сервис для книжного клуба на `FastAPI`.
 - `PUT /api/threads/{thread_id}` - обновить тред
 - `DELETE /api/threads/{thread_id}` - удалить тред
 
+### Комментарии
+
+- `GET /api/threads/{thread_id}/comments` - получить комментарии треда (постранично, старые сверху)
+- `POST /api/threads/{thread_id}/comments` - создать комментарий; требует авторизации и членства в клубе (как у тредов)
+- `PUT /api/comments/{comment_id}` - редактировать комментарий; только автор
+- `DELETE /api/comments/{comment_id}` - удалить комментарий; автор либо владелец клуба
+
 Примечание: для защищённых методов проект использует заголовок `X-Session-Id`, а не `Authorization: Bearer`.
 
 ## Аутентификация и пароль
