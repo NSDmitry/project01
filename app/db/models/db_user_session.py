@@ -3,10 +3,10 @@ import uuid
 from sqlalchemy import Column, UUID, Integer, String, DateTime
 
 from app.db.database import Base
-from app.db.models import DBBaseModel
+from app.db.models import DBLBase
 
 
-class DBUserSession(Base, DBBaseModel):
+class UserSession(Base, DBLBase):
     __tablename__ = "user_sessions"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

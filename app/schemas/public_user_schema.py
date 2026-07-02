@@ -9,26 +9,26 @@ from typing import Optional
 from app.core.validators import validate_e164
 from app.schemas.base import ResponseSchema
 
-class UserSummaryModel(ResponseSchema):
+class UserSummary(ResponseSchema):
     id: int
     name: str
 
-class OwnUserResponseModel(ResponseSchema):
+class OwnUserResponse(ResponseSchema):
     id: int
     name: str
     phone_number: Optional[str]
     created_at: datetime
 
-class AuthUserResponseModel(ResponseSchema):
+class AuthUserResponse(ResponseSchema):
     session_id: str
 
-class UpdateUserRequestModel(BaseModel):
+class UpdateUserRequest(BaseModel):
     name: str
     phone_number: str
 
     _validate_phone = field_validator("phone_number")(validate_e164)
 
 
-class ChangePasswordRequestModel(BaseModel):
+class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str

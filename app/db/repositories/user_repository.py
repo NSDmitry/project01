@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.db_user import DBUser
+from app.db.models.db_user import User
 from app.core.errors.errors import NotFound, Conflict, InternalServerError
 
 
@@ -16,8 +16,8 @@ class UserRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_user_by_id(self, user_id: int) -> DBUser:
-        result = await self.db.execute(select(DBUser).where(DBUser.id == user_id))
+    async def get_user_by_id(self, user_id: int) -> User:
+        result = await self.db.execute(select(User).where(User.id == user_id))
         db_user = result.scalar_one_or_none()
 
         if db_user is None:
@@ -25,18 +25,18 @@ class UserRepository:
 
         return db_user
 
-    async def get_user_by_phone_number(self, phone_number: str) -> DBUser:
-        result = await self.db.execute(select(DBUser).where(DBUser.phone_number == phone_number))
+    async def get_user_by_phone_number(self, phone_number: str) -> User:
+        result = await self.db.execute(select(User).where(User.phone_number == phone_number))
 
         return result.scalar_one_or_none()
 
-    async def get_user_by_telegram_id(self, telegram_id: int) -> DBUser:
-        result = await self.db.execute(select(DBUser).where(DBUser.telegram_id == telegram_id))
+    async def get_user_by_telegram_id(self, telegram_id: int) -> User:
+        result = await self.db.execute(select(User).where(User.telegram_id == telegram_id))
 
         return result.scalar_one_or_none()
 
-    async def create_telegram_user(self, telegram_id: int, name: str) -> DBUser:
-        user_db_model = DBUser()
+    async def create_telegram_user(self, telegram_id: int, name: str) -> User:
+        user_db_model = User()
         user_db_model.name = name
         user_db_model.telegram_id = telegram_id
 
@@ -52,8 +52,8 @@ class UserRepository:
 
         return user_db_model
 
-    async def create_user(self, name: str, phone_number: str, password: str) -> DBUser:
-        user_db_model = DBUser()
+    async def create_user(self, name: str, phone_number: str, password: str) -> User:
+        user_db_model = User()
         user_db_model.name = name
         user_db_model.phone_number = phone_number
         user_db_model.password = password
@@ -77,7 +77,7 @@ class UserRepository:
 
         return user_db_model
 
-    async def update_user_info(self, user_id: int, name: str, phone_number: str) -> DBUser:
+    async def update_user_info(self, user_id: int, name: str, phone_number: str) -> User:
         db_user = await self.get_user_by_id(user_id)
 
         db_user.name = name
@@ -88,7 +88,7 @@ class UserRepository:
 
         return db_user
 
-    async def update_user_password(self, user_id: int, password: str) -> DBUser:
+    async def update_user_password(self, user_id: int, password: str) -> User:
         db_user = await self.get_user_by_id(user_id)
         db_user.password = password
 

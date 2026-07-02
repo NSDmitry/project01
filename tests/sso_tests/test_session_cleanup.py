@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from app.api.services.user_session_service import UserSessionService
-from app.db.models.db_user_session import DBUserSession
+from app.db.models.db_user_session import UserSession
 from app.db.repositories.user_session_repository import UserSessionRepository
 from tests.support.flows import AuthFlow
 
@@ -10,9 +10,9 @@ class TestIdleSessionCleanup:
     def _service(self, async_db) -> UserSessionService:
         return UserSessionService(UserSessionRepository(async_db))
 
-    def _session(self, db, user_id: int) -> DBUserSession:
+    def _session(self, db, user_id: int) -> UserSession:
         db.expire_all()
-        return db.query(DBUserSession).filter(DBUserSession.user_id == user_id).first()
+        return db.query(UserSession).filter(UserSession.user_id == user_id).first()
 
     async def test_cleanup_removes_idle_sessions(self, api, db, async_db):
         idle = AuthFlow.register(api)

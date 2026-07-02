@@ -3,16 +3,16 @@ from fastapi import APIRouter, Depends, Body
 from app.core.deps.deps import get_user_service, get_auth_service
 from app.core.deps.get_current_user import get_current_user
 from app.api.services.auth_service import AuthService
-from app.api.services.user_service import UserService, OwnUserResponseModel, UpdateUserRequestModel
+from app.api.services.user_service import UserService, OwnUserResponse, UpdateUserRequest
 from app.core.models.response_model import ResponseModel
-from app.db.models import DBUser
-from app.schemas.public_user_schema import ChangePasswordRequestModel, UserSummaryModel
+from app.db.models import User
+from app.schemas.public_user_schema import ChangePasswordRequest, UserSummary
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
 @router.get(
     "/current",
-    response_model=ResponseModel[OwnUserResponseModel],
+    response_model=ResponseModel[OwnUserResponse],
     summary="Получение информации о текущем пользователе",
     description=
     """
@@ -26,13 +26,13 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
     }
 )
 def get_current_user_public_info(
-    user: DBUser = Depends(get_current_user)
+    user: User = Depends(get_current_user)
 ):
-    return ResponseModel.ok(OwnUserResponseModel.model_validate(user))
+    return ResponseModel.ok(OwnUserResponse.model_validate(user))
 
 @router.get(
     "/public",
-    response_model=ResponseModel[UserSummaryModel],
+    response_model=ResponseModel[UserSummary],
     summary="Получить публичную инфо о пользователе по ID",
     description=
     """
@@ -47,14 +47,14 @@ def get_current_user_public_info(
 )
 async def get_user_by_id(
     user_id: int,
-    _: DBUser = Depends(get_current_user),
+    _: User = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)
 ):
     return await user_service.get_user_by_id(user_id)
 
 @router.put(
     "",
-    response_model=ResponseModel[OwnUserResponseModel],
+    response_model=ResponseModel[OwnUserResponse],
     summary="Изменить данные о пользователе (имя и номер телефона)",
     responses={
         200: {"description": "Информация о пользователе успешно изменена"},
@@ -63,8 +63,8 @@ async def get_user_by_id(
     }
 )
 async def change_user_info(
-    model: UpdateUserRequestModel = Body(...),
-    user: DBUser = Depends(get_current_user),
+    model: UpdateUserRequest = Body(...),
+    user: User = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)
 ):
     return await user_service.update_user_info(user=user, model=model)
@@ -82,8 +82,8 @@ async def change_user_info(
     }
 )
 async def change_password(
-    model: ChangePasswordRequestModel = Body(...),
-    user: DBUser = Depends(get_current_user),
+    model: ChangePasswordRequest = Body(...),
+    user: User = Depends(get_current_user),
     auth_service: AuthService = Depends(get_auth_service)
 ):
     return await auth_service.change_password(

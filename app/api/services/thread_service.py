@@ -1,10 +1,10 @@
 from app.core.errors.errors import Forbidden
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.db.models import DBUser
+from app.db.models import User
 from app.db.repositories.book_club_repository import BookClubRepository
 from app.db.repositories.thread_repository import ThreadRepository
-from app.schemas.threads_schema import ThreadResponseModel, ThreadCreateRequestModel
+from app.schemas.threads_schema import ThreadResponse, ThreadCreateRequest
 
 
 class ThreadService:
@@ -20,7 +20,7 @@ class ThreadService:
         self.thread_repository = thread_repository
         self.book_club_repository = book_club_repository
 
-    async def get_threads(self, book_club_id: int, limit: int, offset: int) -> ResponseModel[Page[ThreadResponseModel]]:
+    async def get_threads(self, book_club_id: int, limit: int, offset: int) -> ResponseModel[Page[ThreadResponse]]:
         """
         Получение тредов книжного клуба (последние сверху, постранично).
         :param book_club_id: Id книжного клуба
@@ -32,7 +32,7 @@ class ThreadService:
         threads, total = await self.thread_repository.get_threads(club.id, limit=limit, offset=offset)
 
         page = Page(
-            items=[ThreadResponseModel.model_validate(thread) for thread in threads],
+            items=[ThreadResponse.model_validate(thread) for thread in threads],
             total=total,
             limit=limit,
             offset=offset,
@@ -40,12 +40,12 @@ class ThreadService:
 
         return ResponseModel.ok(page)
 
-    async def create_thread(self, user: DBUser, model: ThreadCreateRequestModel) -> ResponseModel[ThreadResponseModel]:
+    async def create_thread(self, user: User, model: ThreadCreateRequest) -> ResponseModel[ThreadResponse]:
         """
         Создание треда в книжном клубе.
         :param user: токен доступа
-        :param model: ThreadCreateRequestModel
-        :return: ResponseModel[ThreadResponseModel]
+        :param model: ThreadCreateRequest
+        :return: ResponseModel[ThreadResponse]
         """
         await self.book_club_repository.get_book_club(model.club_id)
 
@@ -54,9 +54,9 @@ class ThreadService:
 
         db_thread = await self.thread_repository.create_thread(user.id, model)
 
-        return ResponseModel.ok(ThreadResponseModel.model_validate(db_thread))
+        return ResponseModel.ok(ThreadResponse.model_validate(db_thread))
 
-    async def delete_thread(self, user: DBUser, thread_id: int) -> ResponseModel:
+    async def delete_thread(self, user: User, thread_id: int) -> ResponseModel:
         """
         Удаление треда.
         :param user:
@@ -75,10 +75,10 @@ class ThreadService:
 
     async def update_thread(
         self,
-        user: DBUser,
+        user: User,
         thread_id: int,
-        model: ThreadCreateRequestModel
-    ) -> ResponseModel[ThreadResponseModel]:
+        model: ThreadCreateRequest
+    ) -> ResponseModel[ThreadResponse]:
         """
         Обновление треда.
         :param user:
@@ -94,4 +94,4 @@ class ThreadService:
 
         db_thread = await self.thread_repository.update_thread(db_thread, model)
 
-        return ResponseModel.ok(ThreadResponseModel.model_validate(db_thread))
+        return ResponseModel.ok(ThreadResponse.model_validate(db_thread))

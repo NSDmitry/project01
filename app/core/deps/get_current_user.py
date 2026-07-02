@@ -5,7 +5,7 @@ from fastapi.security import APIKeyHeader
 from app.api.services.user_session_service import UserSessionService
 from app.core.deps.deps import get_user_repository, get_user_session_service
 from app.core.errors.errors import Unauthorized
-from app.db.models.db_user import DBUser
+from app.db.models.db_user import User
 from app.db.repositories.user_repository import UserRepository
 
 session_header = APIKeyHeader(name="X-Session-Id", auto_error=False)
@@ -14,7 +14,7 @@ async def get_current_user(
     sid: str | None = Security(session_header),
     user_repository: UserRepository = Depends(get_user_repository),
     user_session_service: UserSessionService = Depends(get_user_session_service)
-) -> DBUser:
+) -> User:
 
     if not sid:
         raise Unauthorized(errors=["Missing session"])

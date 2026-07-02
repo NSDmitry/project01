@@ -7,8 +7,8 @@ from app.core.errors.errors import NotFound, Unauthorized, BadRequest
 from app.core.models.response_model import ResponseModel
 from app.core.security.telegram import verify_init_data
 from app.db.repositories.user_repository import UserRepository
-from app.schemas.sso_schema import SignUpRequestModel, SignInRequestModel, TelegramAuthRequestModel
-from app.schemas.public_user_schema import AuthUserResponseModel
+from app.schemas.sso_schema import SignUpRequest, SignInRequest, TelegramAuthRequest
+from app.schemas.public_user_schema import AuthUserResponse
 from app.api.services.user_service import UserService
 
 
@@ -30,10 +30,10 @@ class AuthService:
         self.user_session_service = user_session_service
         self.telegram_bot_token = telegram_bot_token
 
-    async def register(self, model: SignUpRequestModel) -> ResponseModel[AuthUserResponseModel]:
+    async def register(self, model: SignUpRequest) -> ResponseModel[AuthUserResponse]:
         """
         Регистрация нового пользователя.
-        :param model: SignUpRequestModel
+        :param model: SignUpRequest
         :return: Сообщение об успешной регистрации
         """
 
@@ -44,15 +44,15 @@ class AuthService:
 
         db_user = await self.user_repository.create_user(model.name, model.phone_number, hashed_password)
         sid = await self.user_session_service.create_user_session(db_user.id)
-        response = AuthUserResponseModel(session_id=sid)
+        response = AuthUserResponse(session_id=sid)
 
         return ResponseModel.ok(response)
 
 
-    async def login(self, model: SignInRequestModel) -> ResponseModel[AuthUserResponseModel] :
+    async def login(self, model: SignInRequest) -> ResponseModel[AuthUserResponse] :
         """
         Авторизация пользователя.
-        :param model: SignInRequestModel
+        :param model: SignInRequest
         :return: Токен доступа
         """
         db_user = await self.user_repository.get_user_by_phone_number(model.phone_number)
@@ -68,14 +68,14 @@ class AuthService:
         if not sid:
             raise BadRequest(errors=["Не удалось создать сессию пользователя"])
 
-        response = AuthUserResponseModel(session_id=sid)
+        response = AuthUserResponse(session_id=sid)
 
         return ResponseModel.ok(response)
 
-    async def login_with_telegram(self, model: TelegramAuthRequestModel) -> ResponseModel[AuthUserResponseModel]:
+    async def login_with_telegram(self, model: TelegramAuthRequest) -> ResponseModel[AuthUserResponse]:
         """
         Вход и регистрация через Telegram Mini App по подписанным данным инициализации.
-        :param model: TelegramAuthRequestModel
+        :param model: TelegramAuthRequest
         :return: Данные пользователя и идентификатор сессии
         """
         tg_user = verify_init_data(model.init_data, self.telegram_bot_token)
@@ -88,7 +88,7 @@ class AuthService:
             db_user = await self.user_repository.create_telegram_user(telegram_id, name)
 
         sid = await self.user_session_service.create_user_session(db_user.id)
-        response = AuthUserResponseModel(session_id=sid)
+        response = AuthUserResponse(session_id=sid)
 
         return ResponseModel.ok(response)
 

@@ -6,16 +6,16 @@ from app.api.services.book_club_service import BookClubService
 from app.core.deps.deps import get_book_club_service
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.db.models import DBUser
-from app.schemas.book_club_schema import CreateBookClubRequestModel, BookClubResponseModel, BookClubRelation
-from app.schemas.public_user_schema import UserSummaryModel
+from app.db.models import User
+from app.schemas.book_club_schema import CreateBookClubRequest, BookClubResponse, BookClubRelation
+from app.schemas.public_user_schema import UserSummary
 from app.core.deps.get_current_user import get_current_user
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 
 @router.post(
     "",
-    response_model=ResponseModel[BookClubResponseModel],
+    response_model=ResponseModel[BookClubResponse],
     summary="Создание книжного клуба",
     description=(
         "Создание книжного клуба.\n\n"
@@ -32,17 +32,17 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
     },
 )
 async def create(
-        model: CreateBookClubRequestModel,
-        user: DBUser = Depends(get_current_user),
+        model: CreateBookClubRequest,
+        user: User = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
-    response: BookClubResponseModel = await service.create_book_club(model, user)
+    response: BookClubResponse = await service.create_book_club(model, user)
 
     return response
 
 @router.get(
     "",
-    response_model=ResponseModel[List[BookClubResponseModel]],
+    response_model=ResponseModel[List[BookClubResponse]],
     summary="Получение книжных клубов",
     description=(
         "Возвращает книжные клубы. По умолчанию - все клубы.\n\n"
@@ -63,14 +63,14 @@ async def get_all_book_clubs(
         None,
         description="Фильтр по связи с текущим пользователем: owner или member",
     ),
-    user: DBUser = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.get_book_clubs(user, relation)
 
 @router.get(
     "/{club_id}",
-    response_model=ResponseModel[BookClubResponseModel],
+    response_model=ResponseModel[BookClubResponse],
     summary="Получение книжного клуба по id",
     description=(
         "**Требуется авторизация** с заголовком:\n"
@@ -84,14 +84,14 @@ async def get_all_book_clubs(
 )
 async def get_book_club(
     club_id: int,
-    _: DBUser = Depends(get_current_user),
+    _: User = Depends(get_current_user),
     service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.get_book_club(club_id)
 
 @router.get(
     "/{club_id}/members",
-    response_model=ResponseModel[Page[UserSummaryModel]],
+    response_model=ResponseModel[Page[UserSummary]],
     summary="Получение участников книжного клуба (постранично)",
     description=(
         "**Требуется авторизация** с заголовком:\n"
@@ -108,7 +108,7 @@ async def get_book_club_members(
     club_id: int,
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    _: DBUser = Depends(get_current_user),
+    _: User = Depends(get_current_user),
     service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.get_members(club_id, limit=limit, offset=offset)
@@ -130,14 +130,14 @@ async def get_book_club_members(
 )
 async def delete_book_club(
     club_id: int,
-    user: DBUser = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.delete_book_club(user, club_id)
 
 @router.post(
     "/{club_id}/join",
-    response_model=ResponseModel[BookClubResponseModel],
+    response_model=ResponseModel[BookClubResponse],
     summary="Вступить в книжный клуб",
     description=(
         "**Требуется авторизация** с заголовком:\n"
@@ -151,14 +151,14 @@ async def delete_book_club(
 )
 async def join(
     club_id: int,
-    user: DBUser = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.join(user, club_id)
 
 @router.delete(
     "/{club_id}/leave",
-    response_model=ResponseModel[BookClubResponseModel],
+    response_model=ResponseModel[BookClubResponse],
     summary="Выйти из участников клуба",
     description=(
         "**Требуется авторизация** с заголовком:\n"
@@ -173,7 +173,7 @@ async def join(
 )
 async def leave(
     club_id: int,
-    user: DBUser = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.leave(user, club_id)

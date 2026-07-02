@@ -4,23 +4,23 @@ from typing import Optional
 from pydantic import BaseModel
 
 from app.schemas.base import ResponseSchema
-from app.schemas.public_user_schema import UserSummaryModel
+from app.schemas.public_user_schema import UserSummary
 
 
-class ThreadResponseModel(ResponseSchema):
+class ThreadResponse(ResponseSchema):
     id: int
     created_at: datetime
     updated_at: datetime
     title: str
     content: str
     club_id: int
-    author: Optional[UserSummaryModel] = None
+    author: Optional[UserSummary] = None
 
-class ThreadCreateRequestModel(BaseModel):
+class ThreadCreateRequest(BaseModel):
     title: str
     content: str
     club_id: int
 
-class ThreadUpdateRequestModel(BaseModel):
+class ThreadUpdateRequest(BaseModel):
     title: str
     content: str

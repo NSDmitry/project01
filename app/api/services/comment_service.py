@@ -1,11 +1,11 @@
 from app.core.errors.errors import Forbidden
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.db.models import DBUser
+from app.db.models import User
 from app.db.repositories.book_club_repository import BookClubRepository
 from app.db.repositories.comment_repository import CommentRepository
 from app.db.repositories.thread_repository import ThreadRepository
-from app.schemas.comments_schema import CommentResponseModel, CommentCreateRequestModel, CommentUpdateRequestModel
+from app.schemas.comments_schema import CommentResponse, CommentCreateRequest, CommentUpdateRequest
 
 
 class CommentService:
@@ -24,7 +24,7 @@ class CommentService:
         self.thread_repository = thread_repository
         self.book_club_repository = book_club_repository
 
-    async def get_comments(self, thread_id: int, limit: int, offset: int) -> ResponseModel[Page[CommentResponseModel]]:
+    async def get_comments(self, thread_id: int, limit: int, offset: int) -> ResponseModel[Page[CommentResponse]]:
         """
         Получение комментариев треда (старые сверху, постранично).
         :param thread_id: Id треда
@@ -36,7 +36,7 @@ class CommentService:
         comments, total = await self.comment_repository.get_comments(thread.id, limit=limit, offset=offset)
 
         page = Page(
-            items=[CommentResponseModel.model_validate(comment) for comment in comments],
+            items=[CommentResponse.model_validate(comment) for comment in comments],
             total=total,
             limit=limit,
             offset=offset,
@@ -45,14 +45,14 @@ class CommentService:
         return ResponseModel.ok(page)
 
     async def create_comment(
-        self, user: DBUser, thread_id: int, model: CommentCreateRequestModel
-    ) -> ResponseModel[CommentResponseModel]:
+        self, user: User, thread_id: int, model: CommentCreateRequest
+    ) -> ResponseModel[CommentResponse]:
         """
         Создание комментария в треде.
         :param user: пользователь
         :param thread_id: Id треда
-        :param model: CommentCreateRequestModel
-        :return: ResponseModel[CommentResponseModel]
+        :param model: CommentCreateRequest
+        :return: ResponseModel[CommentResponse]
         """
         thread = await self.thread_repository.get_thread(thread_id)
 
@@ -61,11 +61,11 @@ class CommentService:
 
         db_comment = await self.comment_repository.create_comment(thread.id, user.id, model)
 
-        return ResponseModel.ok(CommentResponseModel.model_validate(db_comment))
+        return ResponseModel.ok(CommentResponse.model_validate(db_comment))
 
     async def update_comment(
-        self, user: DBUser, comment_id: int, model: CommentUpdateRequestModel
-    ) -> ResponseModel[CommentResponseModel]:
+        self, user: User, comment_id: int, model: CommentUpdateRequest
+    ) -> ResponseModel[CommentResponse]:
         """
         Редактирование комментария.
         :param user:
@@ -80,9 +80,9 @@ class CommentService:
 
         db_comment = await self.comment_repository.update_comment(db_comment, model)
 
-        return ResponseModel.ok(CommentResponseModel.model_validate(db_comment))
+        return ResponseModel.ok(CommentResponse.model_validate(db_comment))
 
-    async def delete_comment(self, user: DBUser, comment_id: int) -> ResponseModel:
+    async def delete_comment(self, user: User, comment_id: int) -> ResponseModel:
         """
         Удаление комментария.
         :param user:

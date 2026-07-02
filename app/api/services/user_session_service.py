@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 import secrets
 
 from app.core.errors.errors import Unauthorized
-from app.db.models.db_user_session import DBUserSession
+from app.db.models.db_user_session import UserSession
 from app.db.repositories.user_session_repository import UserSessionRepository
 
 LAST_USED_THRESHOLD = timedelta(minutes=5)
@@ -29,7 +29,7 @@ class UserSessionService:
 
         return sid
 
-    async def get_user_session(self, sid: str) -> DBUserSession:
+    async def get_user_session(self, sid: str) -> UserSession:
         sid_hash = self._sid_hash(sid)
         session = await self.user_session_repository.get_user_session(sid_hash)
 

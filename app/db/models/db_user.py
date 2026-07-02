@@ -1,10 +1,10 @@
 from sqlalchemy import Column, String, BigInteger
 
 from app.db.database import Base
-from app.db.models.db_base_model import DBBaseModel
+from app.db.models.db_base_model import DBLBase
 
 
-class DBUser(Base, DBBaseModel):
+class User(Base, DBLBase):
     __tablename__ = "users"
 
     name = Column(String, nullable=False)

@@ -5,15 +5,15 @@ from app.core.deps.deps import get_comment_service
 from app.core.deps.get_current_user import get_current_user
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.db.models import DBUser
-from app.schemas.comments_schema import CommentResponseModel, CommentCreateRequestModel, \
-    CommentUpdateRequestModel
+from app.db.models import User
+from app.schemas.comments_schema import CommentResponse, CommentCreateRequest, \
+    CommentUpdateRequest
 
 router = APIRouter(tags=["comments"])
 
 @router.get(
     "/api/threads/{thread_id}/comments",
-    response_model=ResponseModel[Page[CommentResponseModel]],
+    response_model=ResponseModel[Page[CommentResponse]],
     summary="Получение комментариев треда (постранично, старые сверху)",
     description="",
     responses={
@@ -32,7 +32,7 @@ async def get_comments(
 
 @router.post(
     "/api/threads/{thread_id}/comments",
-    response_model=ResponseModel[CommentResponseModel],
+    response_model=ResponseModel[CommentResponse],
     summary="Создание комментария",
     description=(
         "Создание комментария в треде.\n\n"
@@ -51,15 +51,15 @@ async def get_comments(
 )
 async def create_comment(
     thread_id: int,
-    model: CommentCreateRequestModel,
-    user: DBUser = Depends(get_current_user),
+    model: CommentCreateRequest,
+    user: User = Depends(get_current_user),
     service: CommentService = Depends(get_comment_service)
 ):
     return await service.create_comment(user=user, thread_id=thread_id, model=model)
 
 @router.put(
     "/api/comments/{comment_id}",
-    response_model=ResponseModel[CommentResponseModel],
+    response_model=ResponseModel[CommentResponse],
     summary="Редактирование комментария",
     status_code=200,
     responses={
@@ -72,8 +72,8 @@ async def create_comment(
 )
 async def update_comment(
     comment_id: int,
-    model: CommentUpdateRequestModel,
-    user: DBUser = Depends(get_current_user),
+    model: CommentUpdateRequest,
+    user: User = Depends(get_current_user),
     service: CommentService = Depends(get_comment_service)
 ):
     return await service.update_comment(user=user, comment_id=comment_id, model=model)
@@ -93,7 +93,7 @@ async def update_comment(
 )
 async def delete_comment(
     comment_id: int,
-    user: DBUser = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: CommentService = Depends(get_comment_service)
 ):
     return await service.delete_comment(user=user, comment_id=comment_id)

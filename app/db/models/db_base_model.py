@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, func, DateTime
 
 
-class DBBaseModel:
+class DBLBase:
     """Base model class for all database models."""
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

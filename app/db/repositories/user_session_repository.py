@@ -1,7 +1,7 @@
 from sqlalchemy import DateTime, or_, select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.db_user_session import DBUserSession
+from app.db.models.db_user_session import UserSession
 
 
 class UserSessionRepository:
@@ -10,8 +10,8 @@ class UserSessionRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def create_user_session(self, user_id: int, sid_hash: str, last_used: DateTime) -> DBUserSession:
-        session = DBUserSession()
+    async def create_user_session(self, user_id: int, sid_hash: str, last_used: DateTime) -> UserSession:
+        session = UserSession()
         session.user_id = user_id
         session.sid_hash = sid_hash
         session.last_used = last_used
@@ -23,34 +23,34 @@ class UserSessionRepository:
         return session
 
     async def delete_user_session(self, sid_hash: str):
-        result = await self.db.execute(select(DBUserSession).where(DBUserSession.sid_hash == sid_hash))
+        result = await self.db.execute(select(UserSession).where(UserSession.sid_hash == sid_hash))
         session = result.scalar_one_or_none()
 
         if session:
             await self.db.delete(session)
             await self.db.flush()
 
-    async def get_user_session(self, sid_hash: str) -> DBUserSession:
-        result = await self.db.execute(select(DBUserSession).where(DBUserSession.sid_hash == sid_hash))
+    async def get_user_session(self, sid_hash: str) -> UserSession:
+        result = await self.db.execute(select(UserSession).where(UserSession.sid_hash == sid_hash))
 
         return result.scalar_one_or_none()
 
-    async def update_last_used(self, session: DBUserSession, last_used: DateTime) -> DBUserSession:
+    async def update_last_used(self, session: UserSession, last_used: DateTime) -> UserSession:
         session.last_used = last_used
         await self.db.flush()
 
         return session
 
     async def delete_all_user_sessions(self, user_id: int):
-        await self.db.execute(delete(DBUserSession).where(DBUserSession.user_id == user_id))
+        await self.db.execute(delete(UserSession).where(UserSession.user_id == user_id))
         await self.db.flush()
 
     async def delete_idle_sessions(self, cutoff: DateTime) -> int:
         result = await self.db.execute(
-            delete(DBUserSession).where(
+            delete(UserSession).where(
                 or_(
-                    DBUserSession.last_used.is_(None),
-                    DBUserSession.last_used < cutoff,
+                    UserSession.last_used.is_(None),
+                    UserSession.last_used < cutoff,
                 )
             )
         )

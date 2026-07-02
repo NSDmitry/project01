@@ -1,14 +1,14 @@
 from datetime import timedelta
 
-from app.db.models.db_user_session import DBUserSession
+from app.db.models.db_user_session import UserSession
 from tests.support.assertions import assert_status_code
 from tests.support.flows import AuthFlow
 
 
 class TestSessionLastUsed:
-    def _session(self, db, user_id: int) -> DBUserSession:
+    def _session(self, db, user_id: int) -> UserSession:
         db.expire_all()
-        return db.query(DBUserSession).filter(DBUserSession.user_id == user_id).first()
+        return db.query(UserSession).filter(UserSession.user_id == user_id).first()
 
     def _shift_last_used(self, db, user_id: int, delta: timedelta):
         session = self._session(db, user_id)

@@ -5,15 +5,15 @@ from pydantic import Secret
 from app.core.deps.deps import get_auth_service
 from app.core.deps.get_current_user import session_header
 from app.core.models.response_model import ResponseModel
-from app.schemas.public_user_schema import AuthUserResponseModel
-from app.schemas.sso_schema import SignUpRequestModel, SignInRequestModel, TelegramAuthRequestModel
+from app.schemas.public_user_schema import AuthUserResponse
+from app.schemas.sso_schema import SignUpRequest, SignInRequest, TelegramAuthRequest
 from app.api.services.auth_service import AuthService
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post(
     "/register",
-    response_model=ResponseModel[AuthUserResponseModel],
+    response_model=ResponseModel[AuthUserResponse],
     summary="SSO: Регистрация пользователя (номер телефона и пароль)",
     status_code=201,
     responses={
@@ -24,14 +24,14 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
     }
 )
 async def register(
-    model: SignUpRequestModel,
+    model: SignUpRequest,
     sso_service: AuthService = Depends(get_auth_service)
 ):
     return await sso_service.register(model=model)
 
 @router.post(
     "/login",
-    response_model = ResponseModel[AuthUserResponseModel],
+    response_model = ResponseModel[AuthUserResponse],
     summary = "SSO: Авторизация пользователя (номер телефона и пароль)",
     responses = {
         200: {"description": "Успешный ответ с идентификатором сессии"},
@@ -41,14 +41,14 @@ async def register(
     }
 )
 async def login(
-    model: SignInRequestModel,
+    model: SignInRequest,
     sso_service: AuthService = Depends(get_auth_service)
 ):
     return await sso_service.login(model=model)
 
 @router.post(
     "/telegram",
-    response_model=ResponseModel[AuthUserResponseModel],
+    response_model=ResponseModel[AuthUserResponse],
     summary="SSO: Вход и регистрация через Telegram Mini App (initData)",
     responses={
         200: {"description": "Успешный ответ с идентификатором сессии"},
@@ -58,7 +58,7 @@ async def login(
     }
 )
 async def telegram(
-    model: TelegramAuthRequestModel,
+    model: TelegramAuthRequest,
     sso_service: AuthService = Depends(get_auth_service)
 ):
     return await sso_service.login_with_telegram(model=model)

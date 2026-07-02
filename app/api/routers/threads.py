@@ -5,15 +5,15 @@ from app.core.deps.deps import get_thread_service
 from app.core.deps.get_current_user import get_current_user
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.db.models import DBUser
-from app.schemas.threads_schema import ThreadResponseModel, ThreadCreateRequestModel, \
-    ThreadUpdateRequestModel
+from app.db.models import User
+from app.schemas.threads_schema import ThreadResponse, ThreadCreateRequest, \
+    ThreadUpdateRequest
 
 router = APIRouter(prefix="/api/threads", tags=["threads"])
 
 @router.get(
     "/{club_id}",
-    response_model=ResponseModel[Page[ThreadResponseModel]],
+    response_model=ResponseModel[Page[ThreadResponse]],
     summary="Получение тредов книжного клуба (постранично, последние сверху)",
     description="",
     responses={
@@ -32,7 +32,7 @@ async def get_threads(
 
 @router.post(
     "",
-    response_model=ResponseModel[ThreadResponseModel],
+    response_model=ResponseModel[ThreadResponse],
     summary="Создание треда",
     description=(
         "Создание треда в книжном клубе.\n\n"
@@ -50,8 +50,8 @@ async def get_threads(
     }
 )
 async def create_thread(
-    model: ThreadCreateRequestModel,
-    user: DBUser = Depends(get_current_user),
+    model: ThreadCreateRequest,
+    user: User = Depends(get_current_user),
     service: ThreadService = Depends(get_thread_service)
 ):
     return await service.create_thread(user=user, model=model)
@@ -71,14 +71,14 @@ async def create_thread(
 )
 async def delete_thread(
     thread_id: int,
-    user: DBUser = Depends(get_current_user),
+    user: User = Depends(get_current_user),
     service: ThreadService = Depends(get_thread_service)
 ):
     return await service.delete_thread(user=user, thread_id=thread_id)
 
 @router.put(
     "/{thread_id}",
-    response_model=ResponseModel[ThreadResponseModel],
+    response_model=ResponseModel[ThreadResponse],
     status_code=200,
     responses={
         200: {"description": "Тред успешно обновлён"},
@@ -90,8 +90,8 @@ async def delete_thread(
 )
 async def update_thread(
     thread_id: int,
-    model: ThreadUpdateRequestModel,
-    user: DBUser = Depends(get_current_user),
+    model: ThreadUpdateRequest,
+    user: User = Depends(get_current_user),
     service: ThreadService = Depends(get_thread_service)
 ):
     return await service.update_thread(user=user, thread_id=thread_id, model=model)
