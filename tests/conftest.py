@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
-from app.db.database import Base, get_db
+from app.core.database import Base, get_db
 from app.settings import settings
 from fastapi.testclient import TestClient
 from app.main import app

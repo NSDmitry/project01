@@ -1,7 +1,7 @@
 import pytest
 
-from app.api.services.user_session_service import UserSessionService
-from app.db.models.db_user import DBUser
+from app.iam.service import UserSessionService
+from app.iam.models import User
 from tests.support.factories import AuthFactory
 
 
@@ -18,4 +18,4 @@ class TestRegisterAtomicity:
             api.register(AuthFactory.register_payload())
 
         db.expire_all()
-        assert db.query(DBUser).count() == 0
+        assert db.query(User).count() == 0
