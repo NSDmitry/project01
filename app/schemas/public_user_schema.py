@@ -13,16 +13,13 @@ class UserSummaryModel(ResponseSchema):
     id: int
     name: str
 
-class PublicUserResponseModel(ResponseSchema):
-    id: int
-    name: str
-    phone_number: Optional[str]
-
-class PrivateUserResponseModel(ResponseSchema):
+class OwnUserResponseModel(ResponseSchema):
     id: int
     name: str
     phone_number: Optional[str]
     created_at: datetime
+
+class AuthUserResponseModel(ResponseSchema):
     session_id: str
 
 class UpdateUserRequestModel(BaseModel):

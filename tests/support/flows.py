@@ -21,11 +21,16 @@ class AuthFlow:
     @staticmethod
     def register(api: ApiClient, payload: dict | None = None) -> AuthSession:
         response = api.register(payload or AuthFactory.register_payload())
-        data = response.json()["data"]
+        session_id = response.json()["data"]["session_id"]
+
+        # register отдаёт только session_id - за остальными данными пользователя
+        # идём отдельным запросом, как это делает реальный клиент.
+        current = api.current_user(headers={"X-Session-Id": session_id}).json()["data"]
+
         return AuthSession(
-            user_id=data["id"],
-            phone_number=data.get("phone_number"),
-            session_id=data["session_id"],
+            user_id=current["id"],
+            phone_number=current.get("phone_number"),
+            session_id=session_id,
         )
 
 

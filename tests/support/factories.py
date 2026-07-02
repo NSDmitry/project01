@@ -103,7 +103,7 @@ class BookclubFactory:
         }
 
 
-class DiscussionFactory:
+class ThreadFactory:
     @staticmethod
     def create_payload(*, club_id: int, title: str | None = None, content: str | None = None) -> dict[str, str | int]:
         return {
