@@ -1,8 +1,8 @@
 from datetime import timedelta
 
-from app.api.services.user_session_service import UserSessionService
-from app.db.models.db_user_session import UserSession
-from app.db.repositories.user_session_repository import UserSessionRepository
+from app.iam.service import UserSessionService
+from app.iam.models import UserSession
+from app.iam.repository import UserSessionRepository
 from tests.support.flows import AuthFlow
 
 

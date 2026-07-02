@@ -1,7 +1,7 @@
 import pytest
 
-from app.api.services.user_session_service import UserSessionService
-from app.db.models.db_user import User
+from app.iam.service import UserSessionService
+from app.iam.models import User
 from tests.support.factories import AuthFactory
 
 

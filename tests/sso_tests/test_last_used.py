@@ -1,6 +1,6 @@
 from datetime import timedelta
 
-from app.db.models.db_user_session import UserSession
+from app.iam.models import UserSession
 from tests.support.assertions import assert_status_code
 from tests.support.flows import AuthFlow
 

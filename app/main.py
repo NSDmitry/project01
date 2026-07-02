@@ -4,17 +4,19 @@ from fastapi.responses import JSONResponse
 
 from app.core.errors.APIException import APIException
 from app.core.models.response_model import ResponseModel
-from app.api.routers import auth, users, book_club, threads, comments
+from app.iam.router import auth_router, users_router
+from app.bookclubs.router import router as bookclubs_router
+from app.discussions.router import threads_router, comments_router
 from fastapi.middleware.cors import CORSMiddleware
 from app.settings import settings
 
 app = FastAPI()
 
-app.include_router(auth.router)
-app.include_router(users.router)
-app.include_router(book_club.router)
-app.include_router(threads.router)
-app.include_router(comments.router)
+app.include_router(auth_router)
+app.include_router(users_router)
+app.include_router(bookclubs_router)
+app.include_router(threads_router)
+app.include_router(comments_router)
 
 app.add_middleware(
     CORSMiddleware,

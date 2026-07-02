@@ -60,7 +60,7 @@ services:
                next=$$(date -d 'today 03:00' +%s);
                [ $$next -le $$now ] && next=$$(date -d 'tomorrow 03:00' +%s);
                sleep $$((next - now));
-               python -m app.tasks.cleanup_sessions;
+               python -m app.iam.tasks;
              done"
 
 volumes:
