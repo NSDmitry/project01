@@ -1,3 +1,5 @@
+from typing import Optional
+
 from app.bookclubs.repository import BookClubRepository
 from app.core.errors.errors import Forbidden
 from app.core.models.page_model import Page
@@ -119,19 +121,35 @@ class CommentService:
         self.thread_repository = thread_repository
         self.book_club_repository = book_club_repository
 
-    async def get_comments(self, thread_id: int, limit: int, offset: int) -> ResponseModel[Page[CommentResponse]]:
+    async def get_comments(
+        self, thread_id: int, limit: int, offset: int, user: Optional[User] = None
+    ) -> ResponseModel[Page[CommentResponse]]:
         """
         Получение комментариев треда (старые сверху, постранично).
         :param thread_id: Id треда
         :param limit: Размер страницы
         :param offset: Смещение
+        :param user: текущий пользователь (если авторизован) - для расчёта is_liked
         :return: Страница комментариев
         """
         thread = await self.thread_repository.get_thread(thread_id)
         comments, total = await self.comment_repository.get_comments(thread.id, limit=limit, offset=offset)
 
+        comment_ids = [comment.id for comment in comments]
+        likes_counts = await self.comment_repository.get_likes_counts(comment_ids)
+        liked_ids = (
+            await self.comment_repository.get_liked_comment_ids(comment_ids, user.id)
+            if user else set()
+        )
+
         page = Page(
-            items=[CommentResponse.model_validate(comment) for comment in comments],
+            items=[
+                CommentResponse.model_validate(comment).model_copy(update={
+                    "likes_count": likes_counts.get(comment.id, 0),
+                    "is_liked": comment.id in liked_ids,
+                })
+                for comment in comments
+            ],
             total=total,
             limit=limit,
             offset=offset,
@@ -194,3 +212,41 @@ class CommentService:
         await self.comment_repository.delete_comment(comment_id)
 
         return ResponseModel.ok(message="Комментарий успешно удалён")
+
+    async def like_comment(self, user: User, comment_id: int) -> ResponseModel[CommentResponse]:
+        """
+        Лайк комментария (идемпотентно - повторный лайк не ошибка).
+        :param user: пользователь
+        :param comment_id: Id комментария
+        :return: ResponseModel[CommentResponse]
+        """
+        db_comment = await self.comment_repository.get_comment(comment_id)
+        db_thread = await self.thread_repository.get_thread(db_comment.thread_id)
+
+        if not await self.book_club_repository.is_member(db_thread.club_id, user.id):
+            raise Forbidden(errors=["Ставить лайки могут только участники клуба"])
+
+        await self.comment_repository.add_like(comment_id, user.id)
+
+        return ResponseModel.ok(await self._comment_with_likes(db_comment, is_liked=True))
+
+    async def unlike_comment(self, user: User, comment_id: int) -> ResponseModel[CommentResponse]:
+        """
+        Снятие лайка с комментария (идемпотентно - снятие отсутствующего лайка не ошибка).
+        :param user: пользователь
+        :param comment_id: Id комментария
+        :return: ResponseModel[CommentResponse]
+        """
+        db_comment = await self.comment_repository.get_comment(comment_id)
+
+        await self.comment_repository.remove_like(comment_id, user.id)
+
+        return ResponseModel.ok(await self._comment_with_likes(db_comment, is_liked=False))
+
+    async def _comment_with_likes(self, comment, is_liked: bool) -> CommentResponse:
+        likes_counts = await self.comment_repository.get_likes_counts([comment.id])
+
+        return CommentResponse.model_validate(comment).model_copy(update={
+            "likes_count": likes_counts.get(comment.id, 0),
+            "is_liked": is_liked,
+        })

@@ -3,7 +3,7 @@ from fastapi.security import APIKeyHeader
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.errors.errors import Unauthorized
+from app.core.errors.errors import NotFound, Unauthorized
 from app.iam.models import User
 from app.iam.repository import UserRepository, UserSessionRepository
 from app.iam.service import AuthService, UserService, UserSessionService
@@ -55,9 +55,21 @@ async def get_current_user(
     if not user_session:
         raise Unauthorized(errors=["Invalid session"])
 
-    user = await user_repository.get_user_by_id(user_session.user_id)
-
-    if not user:
+    try:
+        return await user_repository.get_user_by_id(user_session.user_id)
+    except NotFound:
+        # Сессия без живого пользователя (у user_sessions.user_id нет FK) - это сбой
+        # авторизации, а не отсутствие ресурса
         raise Unauthorized(errors=["Invalid session"])
 
-    return user
+
+async def get_optional_user(
+    sid: str | None = Security(session_header),
+    user_repository: UserRepository = Depends(get_user_repository),
+    user_session_service: UserSessionService = Depends(get_user_session_service)
+) -> User | None:
+    """Как get_current_user, но любой сбой авторизации - анонимный доступ, а не ошибка."""
+    try:
+        return await get_current_user(sid, user_repository, user_session_service)
+    except (Unauthorized, NotFound):
+        return None

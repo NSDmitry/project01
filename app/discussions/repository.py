@@ -1,10 +1,11 @@
-from typing import List, Tuple
+from typing import Dict, List, Set, Tuple
 
 from sqlalchemy import select, func
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors.errors import NotFound
-from app.discussions.models import Thread, Comment
+from app.discussions.models import Thread, Comment, CommentLike
 from app.discussions.schemas import ThreadCreateRequest, CommentCreateRequest, CommentUpdateRequest
 
 
@@ -122,3 +123,44 @@ class CommentRepository:
         await self.db.flush()
 
         return await self.get_comment(comment.id)
+
+    async def add_like(self, comment_id: int, user_id: int) -> None:
+        # ON CONFLICT DO NOTHING: конкурентные лайки одного пользователя не падают об уникальный ключ
+        await self.db.execute(
+            pg_insert(CommentLike)
+            .values(comment_id=comment_id, user_id=user_id)
+            .on_conflict_do_nothing(constraint="uq_comment_likes_comment_id_user_id")
+        )
+
+    async def remove_like(self, comment_id: int, user_id: int) -> None:
+        result = await self.db.execute(
+            select(CommentLike)
+            .where(CommentLike.comment_id == comment_id, CommentLike.user_id == user_id)
+        )
+        like = result.scalar_one_or_none()
+        if like:
+            await self.db.delete(like)
+            await self.db.flush()
+
+    async def get_likes_counts(self, comment_ids: List[int]) -> Dict[int, int]:
+        if not comment_ids:
+            return {}
+
+        result = await self.db.execute(
+            select(CommentLike.comment_id, func.count())
+            .where(CommentLike.comment_id.in_(comment_ids))
+            .group_by(CommentLike.comment_id)
+        )
+
+        return dict(result.all())
+
+    async def get_liked_comment_ids(self, comment_ids: List[int], user_id: int) -> Set[int]:
+        if not comment_ids:
+            return set()
+
+        result = await self.db.execute(
+            select(CommentLike.comment_id)
+            .where(CommentLike.comment_id.in_(comment_ids), CommentLike.user_id == user_id)
+        )
+
+        return set(result.scalars().all())

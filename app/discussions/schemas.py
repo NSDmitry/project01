@@ -33,6 +33,8 @@ class CommentResponse(ResponseSchema):
     content: str
     thread_id: int
     author: Optional[UserSummary] = None
+    likes_count: int = 0
+    is_liked: bool = False
 
 class CommentCreateRequest(BaseModel):
     content: str

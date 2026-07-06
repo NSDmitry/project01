@@ -1,3 +1,4 @@
+from app.iam.models import User
 from tests.support.assertions import assert_status_code
 from tests.support.flows import AuthFlow
 
@@ -12,3 +13,10 @@ class TestCurrentUser:
 
     def test_current_user_requires_authorization(self, api):
         assert_status_code(api.current_user(), 401)
+
+    def test_orphan_session_returns_401_not_404(self, api, db):
+        auth = AuthFlow.register(api)
+        db.query(User).filter(User.id == auth.user_id).delete()
+        db.commit()
+
+        assert_status_code(api.current_user(auth.headers), 401)

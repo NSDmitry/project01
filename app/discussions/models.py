@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -25,3 +25,13 @@ class Comment(Base, DBLBase):
     content = Column(Text, nullable=False)
 
     author = relationship("User", lazy="selectin")
+
+
+class CommentLike(Base, DBLBase):
+    __tablename__ = "comment_likes"
+    __table_args__ = (
+        UniqueConstraint("comment_id", "user_id", name="uq_comment_likes_comment_id_user_id"),
+    )
+
+    comment_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
