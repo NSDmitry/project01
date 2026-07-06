@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, select, func
+from sqlalchemy import Column, BigInteger, String, ForeignKey, select, func
 from sqlalchemy.orm import relationship, column_property
 
 from app.core.database import Base
@@ -9,8 +9,8 @@ from app.discussions.models import Thread
 class ClubMember(Base):
     __tablename__ = "club_members"
 
-    club_id = Column(Integer, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    club_id = Column(BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True)
+    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
 
 
 class BookClub(Base, DBLBase):
@@ -18,7 +18,7 @@ class BookClub(Base, DBLBase):
 
     name = Column(String, nullable=False, unique=True)
     description = Column(String, nullable=False)
-    owner_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    owner_id = Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     owner = relationship("User", lazy="selectin")
 
