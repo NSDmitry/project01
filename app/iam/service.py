@@ -232,6 +232,24 @@ class AuthService:
             message="Пароль обновлен. Все активные сессии завершены",
         )
 
+    async def delete_current_user(
+        self,
+        user: User,
+        delete_clubs: bool,
+        delete_threads: bool,
+        delete_comments: bool,
+    ) -> ResponseModel[None]:
+        await self.user_repository.delete_user(
+            user_id=user.id,
+            delete_clubs=delete_clubs,
+            delete_threads=delete_threads,
+            delete_comments=delete_comments,
+        )
+        # user_sessions без FK на users - осиротевшие сессии удаляем вручную.
+        await self.user_session_service.logout_all_user_sessions(user.id)
+
+        return ResponseModel.ok(None, message="Аккаунт удалён")
+
     @staticmethod
     async def _verify_password(plain_password: str, hashed_password: str) -> bool:
         """

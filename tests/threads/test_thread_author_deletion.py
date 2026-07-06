@@ -16,8 +16,8 @@ class TestThreadAuthorDeletion:
             ThreadFactory.create_payload(club_id=club_id, title="Тред автора"), headers=author.headers
         )
 
-        # Эндпоинта удаления пользователя нет - удаляем строку напрямую, чтобы
-        # проверить FK ON DELETE SET NULL на уровне БД.
+        # Удаляем строку напрямую (в обход эндпоинта удаления пользователя с его
+        # флагами), чтобы проверить FK ON DELETE SET NULL на уровне БД.
         db.execute(text("DELETE FROM users WHERE id = :id"), {"id": author.user_id})
         db.commit()
 

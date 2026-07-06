@@ -11,8 +11,8 @@ class TestBookclubOwnerDeletion:
 
         reader = AuthFlow.register(api)
 
-        # Эндпоинта удаления пользователя нет - удаляем строку напрямую, чтобы
-        # проверить FK ON DELETE SET NULL на уровне БД.
+        # Удаляем строку напрямую (в обход эндпоинта удаления пользователя с его
+        # флагами), чтобы проверить FK ON DELETE SET NULL на уровне БД.
         db.execute(text("DELETE FROM users WHERE id = :id"), {"id": owner.user_id})
         db.commit()
 

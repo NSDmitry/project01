@@ -169,3 +169,37 @@ async def change_password(
         current_password=model.current_password,
         new_password=model.new_password,
     )
+
+
+@users_router.delete(
+    "/current",
+    response_model=ResponseModel[None],
+    summary="Удалить текущего пользователя (только свой аккаунт)",
+    description=
+    """
+    **Требуется авторизация** с заголовком:
+    `X-Session-Id: <session_id>`
+
+    Флаги (по умолчанию `false`) управляют контентом пользователя:
+    - `false` - клуб/тред/коммент отвязывается (owner/author -> null), но сохраняется;
+    - `true` - удаляется вместе с вложенным содержимым.
+    """,
+    responses={
+        200: {"description": "Аккаунт удалён, все сессии завершены"},
+        401: {"description": "Ошибка авторизации (отсутствует или невалиден X-Session-Id)"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+async def delete_current_user(
+    delete_clubs: bool = False,
+    delete_threads: bool = False,
+    delete_comments: bool = False,
+    user: User = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    return await auth_service.delete_current_user(
+        user=user,
+        delete_clubs=delete_clubs,
+        delete_threads=delete_threads,
+        delete_comments=delete_comments,
+    )

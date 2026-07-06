@@ -33,6 +33,13 @@ class ApiClient:
     def change_password(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.put("/api/users/password", json=payload, headers=headers)
 
+    def delete_current_user(
+        self,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        return self._client.delete("/api/users/current", params=params, headers=headers)
+
     def create_bookclub(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.post("/api/bookclubs", json=payload, headers=headers)
 
