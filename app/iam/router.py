@@ -7,6 +7,8 @@ from app.iam.models import User
 from app.iam.schemas import (
     AuthUserResponse,
     ChangePasswordRequest,
+    LoginAvailableRequest,
+    LoginAvailableResponse,
     OwnUserResponse,
     SignInRequest,
     SignUpRequest,
@@ -53,6 +55,22 @@ async def login(
     sso_service: AuthService = Depends(get_auth_service)
 ):
     return await sso_service.login(model=model)
+
+@auth_router.post(
+    "/login-available",
+    response_model=ResponseModel[LoginAvailableResponse],
+    summary="SSO: Проверка доступности номера (авторизация или регистрация)",
+    responses={
+        200: {"description": "is_registered=true - номер занят (авторизация), false - свободен (регистрация)"},
+        422: {"description": "Ошибка валидации номера телефона"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+async def login_available(
+    model: LoginAvailableRequest,
+    sso_service: AuthService = Depends(get_auth_service)
+):
+    return await sso_service.check_login_available(model=model)
 
 @auth_router.post(
     "/telegram",

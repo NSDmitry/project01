@@ -43,3 +43,4 @@ archive.zip
 
 # graphify - локальный граф знаний
 graphify-out/
+/.venv

@@ -22,6 +22,11 @@ class SignInRequest(BaseModel):
 
     _validate_phone = field_validator("phone_number")(validate_e164)
 
+class LoginAvailableRequest(BaseModel):
+    phone_number: str
+
+    _validate_phone = field_validator("phone_number")(validate_e164)
+
 class TelegramAuthRequest(BaseModel):
     init_data: str
 
@@ -37,6 +42,9 @@ class OwnUserResponse(ResponseSchema):
 
 class AuthUserResponse(ResponseSchema):
     session_id: str
+
+class LoginAvailableResponse(ResponseSchema):
+    is_registered: bool
 
 class UpdateUserRequest(BaseModel):
     name: str

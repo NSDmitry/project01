@@ -15,6 +15,9 @@ class ApiClient:
     def login(self, payload: dict[str, Any]):
         return self._client.post("/api/auth/login", json=payload)
 
+    def login_available(self, payload: dict[str, Any]):
+        return self._client.post("/api/auth/login-available", json=payload)
+
     def telegram(self, payload: dict[str, Any]):
         return self._client.post("/api/auth/telegram", json=payload)
 

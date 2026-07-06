@@ -12,6 +12,8 @@ from app.iam.models import User, UserSession
 from app.iam.repository import UserRepository, UserSessionRepository
 from app.iam.schemas import (
     AuthUserResponse,
+    LoginAvailableRequest,
+    LoginAvailableResponse,
     OwnUserResponse,
     SignInRequest,
     SignUpRequest,
@@ -181,6 +183,16 @@ class AuthService:
         response = AuthUserResponse(session_id=sid)
 
         return ResponseModel.ok(response)
+
+    async def check_login_available(self, model: LoginAvailableRequest) -> ResponseModel[LoginAvailableResponse]:
+        """
+        Проверка доступности номера: занят - нужна авторизация, свободен - регистрация.
+        :param model: LoginAvailableRequest
+        :return: Флаг is_registered (True - номер зарегистрирован)
+        """
+        db_user = await self.user_repository.get_user_by_phone_number(model.phone_number)
+
+        return ResponseModel.ok(LoginAvailableResponse(is_registered=db_user is not None))
 
     async def login_with_telegram(self, model: TelegramAuthRequest) -> ResponseModel[AuthUserResponse]:
         """
