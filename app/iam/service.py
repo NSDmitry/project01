@@ -36,9 +36,6 @@ class UserService:
     async def get_user_by_id(self, user_id: int) -> UserSummary:
         db_user: User = await self.user_repository.get_user_by_id(user_id)
 
-        if db_user is None:
-            raise NotFound(errors=["Пользователь с таким id не найден"])
-
         return ResponseModel.ok(UserSummary.model_validate(db_user))
 
     async def update_user_info(self, user: User, model: UpdateUserRequest) -> OwnUserResponse:
@@ -54,10 +51,7 @@ class UserService:
     async def __is_unique_phone_number(self, phone_number: str, exclude_user_id: int | None = None) -> bool:
         user = await self.user_repository.get_user_by_phone_number(phone_number)
 
-        if user and user.id != exclude_user_id:
-            return False
-        else:
-            return True
+        return not (user and user.id != exclude_user_id)
 
 
 class UserSessionService:
@@ -72,7 +66,7 @@ class UserSessionService:
         sid = self._generate_sid()
         sid_hash = self._sid_hash(sid)
 
-        _ = await self.user_session_repository.create_user_session(
+        await self.user_session_repository.create_user_session(
             user_id=user_id,
             sid_hash=sid_hash,
             last_used=now
@@ -176,10 +170,6 @@ class AuthService:
             raise Unauthorized(errors=["Неверный пароль"])
 
         sid = await self.user_session_service.create_user_session(db_user.id)
-
-        if not sid:
-            raise BadRequest(errors=["Не удалось создать сессию пользователя"])
-
         response = AuthUserResponse(session_id=sid)
 
         return ResponseModel.ok(response)

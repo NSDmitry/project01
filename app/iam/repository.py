@@ -60,9 +60,6 @@ class UserRepository:
         user_db_model.phone_number = phone_number
         user_db_model.password = password
 
-        if self.db is None:
-            raise InternalServerError(errors=["Соединение с базой данных не установлено."])
-
         try:
             self.db.add(user_db_model)
             await self.db.flush()

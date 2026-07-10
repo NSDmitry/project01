@@ -13,22 +13,18 @@ from app.core.errors.errors import UnprocessableEntity
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.iam.models import User
-from app.iam.repository import UserRepository
 from app.iam.schemas import UserSummary
 
 
 class BookClubService:
-    user_repository: UserRepository
     book_club_repository: BookClubRepository
     genre_repository: GenreRepository
 
     def __init__(
         self,
-        user_repository: UserRepository,
         book_club_repository: BookClubRepository,
         genre_repository: GenreRepository,
     ) -> None:
-        self.user_repository = user_repository
         self.book_club_repository = book_club_repository
         self.genre_repository = genre_repository
 

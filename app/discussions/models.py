@@ -14,7 +14,6 @@ class Thread(Base, DBLBase):
     content = Column(Text, nullable=True)
 
     author = relationship("User", lazy="selectin")
-    club = relationship("BookClub", lazy="selectin")
 
 
 class Comment(Base, DBLBase):

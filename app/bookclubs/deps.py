@@ -4,8 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bookclubs.repository import BookClubRepository, GenreRepository
 from app.bookclubs.service import BookClubService
 from app.core.database import get_db
-from app.iam.deps import get_user_repository
-from app.iam.repository import UserRepository
 
 
 def get_club_repository(db: AsyncSession = Depends(get_db)) -> BookClubRepository:
@@ -15,12 +13,10 @@ def get_genre_repository(db: AsyncSession = Depends(get_db)) -> GenreRepository:
     return GenreRepository(db)
 
 def get_book_club_service(
-    user_repository: UserRepository = Depends(get_user_repository),
     book_club_repository: BookClubRepository = Depends(get_club_repository),
     genre_repository: GenreRepository = Depends(get_genre_repository),
 ) -> BookClubService:
     return BookClubService(
-        user_repository=user_repository,
         book_club_repository=book_club_repository,
         genre_repository=genre_repository,
     )
