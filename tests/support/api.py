@@ -52,10 +52,34 @@ class ApiClient:
     def bookclubs(
         self,
         headers: dict[str, str] | None = None,
-        relation: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
     ):
-        params = {"relation": relation} if relation is not None else None
-        return self._client.get("/api/bookclubs", params=params, headers=headers)
+        params = {}
+        if limit is not None:
+            params["limit"] = limit
+        if offset is not None:
+            params["offset"] = offset
+        return self._client.get("/api/bookclubs", params=params or None, headers=headers)
+
+    def search_bookclubs(
+        self,
+        headers: dict[str, str] | None = None,
+        query: str | None = None,
+        relation: str | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+    ):
+        payload: dict[str, Any] = {}
+        if query is not None:
+            payload["query"] = query
+        if relation is not None:
+            payload["relation"] = relation
+        if limit is not None:
+            payload["limit"] = limit
+        if offset is not None:
+            payload["offset"] = offset
+        return self._client.post("/api/bookclubs/search", json=payload, headers=headers)
 
     def bookclub(self, club_id: int, headers: dict[str, str] | None = None):
         return self._client.get(f"/api/bookclubs/{club_id}", headers=headers)

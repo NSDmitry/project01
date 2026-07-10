@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -40,21 +40,52 @@ class BookClubRepository:
 
         return await self.get_book_club(club_id=new_book_club.id)
 
-    async def get_book_clubs(self, user: User, relation: BookClubRelation | None = None) -> List[BookClub]:
-        query = select(BookClub)
+    async def get_book_clubs(
+        self,
+        limit: int,
+        offset: int,
+        user: User | None = None,
+        relation: BookClubRelation | None = None,
+        query: str | None = None,
+    ) -> Tuple[List[BookClub], int]:
+        conditions = []
 
         if relation == BookClubRelation.owner:
-            query = query.where(BookClub.owner_id == user.id)
+            conditions.append(BookClub.owner_id == user.id)
         elif relation == BookClubRelation.member:
-            query = query.where(
+            conditions.append(
                 BookClub.id.in_(
                     select(ClubMember.club_id).where(ClubMember.user_id == user.id)
                 )
             )
 
-        result = await self.db.execute(query)
+        term = (query or "").strip()
+        if term:
+            # экранируем спецсимволы LIKE, чтобы искать их как обычный текст
+            escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            pattern = f"%{escaped}%"
+            # ищем подстроку в названии, описании или в названии/коде любого жанра клуба
+            conditions.append(
+                or_(
+                    BookClub.name.ilike(pattern, escape="\\"),
+                    BookClub.description.ilike(pattern, escape="\\"),
+                    BookClub.genres.any(
+                        or_(
+                            Genre.name.ilike(pattern, escape="\\"),
+                            Genre.code.ilike(pattern, escape="\\"),
+                        )
+                    ),
+                )
+            )
 
-        return result.scalars().all()
+        total = await self.db.scalar(
+            select(func.count()).select_from(BookClub).where(*conditions)
+        )
+        result = await self.db.execute(
+            select(BookClub).where(*conditions).order_by(BookClub.id).limit(limit).offset(offset)
+        )
+
+        return result.scalars().all(), total
 
     async def get_book_club(self, club_id: int) -> BookClub:
         result = await self.db.execute(select(BookClub).where(BookClub.id == club_id))

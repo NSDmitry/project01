@@ -5,8 +5,8 @@ from app.bookclubs.repository import BookClubRepository, GenreRepository
 from app.bookclubs.schemas import (
     CreateBookClubRequest,
     UpdateBookClubGenresRequest,
+    SearchBookClubsRequest,
     BookClubResponse,
-    BookClubRelation,
     GenreResponse,
 )
 from app.core.errors.errors import UnprocessableEntity
@@ -69,11 +69,30 @@ class BookClubService:
 
         return ResponseModel.ok([GenreResponse.model_validate(genre) for genre in genres])
 
-    async def get_book_clubs(self, user: User, relation: BookClubRelation | None = None) -> ResponseModel[List[BookClubResponse]]:
-        db_clubs: List[BookClub] = await self.book_club_repository.get_book_clubs(user, relation)
-        clubs = [BookClubResponse.model_validate(club) for club in db_clubs]
+    async def get_book_clubs(self, limit: int, offset: int) -> ResponseModel[Page[BookClubResponse]]:
+        db_clubs, total = await self.book_club_repository.get_book_clubs(limit, offset)
 
-        return ResponseModel.ok(clubs)
+        return self._page(db_clubs, total, limit, offset)
+
+    async def search_book_clubs(
+        self, user: User, model: SearchBookClubsRequest
+    ) -> ResponseModel[Page[BookClubResponse]]:
+        db_clubs, total = await self.book_club_repository.get_book_clubs(
+            model.limit, model.offset, user, model.relation, model.query
+        )
+
+        return self._page(db_clubs, total, model.limit, model.offset)
+
+    @staticmethod
+    def _page(db_clubs: List[BookClub], total: int, limit: int, offset: int) -> ResponseModel[Page[BookClubResponse]]:
+        page = Page(
+            items=[BookClubResponse.model_validate(club) for club in db_clubs],
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
+
+        return ResponseModel.ok(page)
 
     async def get_book_club(self, club_id: int) -> ResponseModel[BookClubResponse]:
         db_club: BookClub = await self.book_club_repository.get_book_club(club_id)

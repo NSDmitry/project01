@@ -25,6 +25,12 @@ class CreateBookClubRequest(BaseModel):
 class UpdateBookClubGenresRequest(BaseModel):
     genres: list[str] = Field(min_length=1, max_length=5)
 
+class SearchBookClubsRequest(BaseModel):
+    query: Optional[str] = None
+    relation: Optional[BookClubRelation] = None
+    limit: int = Field(20, ge=1, le=100)
+    offset: int = Field(0, ge=0)
+
 class BookClubResponse(ResponseSchema):
     id: int
     name: str
