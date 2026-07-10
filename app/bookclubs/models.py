@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, Integer, Boolean, String, ForeignKey, select, func
+from sqlalchemy import Column, BigInteger, Integer, String, ForeignKey, select, func
 from sqlalchemy.orm import relationship, column_property
 
 from app.core.database import Base
@@ -20,7 +20,6 @@ class Genre(Base):
     code = Column(String, nullable=False, unique=True)
     name = Column(String, nullable=False)
     sort_order = Column(Integer, nullable=False, server_default="0")
-    is_active = Column(Boolean, nullable=False, server_default=func.true())
 
 
 class BookClubGenre(Base):

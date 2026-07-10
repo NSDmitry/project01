@@ -48,7 +48,7 @@ class BookClubService:
 
     async def _resolve_genres(self, codes: List[str]) -> List[Genre]:
         unique_codes = list(dict.fromkeys(codes))
-        genres: List[Genre] = await self.genre_repository.get_active_by_codes(unique_codes)
+        genres: List[Genre] = await self.genre_repository.get_by_codes(unique_codes)
 
         found = {genre.code for genre in genres}
         missing = [code for code in unique_codes if code not in found]
@@ -61,7 +61,7 @@ class BookClubService:
         return genres
 
     async def list_genres(self) -> ResponseModel[List[GenreResponse]]:
-        genres: List[Genre] = await self.genre_repository.list_active()
+        genres: List[Genre] = await self.genre_repository.list_all()
 
         return ResponseModel.ok([GenreResponse.model_validate(genre) for genre in genres])
 

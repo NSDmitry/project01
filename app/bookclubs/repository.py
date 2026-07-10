@@ -171,16 +171,16 @@ class GenreRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def list_active(self) -> List[Genre]:
+    async def list_all(self) -> List[Genre]:
         result = await self.db.execute(
-            select(Genre).where(Genre.is_active.is_(True)).order_by(Genre.sort_order)
+            select(Genre).order_by(Genre.sort_order)
         )
 
         return result.scalars().all()
 
-    async def get_active_by_codes(self, codes: List[str]) -> List[Genre]:
+    async def get_by_codes(self, codes: List[str]) -> List[Genre]:
         result = await self.db.execute(
-            select(Genre).where(Genre.code.in_(codes), Genre.is_active.is_(True))
+            select(Genre).where(Genre.code.in_(codes))
         )
 
         return result.scalars().all()
