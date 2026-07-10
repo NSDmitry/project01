@@ -3,7 +3,13 @@ from typing import List
 from fastapi import APIRouter, Depends, Query
 
 from app.bookclubs.deps import get_book_club_service
-from app.bookclubs.schemas import CreateBookClubRequest, BookClubResponse, BookClubRelation
+from app.bookclubs.schemas import (
+    CreateBookClubRequest,
+    UpdateBookClubGenresRequest,
+    BookClubResponse,
+    BookClubRelation,
+    GenreResponse,
+)
 from app.bookclubs.service import BookClubService
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
@@ -25,7 +31,7 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
     status_code=201,
     responses={
         201: {"description": "Успешный ответ с данными книжного клуба"},
-        422: {"description": "Ошибка валидации названия или описания книжного клуба"},
+        422: {"description": "Ошибка валидации названия, описания или жанров книжного клуба"},
         409: {"description": "Клуб с таким названием уже существует"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
         500: {"description": "Внутренняя ошибка сервера"},
@@ -67,6 +73,27 @@ async def get_all_book_clubs(
     service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.get_book_clubs(user, relation)
+
+@router.get(
+    "/genres",
+    response_model=ResponseModel[List[GenreResponse]],
+    summary="Список доступных жанров",
+    description=(
+        "Возвращает справочник активных жанров книжных клубов.\n\n"
+        "**Требуется авторизация** с заголовком:\n"
+        "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Список доступных жанров"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def get_genres(
+    _: User = Depends(get_current_user),
+    service: BookClubService = Depends(get_book_club_service),
+):
+    return await service.list_genres()
 
 @router.get(
     "/{club_id}",
@@ -177,3 +204,30 @@ async def leave(
     service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.leave(user, club_id)
+
+@router.put(
+    "/{club_id}/genres",
+    response_model=ResponseModel[BookClubResponse],
+    summary="Обновление жанров книжного клуба",
+    description=(
+        "Заменяет набор жанров клуба присланным списком кодов (от 1 до 5).\n\n"
+        "Доступно только владельцу клуба.\n\n"
+        "**Требуется авторизация** с заголовком:\n"
+        "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Модель книжного клуба с обновлёнными жанрами"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не является владельцем книжного клуба"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        422: {"description": "Некорректный или неизвестный жанр"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def set_genres(
+    club_id: int,
+    model: UpdateBookClubGenresRequest,
+    user: User = Depends(get_current_user),
+    service: BookClubService = Depends(get_book_club_service)
+):
+    return await service.set_genres(user, club_id, model)

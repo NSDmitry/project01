@@ -96,10 +96,16 @@ class TelegramFactory:
 
 class BookclubFactory:
     @staticmethod
-    def payload(*, name: str | None = None, description: str | None = None) -> dict[str, str]:
+    def payload(
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        genres: list[str] | None = None,
+    ) -> dict[str, object]:
         return {
             "name": name if name is not None else faker.pystr(min_chars=4, max_chars=99),
             "description": description if description is not None else faker.pystr(min_chars=4, max_chars=499),
+            "genres": genres if genres is not None else ["fiction"],
         }
 
 

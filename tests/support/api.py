@@ -46,6 +46,9 @@ class ApiClient:
     def create_bookclub(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.post("/api/bookclubs", json=payload, headers=headers)
 
+    def genres(self, headers: dict[str, str] | None = None):
+        return self._client.get("/api/bookclubs/genres", headers=headers)
+
     def bookclubs(
         self,
         headers: dict[str, str] | None = None,
@@ -73,6 +76,9 @@ class ApiClient:
 
     def leave_bookclub(self, club_id: int, headers: dict[str, str] | None = None):
         return self._client.delete(f"/api/bookclubs/{club_id}/leave", headers=headers)
+
+    def set_bookclub_genres(self, club_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.put(f"/api/bookclubs/{club_id}/genres", json=payload, headers=headers)
 
     def create_thread(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.post("/api/threads", json=payload, headers=headers)

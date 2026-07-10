@@ -1,8 +1,15 @@
 from typing import List
 
-from app.bookclubs.models import BookClub
-from app.bookclubs.repository import BookClubRepository
-from app.bookclubs.schemas import CreateBookClubRequest, BookClubResponse, BookClubRelation
+from app.bookclubs.models import BookClub, Genre
+from app.bookclubs.repository import BookClubRepository, GenreRepository
+from app.bookclubs.schemas import (
+    CreateBookClubRequest,
+    UpdateBookClubGenresRequest,
+    BookClubResponse,
+    BookClubRelation,
+    GenreResponse,
+)
+from app.core.errors.errors import UnprocessableEntity
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.iam.models import User
@@ -13,15 +20,54 @@ from app.iam.schemas import UserSummary
 class BookClubService:
     user_repository: UserRepository
     book_club_repository: BookClubRepository
+    genre_repository: GenreRepository
 
-    def __init__(self, user_repository: UserRepository, book_club_repository: BookClubRepository) -> None:
+    def __init__(
+        self,
+        user_repository: UserRepository,
+        book_club_repository: BookClubRepository,
+        genre_repository: GenreRepository,
+    ) -> None:
         self.user_repository = user_repository
         self.book_club_repository = book_club_repository
+        self.genre_repository = genre_repository
 
     async def create_book_club(self, model: CreateBookClubRequest, owner: User) -> ResponseModel[BookClubResponse]:
-        db_book_club: BookClub = await self.book_club_repository.create_book_club(owner, model)
+        genres = await self._resolve_genres(model.genres)
+
+        db_book_club: BookClub = await self.book_club_repository.create_book_club(
+            owner, model, [genre.id for genre in genres]
+        )
 
         return ResponseModel.ok(BookClubResponse.model_validate(db_book_club))
+
+    async def set_genres(
+        self, owner: User, club_id: int, model: UpdateBookClubGenresRequest
+    ) -> ResponseModel[BookClubResponse]:
+        genres = await self._resolve_genres(model.genres)
+
+        db_book_club: BookClub = await self.book_club_repository.set_genres(owner, club_id, genres)
+
+        return ResponseModel.ok(BookClubResponse.model_validate(db_book_club))
+
+    async def _resolve_genres(self, codes: List[str]) -> List[Genre]:
+        unique_codes = list(dict.fromkeys(codes))
+        genres: List[Genre] = await self.genre_repository.get_active_by_codes(unique_codes)
+
+        found = {genre.code for genre in genres}
+        missing = [code for code in unique_codes if code not in found]
+        if missing:
+            raise UnprocessableEntity(
+                message="Неизвестный жанр",
+                errors=[f"field: genres, message: неизвестный жанр {code}" for code in missing],
+            )
+
+        return genres
+
+    async def list_genres(self) -> ResponseModel[List[GenreResponse]]:
+        genres: List[Genre] = await self.genre_repository.list_active()
+
+        return ResponseModel.ok([GenreResponse.model_validate(genre) for genre in genres])
 
     async def get_book_clubs(self, user: User, relation: BookClubRelation | None = None) -> ResponseModel[List[BookClubResponse]]:
         db_clubs: List[BookClub] = await self.book_club_repository.get_book_clubs(user, relation)

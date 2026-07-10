@@ -4,7 +4,7 @@ from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bookclubs.models import BookClub, ClubMember
+from app.bookclubs.models import BookClub, ClubMember, Genre, BookClubGenre
 from app.bookclubs.schemas import CreateBookClubRequest, BookClubRelation
 from app.core.errors.errors import NotFound, Forbidden, Conflict
 from app.iam.models import User
@@ -16,7 +16,7 @@ class BookClubRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def create_book_club(self, owner: User, model: CreateBookClubRequest) -> BookClub:
+    async def create_book_club(self, owner: User, model: CreateBookClubRequest, genre_ids: List[int]) -> BookClub:
         new_book_club = BookClub()
         new_book_club.name = model.name
         new_book_club.description = model.description
@@ -34,6 +34,8 @@ class BookClubRepository:
             )
 
         self.db.add(ClubMember(club_id=new_book_club.id, user_id=owner.id))
+        for genre_id in genre_ids:
+            self.db.add(BookClubGenre(club_id=new_book_club.id, genre_id=genre_id))
         await self.db.flush()
 
         return await self.get_book_club(club_id=new_book_club.id)
@@ -92,6 +94,19 @@ class BookClubRepository:
         await self.db.delete(club)
         await self.db.flush()
 
+    async def set_genres(self, owner: User, club_id: int, genres: List[Genre]) -> BookClub:
+        club = await self.get_book_club(club_id=club_id)
+
+        if club.owner_id != owner.id:
+            raise Forbidden("Пользователь не является владельцем книжного клуба")
+
+        # club.genres уже загружен selectin-ом, поэтому присваивание считает разницу
+        # без ленивой подгрузки: SQLAlchemy сам удалит и добавит строки book_club_genres.
+        club.genres = sorted(genres, key=lambda genre: genre.sort_order)
+        await self.db.flush()
+
+        return await self.get_book_club(club_id=club_id)
+
     async def join_book_club(self, user: User, club_id: int) -> BookClub:
         await self.get_book_club(club_id=club_id)
 
@@ -117,3 +132,24 @@ class BookClubRepository:
         await self.db.flush()
 
         return await self.get_book_club(club_id=club_id)
+
+
+class GenreRepository:
+    db: AsyncSession
+
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def list_active(self) -> List[Genre]:
+        result = await self.db.execute(
+            select(Genre).where(Genre.is_active.is_(True)).order_by(Genre.sort_order)
+        )
+
+        return result.scalars().all()
+
+    async def get_active_by_codes(self, codes: List[str]) -> List[Genre]:
+        result = await self.db.execute(
+            select(Genre).where(Genre.code.in_(codes), Genre.is_active.is_(True))
+        )
+
+        return result.scalars().all()

@@ -114,6 +114,10 @@ def clear_db(db):
     db.execute(text("SET session_replication_role = 'replica';"))
 
     for table in reversed(Base.metadata.sorted_tables):
+        # genres - справочник, засеянный миграцией. В проде он не чистится, тесты
+        # тоже полагаются на его наличие для валидации жанров при создании клуба.
+        if table.name == "genres":
+            continue
         db.execute(table.delete())
 
     db.execute(text("SET session_replication_role = 'origin';"))

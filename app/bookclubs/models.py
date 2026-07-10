@@ -1,4 +1,4 @@
-from sqlalchemy import Column, BigInteger, String, ForeignKey, select, func
+from sqlalchemy import Column, BigInteger, Integer, Boolean, String, ForeignKey, select, func
 from sqlalchemy.orm import relationship, column_property
 
 from app.core.database import Base
@@ -13,6 +13,23 @@ class ClubMember(Base):
     user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
 
 
+class Genre(Base):
+    __tablename__ = "genres"
+
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
+    code = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=False)
+    sort_order = Column(Integer, nullable=False, server_default="0")
+    is_active = Column(Boolean, nullable=False, server_default=func.true())
+
+
+class BookClubGenre(Base):
+    __tablename__ = "book_club_genres"
+
+    club_id = Column(BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True)
+    genre_id = Column(BigInteger, ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True)
+
+
 class BookClub(Base, DBLBase):
     __tablename__ = "book_clubs"
 
@@ -21,6 +38,12 @@ class BookClub(Base, DBLBase):
     owner_id = Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     owner = relationship("User", lazy="selectin")
+    genres = relationship(
+        "Genre",
+        secondary="book_club_genres",
+        lazy="selectin",
+        order_by="Genre.sort_order",
+    )
 
 
 # Счётчики считаются коррелированным подзапросом прямо в SELECT клуба - один
