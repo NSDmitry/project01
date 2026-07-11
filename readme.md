@@ -18,7 +18,15 @@ Backend-сервис для книжного клуба на `FastAPI`.
 docker compose up --build
 ```
 
-Сервис поднимется на [http://localhost:8000](http://localhost:8000). Локальный запуск без Docker - в [docs/setup.md](docs/setup.md).
+Сервис поднимется на [http://localhost:8000](http://localhost:8000).
+
+Локальный запуск без Docker (после установки зависимостей и `.env` - см. [docs/setup.md](docs/setup.md)):
+
+```bash
+./run.sh
+```
+
+Накатывает миграции (`alembic upgrade head`) и поднимает `uvicorn` с `--reload`.
 
 ## Документация
 
