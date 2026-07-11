@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import APIRouter, Depends, Query
 
 from app.bookclubs.deps import get_book_club_service
@@ -8,7 +6,6 @@ from app.bookclubs.schemas import (
     UpdateBookClubGenresRequest,
     SearchBookClubsRequest,
     BookClubResponse,
-    GenreResponse,
 )
 from app.bookclubs.service import BookClubService
 from app.core.models.page_model import Page
@@ -100,28 +97,6 @@ async def search_book_clubs(
         service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.search_book_clubs(user, model)
-
-
-@router.get(
-    "/genres",
-    response_model=ResponseModel[List[GenreResponse]],
-    summary="Список доступных жанров",
-    description=(
-            "Возвращает справочник активных жанров книжных клубов.\n\n"
-            "**Требуется авторизация** с заголовком:\n"
-            "`X-Session-Id: <session_id>`\n\n"
-    ),
-    responses={
-        200: {"description": "Список доступных жанров"},
-        401: {"description": "Ошибка авторизации (неверный токен)"},
-        500: {"description": "Внутренняя ошибка сервера"},
-    },
-)
-async def get_genres(
-        _: User = Depends(get_current_user),
-        service: BookClubService = Depends(get_book_club_service),
-):
-    return await service.list_genres()
 
 
 @router.get(

@@ -47,7 +47,16 @@ class ApiClient:
         return self._client.post("/api/bookclubs", json=payload, headers=headers)
 
     def genres(self, headers: dict[str, str] | None = None):
-        return self._client.get("/api/bookclubs/genres", headers=headers)
+        return self._client.get("/api/genres", headers=headers)
+
+    def create_genre(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.post("/api/genres", json=payload, headers=headers)
+
+    def update_genre(self, genre_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.put(f"/api/genres/{genre_id}", json=payload, headers=headers)
+
+    def delete_genre(self, genre_id: int, headers: dict[str, str] | None = None):
+        return self._client.delete(f"/api/genres/{genre_id}", headers=headers)
 
     def bookclubs(
         self,

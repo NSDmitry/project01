@@ -7,6 +7,7 @@ from app.core.models.response_model import ResponseModel
 from app.iam.router import auth_router, users_router
 from app.bookclubs.router import router as bookclubs_router
 from app.discussions.router import threads_router, comments_router
+from app.genres.router import router as genres_router
 from fastapi.middleware.cors import CORSMiddleware
 from app.settings import settings
 
@@ -17,6 +18,7 @@ app.include_router(users_router)
 app.include_router(bookclubs_router)
 app.include_router(threads_router)
 app.include_router(comments_router)
+app.include_router(genres_router)
 
 app.add_middleware(
     CORSMiddleware,

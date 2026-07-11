@@ -7,15 +7,12 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from app.core.schemas import ResponseSchema
+from app.genres.schemas import GenreResponse
 from app.iam.schemas import UserSummary
 
 class BookClubRelation(str, Enum):
     owner = "owner"
     member = "member"
-
-class GenreResponse(ResponseSchema):
-    code: str
-    name: str
 
 class CreateBookClubRequest(BaseModel):
     name: str = Field(min_length=3, max_length=100)

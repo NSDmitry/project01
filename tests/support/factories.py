@@ -109,6 +109,22 @@ class BookclubFactory:
         }
 
 
+class GenreFactory:
+    @staticmethod
+    def payload(
+        *,
+        code: str | None = None,
+        name: str | None = None,
+        sort_order: int = 0,
+    ) -> dict[str, object]:
+        unique = uuid.uuid4().hex[:8]
+        return {
+            "code": code if code is not None else f"test-genre-{unique}",
+            "name": name if name is not None else f"Test Genre {unique}",
+            "sort_order": sort_order,
+        }
+
+
 class ThreadFactory:
     @staticmethod
     def create_payload(*, club_id: int, title: str | None = None, content: str | None = None) -> dict[str, str | int]:

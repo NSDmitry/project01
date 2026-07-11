@@ -162,24 +162,3 @@ class BookClubRepository:
         await self.db.flush()
 
         return await self.get_book_club(club_id=club_id)
-
-
-class GenreRepository:
-    db: AsyncSession
-
-    def __init__(self, db: AsyncSession) -> None:
-        self.db = db
-
-    async def list_all(self) -> List[Genre]:
-        result = await self.db.execute(
-            select(Genre).order_by(Genre.sort_order)
-        )
-
-        return result.scalars().all()
-
-    async def get_by_codes(self, codes: List[str]) -> List[Genre]:
-        result = await self.db.execute(
-            select(Genre).where(Genre.code.in_(codes))
-        )
-
-        return result.scalars().all()

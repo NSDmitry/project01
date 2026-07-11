@@ -1,17 +1,17 @@
 from typing import List
 
 from app.bookclubs.models import BookClub, Genre
-from app.bookclubs.repository import BookClubRepository, GenreRepository
+from app.bookclubs.repository import BookClubRepository
 from app.bookclubs.schemas import (
     CreateBookClubRequest,
     UpdateBookClubGenresRequest,
     SearchBookClubsRequest,
     BookClubResponse,
-    GenreResponse,
 )
 from app.core.errors.errors import UnprocessableEntity
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
+from app.genres.repository import GenreRepository
 from app.iam.models import User
 from app.iam.schemas import UserSummary
 
@@ -59,11 +59,6 @@ class BookClubService:
             )
 
         return genres
-
-    async def list_genres(self) -> ResponseModel[List[GenreResponse]]:
-        genres: List[Genre] = await self.genre_repository.list_all()
-
-        return ResponseModel.ok([GenreResponse.model_validate(genre) for genre in genres])
 
     async def get_book_clubs(self, limit: int, offset: int) -> ResponseModel[Page[BookClubResponse]]:
         db_clubs, total = await self.book_club_repository.get_book_clubs(limit, offset)
