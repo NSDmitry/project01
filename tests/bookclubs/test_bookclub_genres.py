@@ -25,8 +25,8 @@ class TestBookclubGenresCatalog:
         codes = [genre["code"] for genre in data]
         assert codes.index("fiction") < codes.index("sci-fi")
 
-    def test_catalog_requires_auth(self, api):
-        assert_status_code(api.genres(), 401)
+    def test_catalog_accessible_without_auth(self, api):
+        assert_status_code(api.genres(), 200)
 
 
 class TestBookclubCreateGenres:

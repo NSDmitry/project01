@@ -16,19 +16,13 @@ router = APIRouter(prefix="/api/genres", tags=["genres"])
     "",
     response_model=ResponseModel[List[GenreResponse]],
     summary="Список жанров",
-    description=(
-            "Возвращает справочник жанров книжных клубов.\n\n"
-            "**Требуется авторизация** с заголовком:\n"
-            "`X-Session-Id: <session_id>`\n\n"
-    ),
+    description="Возвращает справочник жанров книжных клубов.\n\n",
     responses={
         200: {"description": "Список жанров"},
-        401: {"description": "Ошибка авторизации (неверный токен)"},
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
 async def get_genres(
-        _: User = Depends(get_current_user),
         service: GenreService = Depends(get_genre_service),
 ):
     return await service.list_genres()
