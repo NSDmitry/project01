@@ -42,9 +42,12 @@ class TestBookclubCreateGenres:
         payload = BookclubFactory.payload(genres=["definitely-not-a-genre"])
         assert_status_code(BookclubFlow.create(api, payload=payload), 422)
 
-    def test_create_requires_at_least_one_genre(self, api):
+    def test_create_allows_empty_genres(self, api):
         payload = BookclubFactory.payload(genres=[])
-        assert_status_code(BookclubFlow.create(api, payload=payload), 422)
+        response = BookclubFlow.create(api, payload=payload)
+
+        assert_status_code(response, 201)
+        assert response.json()["data"]["genres"] == []
 
     def test_create_rejects_more_than_five_genres(self, api):
         payload = BookclubFactory.payload(
@@ -94,12 +97,14 @@ class TestBookclubUpdateGenres:
         response = api.set_bookclub_genres(club_id, {"genres": ["definitely-not-a-genre"]}, headers=auth.headers)
         assert_status_code(response, 422)
 
-    def test_requires_at_least_one_genre(self, api):
+    def test_allows_replacing_with_empty_genres(self, api):
         auth = AuthFlow.register(api)
         club_id = self._create_club(api, auth)
 
         response = api.set_bookclub_genres(club_id, {"genres": []}, headers=auth.headers)
-        assert_status_code(response, 422)
+
+        assert_status_code(response, 200)
+        assert response.json()["data"]["genres"] == []
 
     def test_rejects_more_than_five_genres(self, api):
         auth = AuthFlow.register(api)

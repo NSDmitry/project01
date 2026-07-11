@@ -17,10 +17,10 @@ class BookClubRelation(str, Enum):
 class CreateBookClubRequest(BaseModel):
     name: str = Field(min_length=3, max_length=100)
     description: str = Field(min_length=3, max_length=500)
-    genres: list[str] = Field(min_length=1, max_length=5)
+    genres: list[str] = Field(max_length=5)
 
 class UpdateBookClubGenresRequest(BaseModel):
-    genres: list[str] = Field(min_length=1, max_length=5)
+    genres: list[str] = Field(max_length=5)
 
 class SearchBookClubsRequest(BaseModel):
     query: Optional[str] = None
