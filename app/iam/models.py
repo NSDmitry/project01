@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, String, BigInteger, UUID, DateTime
+from sqlalchemy import Column, String, BigInteger, UUID, DateTime, Boolean
 
 from app.core.database import Base
 from app.core.db_base_model import DBLBase
@@ -13,6 +13,7 @@ class User(Base, DBLBase):
     phone_number = Column(String, unique=True, nullable=True)
     telegram_id = Column(BigInteger, unique=True, nullable=True)
     password = Column(String, nullable=True)
+    is_admin = Column(Boolean, nullable=False, server_default="false")
 
 
 class UserSession(Base, DBLBase):

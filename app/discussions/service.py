@@ -1,6 +1,7 @@
 from typing import Optional
 
 from app.bookclubs.repository import BookClubRepository
+from app.core.authorization import require_permission
 from app.core.errors.errors import Forbidden
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
@@ -74,8 +75,7 @@ class ThreadService:
 
         db_thread = await self.thread_repository.get_thread(thread_id)
 
-        if db_thread.author_id != user.id:
-            raise Forbidden(errors=["Удалять треды может только автор треда"])
+        require_permission(user, db_thread.author_id, message="Удалять треды может только автор треда")
 
         await self.thread_repository.delete_thread(thread_id)
 
@@ -97,8 +97,10 @@ class ThreadService:
         db_thread = await self.thread_repository.get_thread(thread_id)
         db_club = await self.book_club_repository.get_book_club(db_thread.club_id)
 
-        if db_thread.author_id != user.id and user.id != db_club.owner_id:
-            raise Forbidden(errors=["Изменять тред может только автор треда, или владелец клуба"])
+        require_permission(
+            user, db_thread.author_id, db_club.owner_id,
+            message="Изменять тред может только автор треда, или владелец клуба",
+        )
 
         db_thread = await self.thread_repository.update_thread(db_thread, model)
 
@@ -188,8 +190,7 @@ class CommentService:
         """
         db_comment = await self.comment_repository.get_comment(comment_id)
 
-        if db_comment.author_id != user.id:
-            raise Forbidden(errors=["Редактировать комментарий может только автор"])
+        require_permission(user, db_comment.author_id, message="Редактировать комментарий может только автор")
 
         db_comment = await self.comment_repository.update_comment(db_comment, model)
 
@@ -206,8 +207,10 @@ class CommentService:
         db_thread = await self.thread_repository.get_thread(db_comment.thread_id)
         db_club = await self.book_club_repository.get_book_club(db_thread.club_id)
 
-        if db_comment.author_id != user.id and user.id != db_club.owner_id:
-            raise Forbidden(errors=["Удалять комментарий может только автор комментария, или владелец клуба"])
+        require_permission(
+            user, db_comment.author_id, db_club.owner_id,
+            message="Удалять комментарий может только автор комментария, или владелец клуба",
+        )
 
         await self.comment_repository.delete_comment(comment_id)
 

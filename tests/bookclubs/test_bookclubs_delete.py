@@ -44,3 +44,13 @@ class TestBookclubsDelete:
         response = api.delete_bookclub(created.json()["data"]["id"], headers=outsider.headers)
         assert_status_code(response, 403)
         assert response.json()["message"] == "Пользователь не является владельцем книжного клуба"
+
+    def test_admin_can_delete_bookclub_without_ownership(self, api, db):
+        owner = AuthFlow.register(api)
+        created = BookclubFlow.create(api, auth=owner)
+        admin = AuthFlow.register(api)
+        db.execute(text("UPDATE users SET is_admin = true WHERE id = :id"), {"id": admin.user_id})
+        db.commit()
+
+        response = api.delete_bookclub(created.json()["data"]["id"], headers=admin.headers)
+        assert_status_code(response, 200)

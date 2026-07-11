@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bookclubs.models import BookClub, ClubMember, Genre, BookClubGenre
 from app.bookclubs.schemas import CreateBookClubRequest, BookClubRelation
-from app.core.errors.errors import NotFound, Forbidden, Conflict
+from app.core.authorization import require_permission
+from app.core.errors.errors import NotFound, Conflict
 from app.iam.models import User
 
 
@@ -119,8 +120,7 @@ class BookClubRepository:
     async def delete_book_club(self, owner: User, club_id: int):
         club = await self.get_book_club(club_id=club_id)
 
-        if club.owner_id != owner.id:
-            raise Forbidden("Пользователь не является владельцем книжного клуба")
+        require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
 
         await self.db.delete(club)
         await self.db.flush()
@@ -128,8 +128,7 @@ class BookClubRepository:
     async def set_genres(self, owner: User, club_id: int, genres: List[Genre]) -> BookClub:
         club = await self.get_book_club(club_id=club_id)
 
-        if club.owner_id != owner.id:
-            raise Forbidden("Пользователь не является владельцем книжного клуба")
+        require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
 
         # club.genres уже загружен selectin-ом, поэтому присваивание считает разницу
         # без ленивой подгрузки: SQLAlchemy сам удалит и добавит строки book_club_genres.
