@@ -15,7 +15,9 @@ class Settings(BaseSettings):
     docs_enabled: bool = True
 
     model_config = SettingsConfigDict(
-        env_file=".env.test" if os.getenv("IS_TEST") else ".env"
+        env_file=".env.test" if os.getenv("IS_TEST") else ".env",
+        # POSTGRES_* и прочие переменные в .env нужны docker-compose, не приложению.
+        extra="ignore",
     )
 
 

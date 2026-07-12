@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:16
+    image: postgres:17
     container_name: project1_db
     restart: always
     environment:
@@ -23,6 +23,10 @@ services:
     image: redis:7-alpine
     container_name: project1_redis
     restart: always
+    # Только loopback - наружу не торчит. Нужен для локального запуска приложения
+    # на хосте (run.sh) и для контейнера app по внутренней сети.
+    ports:
+      - "127.0.0.1:6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
