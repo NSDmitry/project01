@@ -3,6 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from app.books.schemas import BookResponse
 from app.core.schemas import ResponseSchema
 from app.iam.schemas import UserSummary
 
@@ -15,11 +16,13 @@ class ThreadResponse(ResponseSchema):
     content: str
     club_id: int
     author: Optional[UserSummary] = None
+    book: Optional[BookResponse] = None
 
 class ThreadCreateRequest(BaseModel):
     title: str
     content: str
     club_id: int
+    book_volume_id: Optional[str] = None
 
 class ThreadUpdateRequest(BaseModel):
     title: str

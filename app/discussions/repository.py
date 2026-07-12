@@ -38,10 +38,11 @@ class ThreadRepository:
 
         return thread
 
-    async def create_thread(self, author_id: int, model: ThreadCreateRequest) -> Thread:
+    async def create_thread(self, author_id: int, model: ThreadCreateRequest, book_id: int = None) -> Thread:
         new_thread = Thread()
         new_thread.club_id = model.club_id
         new_thread.author_id = author_id
+        new_thread.book_id = book_id
         new_thread.title = model.title
         new_thread.content = model.content
 

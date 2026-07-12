@@ -39,10 +39,14 @@
 - `PUT /api/genres/{genre_id}` - изменить код, название и порядок сортировки жанра; только администратор
 - `DELETE /api/genres/{genre_id}` - удалить жанр; только администратор
 
+## Книги
+
+- `GET /api/books/search?q=<запрос>` - поиск книг в Google Books (подсказки для автокомплита); требует авторизации, в БД ничего не сохраняет. Каждая подсказка содержит `volume_id`, `title`, `author`, `description`, `genres`, `published_year`
+
 ## Треды
 
 - `GET /api/threads/{club_id}` - получить треды клуба
-- `POST /api/threads` - создать тред
+- `POST /api/threads` - создать тред; опциональное поле `book_volume_id` (volume_id из поиска книг) привязывает к треду обсуждаемую книгу: книга дотягивается из Google Books, сохраняется в БД (повторный выбор той же книги переиспользует запись) и возвращается в поле `book` треда; несуществующий `book_volume_id` - 404
 - `PUT /api/threads/{thread_id}` - обновить тред
 - `DELETE /api/threads/{thread_id}` - удалить тред
 

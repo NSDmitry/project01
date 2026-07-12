@@ -117,6 +117,9 @@ class ApiClient:
     def set_bookclub_genres(self, club_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.put(f"/api/bookclubs/{club_id}/genres", json=payload, headers=headers)
 
+    def search_books(self, q: str, headers: dict[str, str] | None = None):
+        return self._client.get("/api/books/search", params={"q": q}, headers=headers)
+
     def create_thread(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.post("/api/threads", json=payload, headers=headers)
 

@@ -1,6 +1,7 @@
 from typing import Optional
 
 from app.bookclubs.repository import BookClubRepository
+from app.books.service import BookService
 from app.core.authorization import require_permission
 from app.core.errors.errors import Forbidden
 from app.core.models.page_model import Page
@@ -19,15 +20,18 @@ from app.iam.models import User
 class ThreadService:
     thread_repository: ThreadRepository
     book_club_repository: BookClubRepository
+    book_service: BookService
 
     def __init__(
             self,
             thread_repository: ThreadRepository,
             book_club_repository: BookClubRepository,
+            book_service: BookService,
         ) -> None:
 
         self.thread_repository = thread_repository
         self.book_club_repository = book_club_repository
+        self.book_service = book_service
 
     async def get_threads(self, book_club_id: int, limit: int, offset: int) -> ResponseModel[Page[ThreadResponse]]:
         """
@@ -61,7 +65,12 @@ class ThreadService:
         if not await self.book_club_repository.is_member(model.club_id, user.id):
             raise Forbidden(errors=["Создавать треды могут только участники клуба"])
 
-        db_thread = await self.thread_repository.create_thread(user.id, model)
+        book_id = None
+        if model.book_volume_id:
+            book = await self.book_service.get_or_create_book(model.book_volume_id)
+            book_id = book.id
+
+        db_thread = await self.thread_repository.create_thread(user.id, model, book_id=book_id)
 
         return ResponseModel.ok(ThreadResponse.model_validate(db_thread))
 

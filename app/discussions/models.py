@@ -10,10 +10,12 @@ class Thread(Base, DBLBase):
 
     club_id = Column(BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False)
     author_id = Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    book_id = Column(BigInteger, ForeignKey("books.id", ondelete="SET NULL"), nullable=True)
     title = Column(String, nullable=False)
     content = Column(Text, nullable=True)
 
     author = relationship("User", lazy="selectin")
+    book = relationship("Book", lazy="selectin")
 
 
 class Comment(Base, DBLBase):

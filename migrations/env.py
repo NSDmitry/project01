@@ -21,6 +21,7 @@ from app.core.database import Base # убедись, что путь корре�
 import app.iam.models  # noqa: F401
 import app.bookclubs.models  # noqa: F401
 import app.discussions.models  # noqa: F401
+import app.books.models  # noqa: F401
 
 # Alembic config
 config = context.config
