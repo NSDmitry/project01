@@ -7,6 +7,8 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 
 from app.core.errors.errors import Conflict, Unauthorized, BadRequest
+from app.core.rate_limit import check_registrations_limit, count_registration
+from app.iam import brute_force
 from app.core.models.response_model import ResponseModel
 from app.iam.models import User, UserSession
 from app.iam.repository import UserRepository, UserSessionRepository
@@ -136,19 +138,23 @@ class AuthService:
         self.user_session_service = user_session_service
         self.telegram_bot_token = telegram_bot_token
 
-    async def register(self, model: SignUpRequest) -> ResponseModel[AuthUserResponse]:
+    async def register(self, model: SignUpRequest, client_ip: str) -> ResponseModel[AuthUserResponse]:
         """
         Регистрация нового пользователя.
         :param model: SignUpRequest
+        :param client_ip: IP клиента - лимит на число созданных аккаунтов в час
         :return: Сообщение об успешной регистрации
         """
 
+        await check_registrations_limit(client_ip)
         await self.user_service.validate_phone_number(model.phone_number)
         self.validate_password_policy(model.password)
 
         hashed_password = await self._hash_password(model.password)
 
         db_user = await self.user_repository.create_user(model.name, model.phone_number, hashed_password)
+        await count_registration(client_ip)
+
         sid = await self.user_session_service.create_user_session(db_user.id)
         response = AuthUserResponse(session_id=sid)
 
@@ -161,17 +167,22 @@ class AuthService:
         :param model: SignInRequest
         :return: Токен доступа
         """
+        await brute_force.check_not_locked(model.phone_number)
+
         db_user = await self.user_repository.get_user_by_phone_number(model.phone_number)
 
         # Единый ответ для несуществующего номера и неверного пароля - не даём
         # отличить зарегистрированный номер от незарегистрированного (enumeration).
         # db_user.password is None - пользователь только из Telegram, пароля нет.
         if db_user is None or db_user.password is None:
+            await brute_force.register_failure(model.phone_number)
             raise Unauthorized(errors=["Неверный номер телефона или пароль"])
 
         if not await self._verify_password(model.password, db_user.password):
+            await brute_force.register_failure(model.phone_number)
             raise Unauthorized(errors=["Неверный номер телефона или пароль"])
 
+        await brute_force.reset(model.phone_number)
         sid = await self.user_session_service.create_user_session(db_user.id)
         response = AuthUserResponse(session_id=sid)
 

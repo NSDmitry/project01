@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter, Body, Depends, Request
 from fastapi.params import Security
 
 from app.core.models.response_model import ResponseModel
-from app.core.rate_limit import rate_limiter
+from app.core.rate_limit import client_ip, rate_limiter
 from app.iam.deps import get_auth_service, get_current_user, get_user_service, session_header
 from app.iam.models import User
 from app.iam.schemas import (
@@ -32,14 +32,16 @@ users_router = APIRouter(prefix="/api/users", tags=["Users"])
         201: {"description": "Успешный ответ с идентификатором сессии"},
         422: {"description": "Ошибка валидации номера телефона или пароля"},
         409: {"description": "Пользователь с таким номером телефона уже зарегистрирован"},
+        429: {"description": "С этого адреса создано больше 3 аккаунтов за час"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
 async def register(
     model: SignUpRequest,
+    request: Request,
     sso_service: AuthService = Depends(get_auth_service)
 ):
-    return await sso_service.register(model=model)
+    return await sso_service.register(model=model, client_ip=client_ip(request))
 
 @auth_router.post(
     "/login",
@@ -50,6 +52,7 @@ async def register(
         200: {"description": "Успешный ответ с идентификатором сессии"},
         401: {"description": "Неверный пароль"},
         404: {"description": "Пользователь не найден"},
+        429: {"description": "Номер временно заблокирован из-за подбора пароля"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )

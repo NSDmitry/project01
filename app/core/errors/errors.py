@@ -27,6 +27,11 @@ class Conflict(APIException):
         super().__init__(message, status.HTTP_409_CONFLICT, errors)
 
 
+class TooManyRequests(APIException):
+    def __init__(self, message="Слишком много попыток", errors=None):
+        super().__init__(message, status.HTTP_429_TOO_MANY_REQUESTS, errors)
+
+
 class UnprocessableEntity(APIException):
     def __init__(self, message="Невозможно обработать запрос", errors=None):
         super().__init__(message, status.HTTP_422_UNPROCESSABLE_ENTITY, errors)
