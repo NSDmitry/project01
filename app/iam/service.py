@@ -27,6 +27,22 @@ from app.iam.security.telegram import verify_init_data
 
 LAST_USED_THRESHOLD = timedelta(minutes=5)
 SESSION_MAX_IDLE = timedelta(days=30)
+MAX_SESSIONS_PER_USER = 5
+
+
+async def confirm_password(user: User, password: str) -> None:
+    """Подтверждение пароля владельца аккаунта для чувствительных операций.
+
+    Неудачные попытки идут в ту же эскалирующую блокировку, что и login, -
+    иначе украденная сессия позволяет перебирать пароль в обход phone-lockout.
+    """
+    await brute_force.check_not_locked(user.phone_number)
+
+    if not await AuthService._verify_password(password, user.password):
+        await brute_force.register_failure(user.phone_number)
+        raise Unauthorized(errors=["Неверный текущий пароль"])
+
+    await brute_force.reset(user.phone_number)
 
 
 class UserService:
@@ -73,6 +89,8 @@ class UserSessionService:
             sid_hash=sid_hash,
             last_used=now
         )
+        # Не больше MAX_SESSIONS_PER_USER живых сессий - лишние (самые старые) удаляем.
+        await self.user_session_repository.delete_sessions_over_limit(user_id, MAX_SESSIONS_PER_USER)
 
         return sid
 
@@ -231,8 +249,11 @@ class AuthService:
         return ResponseModel.ok(message="Успешный выход из системы")
 
     async def change_password(self, user, current_password: str, new_password: str) -> ResponseModel[None]:
-        if not await self._verify_password(current_password, user.password):
-            raise Unauthorized(errors=["Неверный текущий пароль"])
+        # Telegram-пользователь: пароля нет, подтверждать и менять нечего.
+        if user.password is None:
+            raise BadRequest(errors=["У аккаунта не установлен пароль"])
+
+        await confirm_password(user, current_password)
 
         self.validate_password_policy(new_password)
 
@@ -251,10 +272,18 @@ class AuthService:
     async def delete_current_user(
         self,
         user: User,
+        password: str | None,
         delete_clubs: bool,
         delete_threads: bool,
         delete_comments: bool,
     ) -> ResponseModel[None]:
+        # Необратимая операция - требуем пароль, а не только сессию.
+        # У Telegram-пользователей пароля нет - подтверждать нечем, пропускаем.
+        if user.password is not None:
+            if not password:
+                raise BadRequest(errors=["Для удаления аккаунта укажите пароль"])
+            await confirm_password(user, password)
+
         await self.user_repository.delete_user(
             user_id=user.id,
             delete_clubs=delete_clubs,

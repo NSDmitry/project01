@@ -82,7 +82,13 @@ class UserRepository:
         db_user.name = name
         db_user.phone_number = phone_number
 
-        await self.db.flush()
+        try:
+            await self.db.flush()
+        except IntegrityError:
+            # Гонка: номер заняли между проверкой уникальности и flush.
+            await self.db.rollback()
+            raise Conflict(errors=["Пользователь с таким номером телефона уже зарегистрирован"])
+
         await self.db.refresh(db_user)
 
         return db_user
@@ -135,6 +141,21 @@ class UserSessionRepository:
         await self.db.refresh(session)
 
         return session
+
+    async def delete_sessions_over_limit(self, user_id: int, keep: int) -> None:
+        newest = (
+            select(UserSession.id)
+            .where(UserSession.user_id == user_id)
+            .order_by(UserSession.last_used.desc())
+            .limit(keep)
+        )
+        await self.db.execute(
+            delete(UserSession).where(
+                UserSession.user_id == user_id,
+                UserSession.id.not_in(newest),
+            )
+        )
+        await self.db.flush()
 
     async def delete_user_session(self, sid_hash: str):
         result = await self.db.execute(select(UserSession).where(UserSession.sid_hash == sid_hash))

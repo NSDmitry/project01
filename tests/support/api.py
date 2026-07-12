@@ -40,8 +40,12 @@ class ApiClient:
         self,
         headers: dict[str, str] | None = None,
         params: dict[str, Any] | None = None,
+        payload: dict[str, Any] | None = None,
     ):
-        return self._client.delete("/api/users/current", params=params, headers=headers)
+        # client.delete() не принимает json - используем request().
+        return self._client.request(
+            "DELETE", "/api/users/current", params=params, json=payload, headers=headers
+        )
 
     def create_bookclub(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.post("/api/bookclubs", json=payload, headers=headers)

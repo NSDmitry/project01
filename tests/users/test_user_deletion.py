@@ -28,10 +28,24 @@ class TestUserDeletion:
     def test_requires_authorization(self, api):
         assert_status_code(api.delete_current_user(headers={}), 401)
 
+    def test_requires_password(self, api, db):
+        user = AuthFlow.register(api)
+
+        assert_status_code(api.delete_current_user(headers=user.headers), 400)
+        assert _count(db, "users", "id", user.user_id) == 1
+
+    def test_rejects_wrong_password(self, api, db):
+        user = AuthFlow.register(api)
+
+        response = api.delete_current_user(headers=user.headers, payload={"password": "WrongPass1"})
+
+        assert_status_code(response, 401)
+        assert _count(db, "users", "id", user.user_id) == 1
+
     def test_removes_user_and_sessions(self, api, db):
         user = AuthFlow.register(api)
 
-        assert_status_code(api.delete_current_user(headers=user.headers), 200)
+        assert_status_code(api.delete_current_user(headers=user.headers, payload={"password": "ValidPass1"}), 200)
 
         assert _count(db, "users", "id", user.user_id) == 0
         assert _count(db, "user_sessions", "user_id", user.user_id) == 0
@@ -41,7 +55,7 @@ class TestUserDeletion:
     def test_keeps_content_and_orphans_it_by_default(self, api, db):
         user, club_id, thread_id, comment_id = _seed_content(api)
 
-        assert_status_code(api.delete_current_user(headers=user.headers), 200)
+        assert_status_code(api.delete_current_user(headers=user.headers, payload={"password": "ValidPass1"}), 200)
 
         # Контент сохранён, но отвязан от удалённого пользователя.
         assert _count(db, "book_clubs", "id", club_id) == 1
@@ -55,7 +69,9 @@ class TestUserDeletion:
         user, club_id, thread_id, comment_id = _seed_content(api)
 
         assert_status_code(
-            api.delete_current_user(headers=user.headers, params={"delete_clubs": True}), 200
+            api.delete_current_user(
+                headers=user.headers, params={"delete_clubs": True}, payload={"password": "ValidPass1"}
+            ), 200
         )
 
         # Удаление клуба каскадит на его треды и комменты.
@@ -67,7 +83,9 @@ class TestUserDeletion:
         user, club_id, thread_id, comment_id = _seed_content(api)
 
         assert_status_code(
-            api.delete_current_user(headers=user.headers, params={"delete_threads": True}), 200
+            api.delete_current_user(
+                headers=user.headers, params={"delete_threads": True}, payload={"password": "ValidPass1"}
+            ), 200
         )
 
         assert _count(db, "book_clubs", "id", club_id) == 1
@@ -78,7 +96,9 @@ class TestUserDeletion:
         user, club_id, thread_id, comment_id = _seed_content(api)
 
         assert_status_code(
-            api.delete_current_user(headers=user.headers, params={"delete_comments": True}), 200
+            api.delete_current_user(
+                headers=user.headers, params={"delete_comments": True}, payload={"password": "ValidPass1"}
+            ), 200
         )
 
         assert _count(db, "book_clubs", "id", club_id) == 1

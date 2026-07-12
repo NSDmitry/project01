@@ -7,7 +7,7 @@ from urllib.parse import parse_qsl
 from app.core.errors.errors import Unauthorized, InternalServerError
 
 # Данные инициализации старше этого срока считаем устаревшими (защита от replay).
-AUTH_DATE_MAX_AGE_SECONDS = 24 * 60 * 60
+AUTH_DATE_MAX_AGE_SECONDS = 60 * 60
 
 
 def verify_init_data(init_data: str, bot_token: str) -> dict:

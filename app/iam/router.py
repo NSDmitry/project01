@@ -163,6 +163,7 @@ async def get_user_by_id(
     responses={
         200: {"description": "Информация о пользователе успешно изменена"},
         404: {"description": "Пользователь не найден"},
+        409: {"description": "Пользователь с таким номером телефона уже зарегистрирован"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
@@ -210,10 +211,15 @@ async def change_password(
     Флаги (по умолчанию `false`) управляют контентом пользователя:
     - `false` - клуб/тред/коммент отвязывается (owner/author -> null), но сохраняется;
     - `true` - удаляется вместе с вложенным содержимым.
+
+    В теле запроса передаётся `password` - подтверждение пароля (не нужно для
+    Telegram-аккаунтов без пароля).
     """,
     responses={
         200: {"description": "Аккаунт удалён, все сессии завершены"},
-        401: {"description": "Ошибка авторизации (отсутствует или невалиден X-Session-Id)"},
+        400: {"description": "Не указан пароль для подтверждения"},
+        401: {"description": "Ошибка авторизации или неверный пароль"},
+        429: {"description": "Слишком много неверных паролей - номер временно заблокирован"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
@@ -221,11 +227,13 @@ async def delete_current_user(
     delete_clubs: bool = False,
     delete_threads: bool = False,
     delete_comments: bool = False,
+    password: str | None = Body(default=None, embed=True),
     user: User = Depends(get_current_user),
     auth_service: AuthService = Depends(get_auth_service)
 ):
     return await auth_service.delete_current_user(
         user=user,
+        password=password,
         delete_clubs=delete_clubs,
         delete_threads=delete_threads,
         delete_comments=delete_comments,

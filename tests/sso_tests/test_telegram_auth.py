@@ -47,9 +47,25 @@ class TestTelegramAuth:
         assert_status_code(response, 401)
 
     def test_rejects_stale_auth_date(self, api, telegram_bot_token):
-        stale = int(time.time()) - (25 * 60 * 60)
+        stale = int(time.time()) - (2 * 60 * 60)
         response = api.telegram({"init_data": TelegramFactory.init_data(auth_date=stale)})
         assert_status_code(response, 401)
+
+    def test_change_password_returns_400_for_passwordless_user(self, api, telegram_bot_token):
+        login = api.telegram({"init_data": TelegramFactory.init_data()})
+        headers = {"X-Session-Id": login.json()["data"]["session_id"]}
+
+        response = api.change_password(
+            {"current_password": "AnyPass1", "new_password": "NewValidPass1"}, headers=headers
+        )
+        assert_status_code(response, 400)
+
+    def test_delete_account_works_without_password(self, api, telegram_bot_token):
+        login = api.telegram({"init_data": TelegramFactory.init_data()})
+        headers = {"X-Session-Id": login.json()["data"]["session_id"]}
+
+        assert_status_code(api.delete_current_user(headers=headers), 200)
+        assert_status_code(api.current_user(headers=headers), 401)
 
     def test_rejects_missing_init_data_field(self, api, telegram_bot_token):
         response = api.telegram({})
