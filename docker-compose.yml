@@ -47,6 +47,7 @@ services:
   app:
     image: nsdmitrij/project01:latest
     container_name: project1_app
+    restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
@@ -54,12 +55,33 @@ services:
         condition: service_healthy
       migrate:
         condition: service_completed_successfully
+    # Только loopback - наружу приложение отдаёт reverse-proxy (nginx/caddy) с TLS,
+    # uvicorn голым в интернет не торчит.
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file:
       - .env
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
     working_dir: /app
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: project1_caddy
+    restart: unless-stopped
+    depends_on:
+      - app
+    # 80 нужен для ACME-челленджа Let's Encrypt, 443 - сам HTTPS.
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file:
+      - .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # caddy_data хранит выданные сертификаты - без него при каждом рестарте
+      # перевыпуск и упор в rate limit Let's Encrypt.
+      - caddy_data:/data
+      - caddy_config:/config
 
   cleanup:
     image: nsdmitrij/project01:latest
@@ -81,3 +103,5 @@ services:
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:
