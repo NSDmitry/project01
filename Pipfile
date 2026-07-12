@@ -18,6 +18,8 @@ faker = "37.3.0"
 bcrypt = "*"
 asyncpg = "*"
 pytest-asyncio = "*"
+redis = "*"
+fastapi-limiter = "*"
 
 [dev-packages]
 

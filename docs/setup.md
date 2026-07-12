@@ -21,28 +21,31 @@ pipenv --python 3.11 install --dev
 pipenv shell
 ```
 
-### 2. Поднять PostgreSQL
+### 2. Поднять PostgreSQL и Redis
 
-Локальная база поднимается через `docker-compose.yml`:
+Локальные база и Redis поднимаются через `docker-compose.yml`:
 
 ```bash
-docker compose up -d db
+docker compose up -d db redis
 ```
 
-По умолчанию контейнер публикует PostgreSQL на `localhost:5432`.
+Postgres слушает только на `127.0.0.1:5432` (наружу не торчит), Redis - во внутренней сети.
 
 ### 3. Создать `.env`
 
-Пример минимального `.env`:
+Скопировать шаблон и подставить свои значения (реальные секреты в git не коммитим):
 
-```env
-DATABASE_URL=postgresql://admin:REDACTED@localhost:5432/database
-ORIGIN_URLS=["http://localhost:3000","http://localhost:5173"]
+```bash
+cp .env.example .env
 ```
 
-Что означает:
+Ключевые переменные:
 - `DATABASE_URL` - строка подключения к основной базе данных
 - `ORIGIN_URLS` - список origin'ов для CORS
+- `REDIS_URL` - Redis для rate limiting аутентификации
+- `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` - учётка Postgres для docker-compose
+- `METRICS_TOKEN` - пусто = `/metrics` отключён; иначе доступ по `Authorization: Bearer <токен>`
+- `DOCS_ENABLED` - `false` в проде скрывает Swagger/ReDoc/OpenAPI
 
 ### 4. Применить миграции
 

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 
-from app.core.errors.errors import Conflict, NotFound, Unauthorized, BadRequest
+from app.core.errors.errors import Conflict, Unauthorized, BadRequest
 from app.core.models.response_model import ResponseModel
 from app.iam.models import User, UserSession
 from app.iam.repository import UserRepository, UserSessionRepository
@@ -163,11 +163,14 @@ class AuthService:
         """
         db_user = await self.user_repository.get_user_by_phone_number(model.phone_number)
 
-        if db_user is None:
-            raise NotFound(errors=["Пользователь не найден"])
+        # Единый ответ для несуществующего номера и неверного пароля - не даём
+        # отличить зарегистрированный номер от незарегистрированного (enumeration).
+        # db_user.password is None - пользователь только из Telegram, пароля нет.
+        if db_user is None or db_user.password is None:
+            raise Unauthorized(errors=["Неверный номер телефона или пароль"])
 
         if not await self._verify_password(model.password, db_user.password):
-            raise Unauthorized(errors=["Неверный пароль"])
+            raise Unauthorized(errors=["Неверный номер телефона или пароль"])
 
         sid = await self.user_session_service.create_user_session(db_user.id)
         response = AuthUserResponse(session_id=sid)

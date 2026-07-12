@@ -2,6 +2,7 @@ from fastapi import APIRouter, Body, Depends
 from fastapi.params import Security
 
 from app.core.models.response_model import ResponseModel
+from app.core.rate_limit import rate_limiter
 from app.iam.deps import get_auth_service, get_current_user, get_user_service, session_header
 from app.iam.models import User
 from app.iam.schemas import (
@@ -26,6 +27,7 @@ users_router = APIRouter(prefix="/api/users", tags=["Users"])
     response_model=ResponseModel[AuthUserResponse],
     summary="SSO: Регистрация пользователя (номер телефона и пароль)",
     status_code=201,
+    dependencies=[rate_limiter(times=5, seconds=60)],
     responses={
         201: {"description": "Успешный ответ с идентификатором сессии"},
         422: {"description": "Ошибка валидации номера телефона или пароля"},
@@ -43,6 +45,7 @@ async def register(
     "/login",
     response_model = ResponseModel[AuthUserResponse],
     summary = "SSO: Авторизация пользователя (номер телефона и пароль)",
+    dependencies=[rate_limiter(times=5, seconds=60)],
     responses = {
         200: {"description": "Успешный ответ с идентификатором сессии"},
         401: {"description": "Неверный пароль"},
@@ -60,6 +63,7 @@ async def login(
     "/login-available",
     response_model=ResponseModel[LoginAvailableResponse],
     summary="SSO: Проверка доступности номера (авторизация или регистрация)",
+    dependencies=[rate_limiter(times=10, seconds=60)],
     responses={
         200: {"description": "is_registered=true - номер занят (авторизация), false - свободен (регистрация)"},
         422: {"description": "Ошибка валидации номера телефона"},
@@ -76,6 +80,7 @@ async def login_available(
     "/telegram",
     response_model=ResponseModel[AuthUserResponse],
     summary="SSO: Вход и регистрация через Telegram Mini App (initData)",
+    dependencies=[rate_limiter(times=10, seconds=60)],
     responses={
         200: {"description": "Успешный ответ с идентификатором сессии"},
         401: {"description": "Неверная подпись или устаревшие данные Telegram"},
@@ -170,6 +175,7 @@ async def change_user_info(
     "/password",
     response_model=ResponseModel[None],
     summary="Сменить пароль пользователя и завершить все активные сессии",
+    dependencies=[rate_limiter(times=5, seconds=60)],
     responses={
         200: {"description": "Пароль успешно изменен, все сессии завершены"},
         400: {"description": "Новый пароль не соответствует policy"},

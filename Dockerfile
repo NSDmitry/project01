@@ -11,6 +11,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копируем весь код приложения
 COPY . .
 
+# Запускаем не под root - меньше ущерба при компрометации процесса
+RUN useradd --create-home --uid 1000 appuser
+USER appuser
+
 # Открываем порт
 EXPOSE 8000
 

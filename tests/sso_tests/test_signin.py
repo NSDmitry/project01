@@ -29,9 +29,10 @@ class TestAuthLogin:
         assert_status_code(response, 401)
 
     def test_login_rejects_unknown_phone_number(self, api):
+        # Единый 401 (как и при неверном пароле) - не раскрываем, зарегистрирован ли номер.
         api.register(AuthFactory.register_payload())
         response = api.login(AuthFactory.login_payload(phone_number=AuthFactory.phone_number(), password="123456"))
-        assert_status_code(response, 404)
+        assert_status_code(response, 401)
 
     def test_login_validates_phone_number_format(self, api):
         response = api.login(AuthFactory.login_payload(phone_number="not-a-phone", password="ValidPass1"))

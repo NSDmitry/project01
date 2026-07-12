@@ -1,4 +1,7 @@
-from fastapi import FastAPI, Request, status
+import hmac
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
@@ -11,18 +14,38 @@ from app.genres.router import router as genres_router
 from fastapi.middleware.cors import CORSMiddleware
 from app.settings import settings
 
+from redis import asyncio as redis_asyncio
+from fastapi_limiter import FastAPILimiter
+
+
 class UTF8JSONResponse(JSONResponse):
     media_type = "application/json; charset=utf-8"
 
 
-app = FastAPI(default_response_class=UTF8JSONResponse)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis_conn = redis_asyncio.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
+    await FastAPILimiter.init(redis_conn)
+    try:
+        yield
+    finally:
+        await FastAPILimiter.close()
 
-app.router.routes = [r for r in app.router.routes if getattr(r, "path", None) != app.openapi_url]
 
+app = FastAPI(
+    default_response_class=UTF8JSONResponse,
+    lifespan=lifespan,
+    docs_url="/docs" if settings.docs_enabled else None,
+    redoc_url="/redoc" if settings.docs_enabled else None,
+    openapi_url="/openapi.json" if settings.docs_enabled else None,
+)
 
-@app.api_route(app.openapi_url, methods=["GET", "HEAD"], include_in_schema=False)
-def openapi():
-    return app.openapi()
+if settings.docs_enabled:
+    app.router.routes = [r for r in app.router.routes if getattr(r, "path", None) != app.openapi_url]
+
+    @app.api_route(app.openapi_url, methods=["GET", "HEAD"], include_in_schema=False)
+    def openapi():
+        return app.openapi()
 
 
 app.include_router(auth_router)
@@ -40,13 +63,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from prometheus_fastapi_instrumentator import Instrumentator
-ins = Instrumentator().instrument(app)
-ins.expose(
-    app,
-    include_in_schema=False,
-    endpoint="/metrics",
-)
+
+Instrumentator().instrument(app)
+
+
+def verify_metrics_token(authorization: str = Header(default="")):
+    if not settings.metrics_token:
+        # Токен не задан - метрики недоступны наружу.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+    if not hmac.compare_digest(authorization, f"Bearer {settings.metrics_token}"):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+
+
+@app.get("/metrics", include_in_schema=False, dependencies=[Depends(verify_metrics_token)])
+def metrics():
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 
 @app.exception_handler(APIException)
 def api_exception_handler(request: Request, exc: APIException):
