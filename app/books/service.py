@@ -3,7 +3,7 @@ from typing import List
 from app.books.google_client import GoogleBooksClient
 from app.books.models import Book
 from app.books.repository import BookRepository
-from app.books.schemas import BookSuggestionResponse
+from app.books.schemas import BookResponse, BookSuggestionResponse, CreateBookRequest
 from app.core.errors.errors import NotFound
 from app.core.models.response_model import ResponseModel
 
@@ -15,6 +15,11 @@ class BookService:
     def __init__(self, book_repository: BookRepository, google_client: GoogleBooksClient) -> None:
         self.book_repository = book_repository
         self.google_client = google_client
+
+    async def create_book(self, data: CreateBookRequest) -> ResponseModel[BookResponse]:
+        book = await self.book_repository.create_manual(data)
+
+        return ResponseModel.ok(BookResponse.model_validate(book))
 
     async def search_books(self, query: str) -> ResponseModel[List[BookSuggestionResponse]]:
         books = await self.google_client.search(query)

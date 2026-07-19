@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.books.models import Book
-from app.books.schemas import BookSuggestionResponse
+from app.books.schemas import BookSuggestionResponse, CreateBookRequest
 
 
 class BookRepository:
@@ -29,6 +29,13 @@ class BookRepository:
             genres=data.genres,
             published_year=data.published_year,
         )
+        self.db.add(book)
+        await self.db.flush()
+
+        return book
+
+    async def create_manual(self, data: CreateBookRequest) -> Book:
+        book = Book(**data.model_dump())
         self.db.add(book)
         await self.db.flush()
 
