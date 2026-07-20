@@ -5,7 +5,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors.errors import NotFound, Conflict, InternalServerError
-from app.discussions.models import Comment, Thread
 from app.iam.models import User, UserSession
 from app.iam.schemas import UserSummary
 
@@ -112,22 +111,9 @@ class UserRepository:
 
         return db_user
 
-    async def delete_user(
-        self,
-        user_id: int,
-        delete_threads: bool,
-        delete_comments: bool,
-    ) -> None:
-        # Треды/комменты висят на FK ON DELETE SET NULL - без явного удаления
-        # они осиротеют (author_id -> NULL). Флаг True удаляет контент до
-        # пользователя; вложенное (комменты, лайки) чистят каскады БД по
-        # thread_id/comment_id. Клубы чистит bookclubs-домен сам
-        # (BookClubRepository.handle_user_deleted) - у него нет FK на users.
-        if delete_threads:
-            await self.db.execute(delete(Thread).where(Thread.author_id == user_id))
-        if delete_comments:
-            await self.db.execute(delete(Comment).where(Comment.author_id == user_id))
-
+    async def delete_user(self, user_id: int) -> None:
+        # Клубы/треды/комменты чистят свои домены сами (handle_user_deleted
+        # в bookclubs и discussions) - FK на users у них больше нет.
         await self.db.execute(delete(User).where(User.id == user_id))
         await self.db.flush()
 

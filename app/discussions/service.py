@@ -15,23 +15,47 @@ from app.discussions.schemas import (
     CommentUpdateRequest,
 )
 from app.iam.models import User
+from app.iam.repository import UserRepository
 
 
 class ThreadService:
     thread_repository: ThreadRepository
     book_club_repository: BookClubRepository
     book_service: BookService
+    user_repository: UserRepository
 
     def __init__(
             self,
             thread_repository: ThreadRepository,
             book_club_repository: BookClubRepository,
             book_service: BookService,
+            user_repository: UserRepository,
         ) -> None:
 
         self.thread_repository = thread_repository
         self.book_club_repository = book_club_repository
         self.book_service = book_service
+        self.user_repository = user_repository
+
+    # author больше не relationship в модели - тред хранит только author_id.
+    # UserSummary подтягиваем батчем из iam (после распила - вызов user-сервиса).
+    async def _to_responses(self, threads) -> list[ThreadResponse]:
+        author_ids = {thread.author_id for thread in threads if thread.author_id is not None}
+        authors = {}
+        if author_ids:
+            summaries = await self.user_repository.get_summaries_by_ids(list(author_ids))
+            authors = {summary.id: summary for summary in summaries}
+
+        responses = []
+        for thread in threads:
+            response = ThreadResponse.model_validate(thread)
+            response.author = authors.get(thread.author_id)
+            responses.append(response)
+
+        return responses
+
+    async def _to_response(self, thread) -> ThreadResponse:
+        return (await self._to_responses([thread]))[0]
 
     async def get_threads(self, book_club_id: int, limit: int, offset: int) -> ResponseModel[Page[ThreadResponse]]:
         """
@@ -45,7 +69,7 @@ class ThreadService:
         threads, total = await self.thread_repository.get_threads(club.id, limit=limit, offset=offset)
 
         page = Page(
-            items=[ThreadResponse.model_validate(thread) for thread in threads],
+            items=await self._to_responses(threads),
             total=total,
             limit=limit,
             offset=offset,
@@ -72,7 +96,7 @@ class ThreadService:
 
         db_thread = await self.thread_repository.create_thread(user.id, model, book_id=book_id)
 
-        return ResponseModel.ok(ThreadResponse.model_validate(db_thread))
+        return ResponseModel.ok(await self._to_response(db_thread))
 
     async def delete_thread(self, user: User, thread_id: int) -> ResponseModel:
         """
@@ -113,24 +137,44 @@ class ThreadService:
 
         db_thread = await self.thread_repository.update_thread(db_thread, model)
 
-        return ResponseModel.ok(ThreadResponse.model_validate(db_thread))
+        return ResponseModel.ok(await self._to_response(db_thread))
 
 
 class CommentService:
     comment_repository: CommentRepository
     thread_repository: ThreadRepository
     book_club_repository: BookClubRepository
+    user_repository: UserRepository
 
     def __init__(
             self,
             comment_repository: CommentRepository,
             thread_repository: ThreadRepository,
             book_club_repository: BookClubRepository,
+            user_repository: UserRepository,
         ) -> None:
 
         self.comment_repository = comment_repository
         self.thread_repository = thread_repository
         self.book_club_repository = book_club_repository
+        self.user_repository = user_repository
+
+    # author больше не relationship - см. комментарий в ThreadService._to_responses
+    async def _authors_by_id(self, comments) -> dict:
+        author_ids = {comment.author_id for comment in comments if comment.author_id is not None}
+        if not author_ids:
+            return {}
+
+        summaries = await self.user_repository.get_summaries_by_ids(list(author_ids))
+
+        return {summary.id: summary for summary in summaries}
+
+    async def _to_response(self, comment) -> CommentResponse:
+        authors = await self._authors_by_id([comment])
+        response = CommentResponse.model_validate(comment)
+        response.author = authors.get(comment.author_id)
+
+        return response
 
     async def get_comments(
         self, thread_id: int, limit: int, offset: int, user: Optional[User] = None
@@ -152,12 +196,14 @@ class CommentService:
             await self.comment_repository.get_liked_comment_ids(comment_ids, user.id)
             if user else set()
         )
+        authors = await self._authors_by_id(comments)
 
         page = Page(
             items=[
                 CommentResponse.model_validate(comment).model_copy(update={
                     "likes_count": likes_counts.get(comment.id, 0),
                     "is_liked": comment.id in liked_ids,
+                    "author": authors.get(comment.author_id),
                 })
                 for comment in comments
             ],
@@ -185,7 +231,7 @@ class CommentService:
 
         db_comment = await self.comment_repository.create_comment(thread.id, user.id, model)
 
-        return ResponseModel.ok(CommentResponse.model_validate(db_comment))
+        return ResponseModel.ok(await self._to_response(db_comment))
 
     async def update_comment(
         self, user: User, comment_id: int, model: CommentUpdateRequest
@@ -203,7 +249,7 @@ class CommentService:
 
         db_comment = await self.comment_repository.update_comment(db_comment, model)
 
-        return ResponseModel.ok(CommentResponse.model_validate(db_comment))
+        return ResponseModel.ok(await self._to_response(db_comment))
 
     async def delete_comment(self, user: User, comment_id: int) -> ResponseModel:
         """
@@ -258,7 +304,7 @@ class CommentService:
     async def _comment_with_likes(self, comment, is_liked: bool) -> CommentResponse:
         likes_counts = await self.comment_repository.get_likes_counts([comment.id])
 
-        return CommentResponse.model_validate(comment).model_copy(update={
+        return (await self._to_response(comment)).model_copy(update={
             "likes_count": likes_counts.get(comment.id, 0),
             "is_liked": is_liked,
         })

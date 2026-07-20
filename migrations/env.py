@@ -20,6 +20,7 @@ from app.core.database import Base # убедись, что путь корре�
 # и autogenerate видел полную схему (единый источник истины - Alembic).
 import app.iam.models  # noqa: F401
 import app.bookclubs.models  # noqa: F401
+import app.genres.models  # noqa: F401
 import app.discussions.models  # noqa: F401
 import app.books.models  # noqa: F401
 

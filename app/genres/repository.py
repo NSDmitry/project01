@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bookclubs.models import Genre
+from app.genres.models import Genre
 from app.core.errors.errors import Conflict, NotFound
 
 

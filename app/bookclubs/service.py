@@ -1,7 +1,9 @@
 from typing import List
 
-from app.bookclubs.models import BookClub, Genre
+from app.bookclubs.models import BookClub
+from app.genres.models import Genre
 from app.bookclubs.repository import BookClubRepository
+from app.discussions.repository import ThreadRepository
 from app.bookclubs.schemas import (
     CreateBookClubRequest,
     UpdateBookClubGenresRequest,
@@ -21,19 +23,23 @@ class BookClubService:
     book_club_repository: BookClubRepository
     genre_repository: GenreRepository
     user_repository: UserRepository
+    thread_repository: ThreadRepository
 
     def __init__(
         self,
         book_club_repository: BookClubRepository,
         genre_repository: GenreRepository,
         user_repository: UserRepository,
+        thread_repository: ThreadRepository,
     ) -> None:
         self.book_club_repository = book_club_repository
         self.genre_repository = genre_repository
         self.user_repository = user_repository
+        self.thread_repository = thread_repository
 
-    # owner больше не relationship в модели - клуб хранит только owner_id.
-    # UserSummary подтягиваем батчем из iam (после распила - вызов user-сервиса).
+    # owner и threads_count больше не живут в модели - клуб хранит только id.
+    # UserSummary и счётчик тредов подтягиваем батчем из iam/discussions
+    # (после распила - вызовы соседних сервисов).
     async def _to_responses(self, clubs: List[BookClub]) -> List[BookClubResponse]:
         owner_ids = {club.owner_id for club in clubs if club.owner_id is not None}
         owners = {}
@@ -41,10 +47,15 @@ class BookClubService:
             summaries = await self.user_repository.get_summaries_by_ids(list(owner_ids))
             owners = {summary.id: summary for summary in summaries}
 
+        threads_counts = await self.thread_repository.get_threads_counts(
+            [club.id for club in clubs]
+        )
+
         responses = []
         for club in clubs:
             response = BookClubResponse.model_validate(club)
             response.owner = owners.get(club.owner_id)
+            response.threads_count = threads_counts.get(club.id, 0)
             responses.append(response)
 
         return responses
@@ -128,6 +139,9 @@ class BookClubService:
 
     async def delete_book_club(self, owner: User, book_club_id: int) -> ResponseModel:
         await self.book_club_repository.delete_book_club(owner, book_club_id)
+        # FK threads.club_id больше нет - треды удалённого клуба чистит
+        # discussions (после распила - событие ClubDeleted)
+        await self.thread_repository.handle_clubs_deleted([book_club_id])
 
         return ResponseModel.ok(message="Книжный клуб успешно удален")
 

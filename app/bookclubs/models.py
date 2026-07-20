@@ -1,9 +1,9 @@
-from sqlalchemy import Column, BigInteger, Integer, String, ForeignKey, select, func
+from sqlalchemy import Column, BigInteger, String, ForeignKey, select, func
 from sqlalchemy.orm import relationship, column_property
 
 from app.core.database import Base
 from app.core.db_base_model import DBLBase
-from app.discussions.models import Thread
+from app.genres.models import Genre
 
 
 class ClubMember(Base):
@@ -12,15 +12,6 @@ class ClubMember(Base):
     club_id = Column(BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True)
     # id пользователя из iam - без FK, домены связаны только идентификатором
     user_id = Column(BigInteger, primary_key=True)
-
-
-class Genre(Base):
-    __tablename__ = "genres"
-
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    code = Column(String, nullable=False, unique=True)
-    name = Column(String, nullable=False)
-    sort_order = Column(Integer, nullable=False, server_default="0")
 
 
 class BookClubGenre(Base):
@@ -46,16 +37,12 @@ class BookClub(Base, DBLBase):
     )
 
 
-# Счётчики считаются коррелированным подзапросом прямо в SELECT клуба - один
-# запрос на клуб, без загрузки строк участников/тредов и без N+1 на списках.
+# Счётчик считается коррелированным подзапросом прямо в SELECT клуба - один
+# запрос на клуб, без загрузки строк участников и без N+1 на списках.
+# threads_count здесь больше нет - треды в другом домене, счётчик
+# подтягивает BookClubService батчем из ThreadRepository.
 BookClub.members_count = column_property(
     select(func.count(ClubMember.user_id))
     .where(ClubMember.club_id == BookClub.id)
-    .scalar_subquery()
-)
-
-BookClub.threads_count = column_property(
-    select(func.count(Thread.id))
-    .where(Thread.club_id == BookClub.id)
     .scalar_subquery()
 )

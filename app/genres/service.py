@@ -1,6 +1,6 @@
 from typing import List
 
-from app.bookclubs.models import Genre
+from app.genres.models import Genre
 from app.core.authorization import require_permission
 from app.core.models.response_model import ResponseModel
 from app.genres.repository import GenreRepository

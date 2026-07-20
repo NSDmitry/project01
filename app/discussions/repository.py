@@ -1,6 +1,6 @@
 from typing import Dict, List, Set, Tuple
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,6 +50,47 @@ class ThreadRepository:
         await self.db.flush()
 
         return await self.get_thread(new_thread.id)
+
+    async def get_threads_counts(self, club_ids: List[int]) -> Dict[int, int]:
+        if not club_ids:
+            return {}
+
+        result = await self.db.execute(
+            select(Thread.club_id, func.count())
+            .where(Thread.club_id.in_(club_ids))
+            .group_by(Thread.club_id)
+        )
+
+        return dict(result.all())
+
+    async def handle_clubs_deleted(self, club_ids: List[int]) -> None:
+        # FK threads.club_id на book_clubs больше нет - CASCADE при удалении
+        # клуба выполняем явно. Комменты и лайки чистят каскады БД по
+        # thread_id/comment_id.
+        if not club_ids:
+            return
+
+        await self.db.execute(delete(Thread).where(Thread.club_id.in_(club_ids)))
+        await self.db.flush()
+
+    async def handle_user_deleted(self, user_id: int, delete_threads: bool, delete_comments: bool) -> None:
+        # FK на users больше нет - SET NULL/CASCADE, которые раньше делала БД
+        # при удалении пользователя, выполняем явно. Вложенное (комменты, лайки)
+        # чистят каскады БД по thread_id/comment_id.
+        if delete_threads:
+            await self.db.execute(delete(Thread).where(Thread.author_id == user_id))
+        else:
+            await self.db.execute(
+                update(Thread).values(author_id=None).where(Thread.author_id == user_id)
+            )
+        if delete_comments:
+            await self.db.execute(delete(Comment).where(Comment.author_id == user_id))
+        else:
+            await self.db.execute(
+                update(Comment).values(author_id=None).where(Comment.author_id == user_id)
+            )
+        await self.db.execute(delete(CommentLike).where(CommentLike.user_id == user_id))
+        await self.db.flush()
 
     async def delete_thread(self, thread_id: int) -> Thread:
         result = await self.db.execute(select(Thread).where(Thread.id == thread_id))

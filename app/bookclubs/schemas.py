@@ -35,5 +35,5 @@ class BookClubResponse(ResponseSchema):
     created_at: datetime
     owner: Optional[UserSummary] = None
     members_count: int
-    threads_count: int
+    threads_count: int = 0
     genres: list[GenreResponse]

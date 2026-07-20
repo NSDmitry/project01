@@ -4,7 +4,8 @@ from sqlalchemy import select, func, or_, delete, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bookclubs.models import BookClub, ClubMember, Genre, BookClubGenre
+from app.bookclubs.models import BookClub, ClubMember, BookClubGenre
+from app.genres.models import Genre
 from app.bookclubs.schemas import CreateBookClubRequest, BookClubRelation
 from app.core.authorization import require_permission
 from app.core.errors.errors import NotFound, Conflict
@@ -116,11 +117,17 @@ class BookClubRepository:
 
         return result.scalars().all(), total
 
-    async def handle_user_deleted(self, user_id: int, delete_owned_clubs: bool) -> None:
+    async def handle_user_deleted(self, user_id: int, delete_owned_clubs: bool) -> List[int]:
         # FK на users больше нет - SET NULL/CASCADE, которые раньше делала БД
-        # при удалении пользователя, выполняем явно.
+        # при удалении пользователя, выполняем явно. Возвращаем id удалённых
+        # клубов, чтобы discussions почистил их треды (FK у тредов тоже нет).
+        deleted_club_ids: List[int] = []
         if delete_owned_clubs:
-            # вложенное (участники, треды) чистят каскады БД по club_id
+            result = await self.db.execute(
+                select(BookClub.id).where(BookClub.owner_id == user_id)
+            )
+            deleted_club_ids = list(result.scalars().all())
+            # участников чистит каскад БД по club_id
             await self.db.execute(delete(BookClub).where(BookClub.owner_id == user_id))
         else:
             await self.db.execute(
@@ -128,6 +135,8 @@ class BookClubRepository:
             )
         await self.db.execute(delete(ClubMember).where(ClubMember.user_id == user_id))
         await self.db.flush()
+
+        return deleted_club_ids
 
     async def delete_book_club(self, owner: User, club_id: int):
         club = await self.get_book_club(club_id=club_id)
