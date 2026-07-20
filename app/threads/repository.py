@@ -51,18 +51,6 @@ class ThreadRepository:
 
         return await self.get_thread(new_thread.id)
 
-    async def get_threads_counts(self, club_ids: List[int]) -> Dict[int, int]:
-        if not club_ids:
-            return {}
-
-        result = await self.db.execute(
-            select(Thread.club_id, func.count())
-            .where(Thread.club_id.in_(club_ids))
-            .group_by(Thread.club_id)
-        )
-
-        return dict(result.all())
-
     async def handle_clubs_deleted(self, club_ids: List[int]) -> None:
         # FK threads.club_id на book_clubs больше нет - CASCADE при удалении
         # клуба выполняем явно. Комменты и лайки чистят каскады БД по
