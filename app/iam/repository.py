@@ -4,10 +4,10 @@ from sqlalchemy import DateTime, or_, select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bookclubs.models import BookClub
 from app.core.errors.errors import NotFound, Conflict, InternalServerError
 from app.discussions.models import Comment, Thread
 from app.iam.models import User, UserSession
+from app.iam.schemas import UserSummary
 
 
 class UserRepository:
@@ -26,6 +26,16 @@ class UserRepository:
             raise NotFound(errors=["Пользователь с таким id не найден"])
 
         return db_user
+
+    async def get_summaries_by_ids(self, user_ids: list[int]) -> list[UserSummary]:
+        if not user_ids:
+            return []
+
+        result = await self.db.execute(
+            select(User).where(User.id.in_(user_ids)).order_by(User.id)
+        )
+
+        return [UserSummary.model_validate(user) for user in result.scalars().all()]
 
     async def get_user_by_phone_number(self, phone_number: str) -> User:
         result = await self.db.execute(select(User).where(User.phone_number == phone_number))
@@ -105,16 +115,14 @@ class UserRepository:
     async def delete_user(
         self,
         user_id: int,
-        delete_clubs: bool,
         delete_threads: bool,
         delete_comments: bool,
     ) -> None:
-        # Клубы/треды/комменты висят на FK ON DELETE SET NULL - без явного удаления
-        # они осиротеют (owner_id/author_id -> NULL). Флаг True удаляет контент до
-        # пользователя; вложенное (треды, комменты, лайки) чистят каскады БД по
-        # club_id/thread_id/comment_id.
-        if delete_clubs:
-            await self.db.execute(delete(BookClub).where(BookClub.owner_id == user_id))
+        # Треды/комменты висят на FK ON DELETE SET NULL - без явного удаления
+        # они осиротеют (author_id -> NULL). Флаг True удаляет контент до
+        # пользователя; вложенное (комменты, лайки) чистят каскады БД по
+        # thread_id/comment_id. Клубы чистит bookclubs-домен сам
+        # (BookClubRepository.handle_user_deleted) - у него нет FK на users.
         if delete_threads:
             await self.db.execute(delete(Thread).where(Thread.author_id == user_id))
         if delete_comments:

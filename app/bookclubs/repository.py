@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func, or_, delete, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -102,20 +102,32 @@ class BookClubRepository:
 
         return member is not None
 
-    async def get_members(self, club_id: int, limit: int, offset: int) -> Tuple[List[User], int]:
+    async def get_members(self, club_id: int, limit: int, offset: int) -> Tuple[List[int], int]:
         total = await self.db.scalar(
             select(func.count()).select_from(ClubMember).where(ClubMember.club_id == club_id)
         )
         result = await self.db.execute(
-            select(User)
-            .join(ClubMember, ClubMember.user_id == User.id)
+            select(ClubMember.user_id)
             .where(ClubMember.club_id == club_id)
-            .order_by(User.id)
+            .order_by(ClubMember.user_id)
             .limit(limit)
             .offset(offset)
         )
 
         return result.scalars().all(), total
+
+    async def handle_user_deleted(self, user_id: int, delete_owned_clubs: bool) -> None:
+        # FK на users больше нет - SET NULL/CASCADE, которые раньше делала БД
+        # при удалении пользователя, выполняем явно.
+        if delete_owned_clubs:
+            # вложенное (участники, треды) чистят каскады БД по club_id
+            await self.db.execute(delete(BookClub).where(BookClub.owner_id == user_id))
+        else:
+            await self.db.execute(
+                update(BookClub).values(owner_id=None).where(BookClub.owner_id == user_id)
+            )
+        await self.db.execute(delete(ClubMember).where(ClubMember.user_id == user_id))
+        await self.db.flush()
 
     async def delete_book_club(self, owner: User, club_id: int):
         club = await self.get_book_club(club_id=club_id)

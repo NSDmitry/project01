@@ -10,7 +10,8 @@ class ClubMember(Base):
     __tablename__ = "club_members"
 
     club_id = Column(BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True)
-    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    # id пользователя из iam - без FK, домены связаны только идентификатором
+    user_id = Column(BigInteger, primary_key=True)
 
 
 class Genre(Base):
@@ -34,9 +35,9 @@ class BookClub(Base, DBLBase):
 
     name = Column(String, nullable=False, unique=True)
     description = Column(String, nullable=False)
-    owner_id = Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # id пользователя из iam - без FK, обнуляется кодом при удалении владельца
+    owner_id = Column(BigInteger, nullable=True)
 
-    owner = relationship("User", lazy="selectin")
     genres = relationship(
         "Genre",
         secondary="book_club_genres",
