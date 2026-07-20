@@ -6,9 +6,8 @@ from typing import Optional
 from pydantic import BaseModel, Field
 from datetime import datetime
 
+from app.core.contracts import GenreResponse, UserSummary
 from app.core.schemas import ResponseSchema
-from app.genres.schemas import GenreResponse
-from app.iam.schemas import UserSummary
 
 class BookClubRelation(str, Enum):
     owner = "owner"

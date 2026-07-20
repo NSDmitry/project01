@@ -8,11 +8,10 @@ from app.bookclubs.schemas import (
     BookClubResponse,
 )
 from app.bookclubs.service import BookClubService
+from app.core.contracts import Principal, UserSummary
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.iam.deps import get_current_user
-from app.iam.models import User
-from app.iam.schemas import UserSummary
+from app.iam.deps import get_current_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 
@@ -37,7 +36,7 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 )
 async def create(
         model: CreateBookClubRequest,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
     response: BookClubResponse = await service.create_book_club(model, user)
@@ -64,7 +63,7 @@ async def create(
 async def get_all_book_clubs(
         limit: int = Query(20, ge=1, le=100),
         offset: int = Query(0, ge=0),
-        _: User = Depends(get_current_user),
+        _: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.get_book_clubs(limit, offset)
@@ -93,7 +92,7 @@ async def get_all_book_clubs(
 )
 async def search_book_clubs(
         model: SearchBookClubsRequest,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.search_book_clubs(user, model)
@@ -115,7 +114,7 @@ async def search_book_clubs(
 )
 async def get_book_club(
         club_id: int,
-        _: User = Depends(get_current_user),
+        _: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.get_book_club(club_id)
@@ -140,7 +139,7 @@ async def get_book_club_members(
         club_id: int,
         limit: int = Query(20, ge=1, le=100),
         offset: int = Query(0, ge=0),
-        _: User = Depends(get_current_user),
+        _: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.get_members(club_id, limit=limit, offset=offset)
@@ -163,7 +162,7 @@ async def get_book_club_members(
 )
 async def delete_book_club(
         club_id: int,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.delete_book_club(user, club_id)
@@ -185,7 +184,7 @@ async def delete_book_club(
 )
 async def join(
         club_id: int,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.join(user, club_id)
@@ -208,7 +207,7 @@ async def join(
 )
 async def leave(
         club_id: int,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.leave(user, club_id)
@@ -236,7 +235,7 @@ async def leave(
 async def set_genres(
         club_id: int,
         model: UpdateBookClubGenresRequest,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
     return await service.set_genres(user, club_id, model)

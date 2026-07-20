@@ -19,3 +19,17 @@ async def on_genres_deleted(payload: dict) -> None:
     async with events.session_factory() as db:
         await BookClubRepository(db).handle_genres_deleted(payload["genre_ids"])
         await db.commit()
+
+
+@events.subscribe(events.THREAD_CREATED, queue="bookclubs")
+async def on_thread_created(payload: dict) -> None:
+    async with events.session_factory() as db:
+        await BookClubRepository(db).change_threads_count(payload["club_id"], +1)
+        await db.commit()
+
+
+@events.subscribe(events.THREAD_DELETED, queue="bookclubs")
+async def on_thread_deleted(payload: dict) -> None:
+    async with events.session_factory() as db:
+        await BookClubRepository(db).change_threads_count(payload["club_id"], -payload["count"])
+        await db.commit()

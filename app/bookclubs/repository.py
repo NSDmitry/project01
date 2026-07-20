@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.bookclubs.models import BookClub, ClubMember, BookClubGenre
 from app.bookclubs.schemas import CreateBookClubRequest, BookClubRelation
 from app.core.authorization import require_permission
+from app.core.contracts import Principal
 from app.core.errors.errors import NotFound, Conflict
-from app.iam.models import User
 
 
 class BookClubRepository:
@@ -17,7 +17,7 @@ class BookClubRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def create_book_club(self, owner: User, model: CreateBookClubRequest, genre_ids: List[int]) -> BookClub:
+    async def create_book_club(self, owner: Principal, model: CreateBookClubRequest, genre_ids: List[int]) -> BookClub:
         new_book_club = BookClub()
         new_book_club.name = model.name
         new_book_club.description = model.description
@@ -45,7 +45,7 @@ class BookClubRepository:
             self,
             limit: int,
             offset: int,
-            user: User | None = None,
+            user: Principal | None = None,
             relation: BookClubRelation | None = None,
             query: str | None = None,
             genre_ids: List[int] | None = None,
@@ -138,7 +138,7 @@ class BookClubRepository:
 
         return deleted_club_ids
 
-    async def delete_book_club(self, owner: User, club_id: int):
+    async def delete_book_club(self, owner: Principal, club_id: int):
         club = await self.get_book_club(club_id=club_id)
 
         require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
@@ -146,7 +146,7 @@ class BookClubRepository:
         await self.db.delete(club)
         await self.db.flush()
 
-    async def set_genres(self, owner: User, club_id: int, genre_ids: List[int]) -> BookClub:
+    async def set_genres(self, owner: Principal, club_id: int, genre_ids: List[int]) -> BookClub:
         club = await self.get_book_club(club_id=club_id)
 
         require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
@@ -174,11 +174,21 @@ class BookClubRepository:
 
         return genre_ids
 
+    async def change_threads_count(self, club_id: int, delta: int) -> None:
+        # GREATEST(...,0) страхует от ухода в минус, если событие продублируется
+        # или потеряется (в проде через брокер доставка at-least-once).
+        await self.db.execute(
+            update(BookClub)
+            .where(BookClub.id == club_id)
+            .values(threads_count=func.greatest(BookClub.threads_count + delta, 0))
+        )
+        await self.db.flush()
+
     async def handle_genres_deleted(self, genre_ids: List[int]) -> None:
         await self.db.execute(delete(BookClubGenre).where(BookClubGenre.genre_id.in_(genre_ids)))
         await self.db.flush()
 
-    async def join_book_club(self, user: User, club_id: int) -> BookClub:
+    async def join_book_club(self, user: Principal, club_id: int) -> BookClub:
         await self.get_book_club(club_id=club_id)
 
         self.db.add(ClubMember(club_id=club_id, user_id=user.id))
@@ -191,7 +201,7 @@ class BookClubRepository:
 
         return await self.get_book_club(club_id=club_id)
 
-    async def remove_member(self, user: User, club_id: int) -> BookClub:
+    async def remove_member(self, user: Principal, club_id: int) -> BookClub:
         await self.get_book_club(club_id=club_id)
 
         member = await self.db.get(ClubMember, {"club_id": club_id, "user_id": user.id})

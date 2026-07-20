@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, Query
 
+from app.core.contracts import Principal
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.iam.deps import get_current_user, get_optional_user
-from app.iam.models import User
+from app.iam.deps import get_current_user, get_optional_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
 from app.threads.deps import get_thread_service, get_comment_service
 from app.threads.schemas import (
     ThreadResponse,
@@ -60,7 +60,7 @@ async def get_threads(
 )
 async def create_thread(
         model: ThreadCreateRequest,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: ThreadService = Depends(get_thread_service)
 ):
     return await service.create_thread(user=user, model=model)
@@ -81,7 +81,7 @@ async def create_thread(
 )
 async def delete_thread(
         thread_id: int,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: ThreadService = Depends(get_thread_service)
 ):
     return await service.delete_thread(user=user, thread_id=thread_id)
@@ -102,7 +102,7 @@ async def delete_thread(
 async def update_thread(
         thread_id: int,
         model: ThreadUpdateRequest,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: ThreadService = Depends(get_thread_service)
 ):
     return await service.update_thread(user=user, thread_id=thread_id, model=model)
@@ -126,7 +126,7 @@ async def get_comments(
         thread_id: int,
         limit: int = Query(10, ge=1, le=100),
         offset: int = Query(0, ge=0),
-        user: User | None = Depends(get_optional_user),
+        user: Principal | None = Depends(get_optional_user),
         service: CommentService = Depends(get_comment_service)
 ):
     return await service.get_comments(thread_id=thread_id, limit=limit, offset=offset, user=user)
@@ -154,7 +154,7 @@ async def get_comments(
 async def create_comment(
         thread_id: int,
         model: CommentCreateRequest,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
     return await service.create_comment(user=user, thread_id=thread_id, model=model)
@@ -176,7 +176,7 @@ async def create_comment(
 async def update_comment(
         comment_id: int,
         model: CommentUpdateRequest,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
     return await service.update_comment(user=user, comment_id=comment_id, model=model)
@@ -197,7 +197,7 @@ async def update_comment(
 )
 async def delete_comment(
         comment_id: int,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
     return await service.delete_comment(user=user, comment_id=comment_id)
@@ -223,7 +223,7 @@ async def delete_comment(
 )
 async def like_comment(
         comment_id: int,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
     return await service.like_comment(user=user, comment_id=comment_id)
@@ -248,7 +248,7 @@ async def like_comment(
 )
 async def unlike_comment(
         comment_id: int,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
     return await service.unlike_comment(user=user, comment_id=comment_id)

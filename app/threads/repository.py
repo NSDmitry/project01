@@ -73,11 +73,20 @@ class ThreadRepository:
         await self.db.execute(delete(Thread).where(Thread.club_id.in_(club_ids)))
         await self.db.flush()
 
-    async def handle_user_deleted(self, user_id: int, delete_threads: bool, delete_comments: bool) -> None:
+    async def handle_user_deleted(self, user_id: int, delete_threads: bool, delete_comments: bool) -> Dict[int, int]:
         # FK на users больше нет - SET NULL/CASCADE, которые раньше делала БД
         # при удалении пользователя, выполняем явно. Вложенное (комменты, лайки)
         # чистят каскады БД по thread_id/comment_id.
+        # Возвращаем {club_id: сколько тредов автора удалено} - домену клубов,
+        # чтобы он уменьшил свои счётчики тредов.
+        threads_removed_by_club: Dict[int, int] = {}
         if delete_threads:
+            result = await self.db.execute(
+                select(Thread.club_id, func.count())
+                .where(Thread.author_id == user_id)
+                .group_by(Thread.club_id)
+            )
+            threads_removed_by_club = dict(result.all())
             await self.db.execute(delete(Thread).where(Thread.author_id == user_id))
         else:
             await self.db.execute(
@@ -91,6 +100,8 @@ class ThreadRepository:
             )
         await self.db.execute(delete(CommentLike).where(CommentLike.user_id == user_id))
         await self.db.flush()
+
+        return threads_removed_by_club
 
     async def delete_thread(self, thread_id: int) -> Thread:
         result = await self.db.execute(select(Thread).where(Thread.id == thread_id))

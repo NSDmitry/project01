@@ -8,50 +8,41 @@ from app.bookclubs.schemas import (
     SearchBookClubsRequest,
     BookClubResponse,
 )
+from app.bookclubs.ports import GenresPort, UsersPort
 from app.core import events
+from app.core.contracts import GenreResponse, Principal, UserSummary
 from app.core.errors.errors import UnprocessableEntity
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.genres.models import Genre
-from app.genres.repository import GenreRepository
-from app.genres.schemas import GenreResponse
-from app.iam.models import User
-from app.iam.repository import UserRepository
-from app.iam.schemas import UserSummary
-from app.threads.repository import ThreadRepository
 
 
 class BookClubService:
     book_club_repository: BookClubRepository
-    genre_repository: GenreRepository
-    user_repository: UserRepository
-    thread_repository: ThreadRepository
+    genre_repository: GenresPort
+    user_repository: UsersPort
 
     def __init__(
         self,
         book_club_repository: BookClubRepository,
-        genre_repository: GenreRepository,
-        user_repository: UserRepository,
-        thread_repository: ThreadRepository,
+        genre_repository: GenresPort,
+        user_repository: UsersPort,
     ) -> None:
         self.book_club_repository = book_club_repository
         self.genre_repository = genre_repository
         self.user_repository = user_repository
-        self.thread_repository = thread_repository
 
-    # owner, threads_count и genres больше не живут в модели - клуб хранит
-    # только id. Подтягиваем их батчем из iam/threads/genres (после распила -
-    # вызовы соседних сервисов), одним запросом на всю страницу вместо N+1.
+    # owner и genres больше не живут в модели - клуб хранит только id, подтягиваем
+    # их батчем из iam/genres (после распила - вызовы соседних сервисов), одним
+    # запросом на всю страницу вместо N+1. threads_count - денормализованный
+    # столбец, который ведёт домен клубов по событиям тредов (см. events.py).
     async def _to_responses(self, clubs: List[BookClub]) -> List[BookClubResponse]:
         owners = await self._owners_by_id(clubs)
-        threads_counts = await self.thread_repository.get_threads_counts([club.id for club in clubs])
         genres_by_club = await self._genres_by_club(clubs)
 
         responses = []
         for club in clubs:
             response = BookClubResponse.model_validate(club)
             response.owner = owners.get(club.owner_id)
-            response.threads_count = threads_counts.get(club.id, 0)
             response.genres = genres_by_club.get(club.id, [])
             responses.append(response)
 
@@ -85,7 +76,7 @@ class BookClubService:
 
         return genres_by_club
 
-    async def create_book_club(self, model: CreateBookClubRequest, owner: User) -> ResponseModel[BookClubResponse]:
+    async def create_book_club(self, model: CreateBookClubRequest, owner: Principal) -> ResponseModel[BookClubResponse]:
         genres = await self._resolve_genres(model.genres)
 
         db_book_club: BookClub = await self.book_club_repository.create_book_club(
@@ -95,7 +86,7 @@ class BookClubService:
         return ResponseModel.ok(await self._to_response(db_book_club))
 
     async def set_genres(
-        self, owner: User, club_id: int, model: UpdateBookClubGenresRequest
+        self, owner: Principal, club_id: int, model: UpdateBookClubGenresRequest
     ) -> ResponseModel[BookClubResponse]:
         genres = await self._resolve_genres(model.genres)
 
@@ -105,9 +96,9 @@ class BookClubService:
 
         return ResponseModel.ok(await self._to_response(db_book_club))
 
-    async def _resolve_genres(self, codes: List[str]) -> List[Genre]:
+    async def _resolve_genres(self, codes: List[str]) -> List[GenreResponse]:
         unique_codes = list(dict.fromkeys(codes))
-        genres: List[Genre] = await self.genre_repository.get_by_codes(unique_codes)
+        genres: List[GenreResponse] = await self.genre_repository.get_by_codes(unique_codes)
 
         found = {genre.code for genre in genres}
         missing = [code for code in unique_codes if code not in found]
@@ -125,7 +116,7 @@ class BookClubService:
         return await self._page(db_clubs, total, limit, offset)
 
     async def search_book_clubs(
-        self, user: User, model: SearchBookClubsRequest
+        self, user: Principal, model: SearchBookClubsRequest
     ) -> ResponseModel[Page[BookClubResponse]]:
         # id жанров, подходящих под поисковый запрос, берём у genres -
         # после распила это вызов сервиса жанров
@@ -168,7 +159,7 @@ class BookClubService:
 
         return ResponseModel.ok(page)
 
-    async def delete_book_club(self, owner: User, book_club_id: int) -> ResponseModel:
+    async def delete_book_club(self, owner: Principal, book_club_id: int) -> ResponseModel:
         await self.book_club_repository.delete_book_club(owner, book_club_id)
         # FK threads.club_id больше нет - треды удалённого клуба чистит
         # threads по событию
@@ -176,13 +167,13 @@ class BookClubService:
 
         return ResponseModel.ok(message="Книжный клуб успешно удален")
 
-    async def join(self, user: User, club_id: int) -> ResponseModel[BookClubResponse]:
+    async def join(self, user: Principal, club_id: int) -> ResponseModel[BookClubResponse]:
         db_club: BookClub = await self.book_club_repository.join_book_club(user=user, club_id=club_id)
         club = await self._to_response(db_club)
 
         return ResponseModel.ok(club)
 
-    async def leave(self, user: User, club_id: int) -> ResponseModel[BookClubResponse]:
+    async def leave(self, user: Principal, club_id: int) -> ResponseModel[BookClubResponse]:
         db_club: BookClub = await self.book_club_repository.remove_member(user, club_id)
         club = await self._to_response(db_club)
 
