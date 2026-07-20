@@ -5,8 +5,13 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.core import events
 from app.core.errors.APIException import APIException
 from app.core.models.response_model import ResponseModel
+
+# Импорт ради side-effect: регистрация доменных подписчиков на события.
+import app.bookclubs.events  # noqa: F401
+import app.discussions.events  # noqa: F401
 from app.iam.router import auth_router, users_router
 from app.bookclubs.router import router as bookclubs_router
 from app.books.router import router as books_router
@@ -27,9 +32,11 @@ class UTF8JSONResponse(JSONResponse):
 async def lifespan(app: FastAPI):
     redis_conn = redis_asyncio.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
     await FastAPILimiter.init(redis_conn)
+    await events.startup()
     try:
         yield
     finally:
+        await events.shutdown()
         await FastAPILimiter.close()
 
 

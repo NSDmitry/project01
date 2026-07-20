@@ -20,6 +20,7 @@ asyncpg = "*"
 pytest-asyncio = "*"
 redis = "*"
 fastapi-limiter = "*"
+aio-pika = "*"
 
 [dev-packages]
 

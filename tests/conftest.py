@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import NullPool
+from app.core import events
 from app.core.database import Base, get_db
 from app.settings import settings
 from fastapi.testclient import TestClient
@@ -26,6 +27,10 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 async_test_url = settings.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
 async_engine = create_async_engine(async_test_url, poolclass=NullPool)
 AsyncTestingSessionLocal = async_sessionmaker(bind=async_engine, autoflush=False, expire_on_commit=False)
+
+# Хендлеры событий (RABBITMQ_URL пуст в тестах - доставка in-process) открывают
+# свои сессии - им нужен NullPool-движок по той же причине, что и запросам.
+events.session_factory = AsyncTestingSessionLocal
 
 
 async def override_get_db():

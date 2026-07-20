@@ -6,9 +6,8 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 
-from app.bookclubs.repository import BookClubRepository
+from app.core import events
 from app.core.errors.errors import Conflict, Unauthorized, BadRequest
-from app.discussions.repository import ThreadRepository
 from app.core.rate_limit import check_registrations_limit, count_registration
 from app.iam import brute_force
 from app.core.models.response_model import ResponseModel
@@ -144,8 +143,6 @@ class AuthService:
     user_service: UserService
     user_session_service: UserSessionService
     user_repository: UserRepository
-    book_club_repository: BookClubRepository
-    thread_repository: ThreadRepository
     telegram_bot_token: str
 
     def __init__(
@@ -153,15 +150,11 @@ class AuthService:
         user_service: UserService,
         user_repository: UserRepository,
         user_session_service: UserSessionService,
-        book_club_repository: BookClubRepository,
-        thread_repository: ThreadRepository,
         telegram_bot_token: str = ""
     ) -> None:
         self.user_service = user_service
         self.user_repository = user_repository
         self.user_session_service = user_session_service
-        self.book_club_repository = book_club_repository
-        self.thread_repository = thread_repository
         self.telegram_bot_token = telegram_bot_token
 
     async def register(self, model: SignUpRequest, client_ip: str) -> ResponseModel[AuthUserResponse]:
@@ -293,14 +286,16 @@ class AuthService:
             await confirm_password(user, password)
 
         # У bookclubs и discussions нет FK на users - домены чистят свои данные
-        # сами. После распила на сервисы эти вызовы станут событием UserDeleted.
-        deleted_club_ids = await self.book_club_repository.handle_user_deleted(
-            user.id, delete_owned_clubs=delete_clubs
-        )
-        # треды удалённых клубов больше не каскадятся FK-ом - чистим явно
-        await self.thread_repository.handle_clubs_deleted(deleted_club_ids)
-        await self.thread_repository.handle_user_deleted(
-            user.id, delete_threads=delete_threads, delete_comments=delete_comments
+        # сами по событию user_deleted (bookclubs дальше публикует clubs_deleted
+        # для тредов удалённых клубов). iam про эти домены не знает.
+        await events.publish(
+            events.USER_DELETED,
+            {
+                "user_id": user.id,
+                "delete_clubs": delete_clubs,
+                "delete_threads": delete_threads,
+                "delete_comments": delete_comments,
+            },
         )
         await self.user_repository.delete_user(user_id=user.id)
         # user_sessions без FK на users - осиротевшие сессии удаляем вручную.
