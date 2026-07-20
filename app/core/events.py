@@ -76,17 +76,20 @@ async def startup() -> None:
     dlq = await channel.declare_queue(f"{EXCHANGE}.dead", durable=True)
     await dlq.bind(dlx)
 
+    # Группируем хендлеры по очереди: {очередь: {событие: хендлер}}. На каждый
+    # домен - одна очередь с одним consumer, который диспетчеризует по routing_key.
     by_queue: dict[str, dict] = {}
     for event, pairs in _handlers.items():
         for queue_name, fn in pairs:
             by_queue.setdefault(queue_name, {})[event] = fn
-    for queue_name, handlers in by_queue.items():
+
+    for queue_name, event_handlers in by_queue.items():
         queue = await channel.declare_queue(
             queue_name, durable=True, arguments={"x-dead-letter-exchange": f"{EXCHANGE}.dlx"}
         )
-        for event in handlers:
+        for event in event_handlers:
             await queue.bind(_exchange, routing_key=event)
-        await queue.consume(_consumer(handlers))
+        await queue.consume(_consumer(event_handlers))
 
 
 def _consumer(handlers: dict):

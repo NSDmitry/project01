@@ -49,10 +49,10 @@ app = FastAPI(
 if settings.docs_enabled:
     app.router.routes = [r for r in app.router.routes if getattr(r, "path", None) != app.openapi_url]
 
-
     @app.api_route(app.openapi_url, methods=["GET", "HEAD"], include_in_schema=False)
     def openapi():
         return app.openapi()
+
 
 app.include_router(auth_router)
 app.include_router(users_router)

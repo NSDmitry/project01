@@ -159,7 +159,7 @@ class CommentService:
         self.book_club_repository = book_club_repository
         self.user_repository = user_repository
 
-    # author больше не relationship - см. комментарий в ThreadService._to_responses
+    # author больше не relationship - см. комментарий в ThreadService._to_responses.
     async def _authors_by_id(self, comments) -> dict:
         author_ids = {comment.author_id for comment in comments if comment.author_id is not None}
         if not author_ids:
@@ -169,12 +169,20 @@ class CommentService:
 
         return {summary.id: summary for summary in summaries}
 
-    async def _to_response(self, comment) -> CommentResponse:
-        authors = await self._authors_by_id([comment])
-        response = CommentResponse.model_validate(comment)
-        response.author = authors.get(comment.author_id)
+    async def _author_of(self, comment):
+        return (await self._authors_by_id([comment])).get(comment.author_id)
 
-        return response
+    # Единая точка сборки ответа: автор, счётчик и флаг лайка всегда задаются явно.
+    @staticmethod
+    def _build_response(comment, author, likes_count: int = 0, is_liked: bool = False) -> CommentResponse:
+        return CommentResponse.model_validate(comment).model_copy(update={
+            "author": author,
+            "likes_count": likes_count,
+            "is_liked": is_liked,
+        })
+
+    async def _to_response(self, comment) -> CommentResponse:
+        return self._build_response(comment, await self._author_of(comment))
 
     async def get_comments(
             self, thread_id: int, limit: int, offset: int, user: Optional[User] = None
@@ -200,11 +208,12 @@ class CommentService:
 
         page = Page(
             items=[
-                CommentResponse.model_validate(comment).model_copy(update={
-                    "likes_count": likes_counts.get(comment.id, 0),
-                    "is_liked": comment.id in liked_ids,
-                    "author": authors.get(comment.author_id),
-                })
+                self._build_response(
+                    comment,
+                    authors.get(comment.author_id),
+                    likes_counts.get(comment.id, 0),
+                    comment.id in liked_ids,
+                )
                 for comment in comments
             ],
             total=total,
@@ -304,7 +313,6 @@ class CommentService:
     async def _comment_with_likes(self, comment, is_liked: bool) -> CommentResponse:
         likes_counts = await self.comment_repository.get_likes_counts([comment.id])
 
-        return (await self._to_response(comment)).model_copy(update={
-            "likes_count": likes_counts.get(comment.id, 0),
-            "is_liked": is_liked,
-        })
+        return self._build_response(
+            comment, await self._author_of(comment), likes_counts.get(comment.id, 0), is_liked
+        )

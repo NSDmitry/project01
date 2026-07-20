@@ -32,8 +32,9 @@ class GenreRepository:
         if not ids:
             return []
 
+        # id вторым ключом - детерминированный порядок при равных sort_order
         result = await self.db.execute(
-            select(Genre).where(Genre.id.in_(ids)).order_by(Genre.sort_order)
+            select(Genre).where(Genre.id.in_(ids)).order_by(Genre.sort_order, Genre.id)
         )
 
         return result.scalars().all()

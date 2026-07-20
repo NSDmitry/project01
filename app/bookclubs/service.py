@@ -28,11 +28,11 @@ class BookClubService:
     thread_repository: ThreadRepository
 
     def __init__(
-            self,
-            book_club_repository: BookClubRepository,
-            genre_repository: GenreRepository,
-            user_repository: UserRepository,
-            thread_repository: ThreadRepository,
+        self,
+        book_club_repository: BookClubRepository,
+        genre_repository: GenreRepository,
+        user_repository: UserRepository,
+        thread_repository: ThreadRepository,
     ) -> None:
         self.book_club_repository = book_club_repository
         self.genre_repository = genre_repository
@@ -40,47 +40,50 @@ class BookClubService:
         self.thread_repository = thread_repository
 
     # owner, threads_count и genres больше не живут в модели - клуб хранит
-    # только id. UserSummary, счётчик тредов и жанры подтягиваем батчем из
-    # iam/threads/genres (после распила - вызовы соседних сервисов).
+    # только id. Подтягиваем их батчем из iam/threads/genres (после распила -
+    # вызовы соседних сервисов), одним запросом на всю страницу вместо N+1.
     async def _to_responses(self, clubs: List[BookClub]) -> List[BookClubResponse]:
-        owner_ids = {club.owner_id for club in clubs if club.owner_id is not None}
-        owners = {}
-        if owner_ids:
-            summaries = await self.user_repository.get_summaries_by_ids(list(owner_ids))
-            owners = {summary.id: summary for summary in summaries}
-
-        threads_counts = await self.thread_repository.get_threads_counts(
-            [club.id for club in clubs]
-        )
-
-        genre_ids_by_club = await self.book_club_repository.get_genre_ids(
-            [club.id for club in clubs]
-        )
-        all_genre_ids = {gid for ids in genre_ids_by_club.values() for gid in ids}
-        # get_by_ids возвращает жанры в порядке sort_order
-        genres_by_id = {
-            genre.id: genre for genre in await self.genre_repository.get_by_ids(list(all_genre_ids))
-        }
+        owners = await self._owners_by_id(clubs)
+        threads_counts = await self.thread_repository.get_threads_counts([club.id for club in clubs])
+        genres_by_club = await self._genres_by_club(clubs)
 
         responses = []
         for club in clubs:
             response = BookClubResponse.model_validate(club)
             response.owner = owners.get(club.owner_id)
             response.threads_count = threads_counts.get(club.id, 0)
-            response.genres = [
-                GenreResponse.model_validate(genres_by_id[gid])
-                for gid in sorted(
-                    genre_ids_by_club.get(club.id, []),
-                    key=lambda gid: genres_by_id[gid].sort_order,
-                )
-                if gid in genres_by_id
-            ]
+            response.genres = genres_by_club.get(club.id, [])
             responses.append(response)
 
         return responses
 
     async def _to_response(self, club: BookClub) -> BookClubResponse:
         return (await self._to_responses([club]))[0]
+
+    async def _owners_by_id(self, clubs: List[BookClub]) -> dict[int, UserSummary]:
+        owner_ids = {club.owner_id for club in clubs if club.owner_id is not None}
+        if not owner_ids:
+            return {}
+
+        summaries = await self.user_repository.get_summaries_by_ids(list(owner_ids))
+        return {summary.id: summary for summary in summaries}
+
+    async def _genres_by_club(self, clubs: List[BookClub]) -> dict[int, List[GenreResponse]]:
+        genre_ids_by_club = await self.book_club_repository.get_genre_ids([club.id for club in clubs])
+        all_genre_ids = {gid for ids in genre_ids_by_club.values() for gid in ids}
+
+        # get_by_ids отдаёт жанры уже в порядке sort_order - перебирая их для
+        # каждого клуба, получаем жанры клуба сразу отсортированными.
+        genres = await self.genre_repository.get_by_ids(list(all_genre_ids))
+
+        genres_by_club: dict[int, List[GenreResponse]] = {}
+        for club_id, ids in genre_ids_by_club.items():
+            club_genre_ids = set(ids)
+            genres_by_club[club_id] = [
+                GenreResponse.model_validate(genre) for genre in genres if genre.id in club_genre_ids
+            ]
+
+        return genres_by_club
 
     async def create_book_club(self, model: CreateBookClubRequest, owner: User) -> ResponseModel[BookClubResponse]:
         genres = await self._resolve_genres(model.genres)
@@ -92,7 +95,7 @@ class BookClubService:
         return ResponseModel.ok(await self._to_response(db_book_club))
 
     async def set_genres(
-            self, owner: User, club_id: int, model: UpdateBookClubGenresRequest
+        self, owner: User, club_id: int, model: UpdateBookClubGenresRequest
     ) -> ResponseModel[BookClubResponse]:
         genres = await self._resolve_genres(model.genres)
 
@@ -122,7 +125,7 @@ class BookClubService:
         return await self._page(db_clubs, total, limit, offset)
 
     async def search_book_clubs(
-            self, user: User, model: SearchBookClubsRequest
+        self, user: User, model: SearchBookClubsRequest
     ) -> ResponseModel[Page[BookClubResponse]]:
         # id жанров, подходящих под поисковый запрос, берём у genres -
         # после распила это вызов сервиса жанров
@@ -135,8 +138,9 @@ class BookClubService:
 
         return await self._page(db_clubs, total, model.limit, model.offset)
 
-    async def _page(self, db_clubs: List[BookClub], total: int, limit: int, offset: int) -> ResponseModel[
-        Page[BookClubResponse]]:
+    async def _page(
+        self, db_clubs: List[BookClub], total: int, limit: int, offset: int
+    ) -> ResponseModel[Page[BookClubResponse]]:
         page = Page(
             items=await self._to_responses(db_clubs),
             total=total,
