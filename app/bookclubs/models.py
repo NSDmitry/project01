@@ -1,9 +1,8 @@
 from sqlalchemy import Column, BigInteger, String, ForeignKey, select, func
-from sqlalchemy.orm import relationship, column_property
+from sqlalchemy.orm import column_property
 
 from app.core.database import Base
 from app.core.db_base_model import DBLBase
-from app.genres.models import Genre
 
 
 class ClubMember(Base):
@@ -18,7 +17,8 @@ class BookClubGenre(Base):
     __tablename__ = "book_club_genres"
 
     club_id = Column(BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True)
-    genre_id = Column(BigInteger, ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True)
+    # id жанра из genres - без FK, домены связаны только идентификатором
+    genre_id = Column(BigInteger, primary_key=True)
 
 
 class BookClub(Base, DBLBase):
@@ -28,13 +28,6 @@ class BookClub(Base, DBLBase):
     description = Column(String, nullable=False)
     # id пользователя из iam - без FK, обнуляется кодом при удалении владельца
     owner_id = Column(BigInteger, nullable=True)
-
-    genres = relationship(
-        "Genre",
-        secondary="book_club_genres",
-        lazy="selectin",
-        order_by="Genre.sort_order",
-    )
 
 
 # Счётчик считается коррелированным подзапросом прямо в SELECT клуба - один

@@ -8,7 +8,6 @@ from app.bookclubs.models import BookClub, ClubMember, BookClubGenre
 from app.bookclubs.schemas import CreateBookClubRequest, BookClubRelation
 from app.core.authorization import require_permission
 from app.core.errors.errors import NotFound, Conflict
-from app.genres.models import Genre
 from app.iam.models import User
 
 
@@ -49,6 +48,7 @@ class BookClubRepository:
             user: User | None = None,
             relation: BookClubRelation | None = None,
             query: str | None = None,
+            genre_ids: List[int] | None = None,
     ) -> Tuple[List[BookClub], int]:
         conditions = []
 
@@ -66,19 +66,19 @@ class BookClubRepository:
             # экранируем спецсимволы LIKE, чтобы искать их как обычный текст
             escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             pattern = f"%{escaped}%"
-            # ищем подстроку в названии, описании или в названии/коде любого жанра клуба
-            conditions.append(
-                or_(
-                    BookClub.name.ilike(pattern, escape="\\"),
-                    BookClub.description.ilike(pattern, escape="\\"),
-                    BookClub.genres.any(
-                        or_(
-                            Genre.name.ilike(pattern, escape="\\"),
-                            Genre.code.ilike(pattern, escape="\\"),
-                        )
-                    ),
+            # ищем подстроку в названии, описании или по жанрам клуба:
+            # id подходящих жанров сервис берёт у genres (после распила - у сервиса жанров)
+            term_conditions = [
+                BookClub.name.ilike(pattern, escape="\\"),
+                BookClub.description.ilike(pattern, escape="\\"),
+            ]
+            if genre_ids:
+                term_conditions.append(
+                    BookClub.id.in_(
+                        select(BookClubGenre.club_id).where(BookClubGenre.genre_id.in_(genre_ids))
+                    )
                 )
-            )
+            conditions.append(or_(*term_conditions))
 
         total = await self.db.scalar(
             select(func.count()).select_from(BookClub).where(*conditions)
@@ -146,17 +146,37 @@ class BookClubRepository:
         await self.db.delete(club)
         await self.db.flush()
 
-    async def set_genres(self, owner: User, club_id: int, genres: List[Genre]) -> BookClub:
+    async def set_genres(self, owner: User, club_id: int, genre_ids: List[int]) -> BookClub:
         club = await self.get_book_club(club_id=club_id)
 
         require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
 
-        # club.genres уже загружен selectin-ом, поэтому присваивание считает разницу
-        # без ленивой подгрузки: SQLAlchemy сам удалит и добавит строки book_club_genres.
-        club.genres = sorted(genres, key=lambda genre: genre.sort_order)
+        await self.db.execute(delete(BookClubGenre).where(BookClubGenre.club_id == club_id))
+        for genre_id in genre_ids:
+            self.db.add(BookClubGenre(club_id=club_id, genre_id=genre_id))
         await self.db.flush()
 
         return await self.get_book_club(club_id=club_id)
+
+    async def get_genre_ids(self, club_ids: List[int]) -> dict[int, List[int]]:
+        if not club_ids:
+            return {}
+
+        result = await self.db.execute(
+            select(BookClubGenre.club_id, BookClubGenre.genre_id).where(
+                BookClubGenre.club_id.in_(club_ids)
+            )
+        )
+
+        genre_ids: dict[int, List[int]] = {}
+        for club_id, genre_id in result.all():
+            genre_ids.setdefault(club_id, []).append(genre_id)
+
+        return genre_ids
+
+    async def handle_genres_deleted(self, genre_ids: List[int]) -> None:
+        await self.db.execute(delete(BookClubGenre).where(BookClubGenre.genre_id.in_(genre_ids)))
+        await self.db.flush()
 
     async def join_book_club(self, user: User, club_id: int) -> BookClub:
         await self.get_book_club(club_id=club_id)

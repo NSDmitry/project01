@@ -12,3 +12,10 @@ async def on_user_deleted(payload: dict) -> None:
     # Треды удалённых клубов чистит threads - своим событием, не импортом.
     if deleted_club_ids:
         await events.publish(events.CLUBS_DELETED, {"club_ids": deleted_club_ids})
+
+
+@events.subscribe(events.GENRES_DELETED, queue="bookclubs")
+async def on_genres_deleted(payload: dict) -> None:
+    async with events.session_factory() as db:
+        await BookClubRepository(db).handle_genres_deleted(payload["genre_ids"])
+        await db.commit()
