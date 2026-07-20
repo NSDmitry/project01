@@ -1,6 +1,6 @@
 """rename threads id sequence discussions_id_seq -> threads_id_seq
 
-Таблицу threads переименовали в threads (миграция f2a3b4c5d6e7), но
+Таблицу discussions переименовали в threads (миграция f2a3b4c5d6e7), но
 ALTER TABLE RENAME не переименовывает связанную SERIAL-последовательность -
 она осталась discussions_id_seq. Приводим имя в соответствие с таблицей.
 
@@ -17,6 +17,7 @@ Create Date: 2026-07-06 12:50:00.000000
 from typing import Sequence, Union
 
 from alembic import op
+
 
 # revision identifiers, used by Alembic.
 revision: str = 'f8a9b0c1d2e3'

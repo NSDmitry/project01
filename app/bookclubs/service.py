@@ -8,6 +8,7 @@ from app.bookclubs.schemas import (
     SearchBookClubsRequest,
     BookClubResponse,
 )
+from app.core import events
 from app.core.errors.errors import UnprocessableEntity
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
@@ -141,8 +142,8 @@ class BookClubService:
     async def delete_book_club(self, owner: User, book_club_id: int) -> ResponseModel:
         await self.book_club_repository.delete_book_club(owner, book_club_id)
         # FK threads.club_id больше нет - треды удалённого клуба чистит
-        # threads (после распила - событие ClubDeleted)
-        await self.thread_repository.handle_clubs_deleted([book_club_id])
+        # threads по событию
+        await events.publish(events.CLUBS_DELETED, {"club_ids": [book_club_id]})
 
         return ResponseModel.ok(message="Книжный клуб успешно удален")
 
