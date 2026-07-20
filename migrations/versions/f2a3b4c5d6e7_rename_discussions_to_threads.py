@@ -1,6 +1,6 @@
-"""rename discussions to threads
+"""rename threads to threads
 
-Переименование сущности discussions -> threads. Данные и структура столбцов не
+Переименование сущности threads -> threads. Данные и структура столбцов не
 меняются: переименовывается таблица и связанные с ней внешние ключи
 (fk_discussions_* -> fk_threads_*), чтобы имена constraints соответствовали новой
 таблице. Шаги защищены проверкой существующих constraints для идемпотентности.
@@ -12,9 +12,8 @@ Create Date: 2026-07-01 14:05:00.000000
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'f2a3b4c5d6e7'
@@ -24,7 +23,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.rename_table('discussions', 'threads')
+    op.rename_table('threads', 'threads')
 
     inspector = sa.inspect(op.get_bind())
     fks = {fk['name'] for fk in inspector.get_foreign_keys('threads')}
@@ -54,4 +53,4 @@ def downgrade() -> None:
             'TO fk_discussions_club_id_book_clubs'
         )
 
-    op.rename_table('threads', 'discussions')
+    op.rename_table('threads', 'threads')

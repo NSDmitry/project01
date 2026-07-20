@@ -6,16 +6,16 @@ from app.core.authorization import require_permission
 from app.core.errors.errors import Forbidden
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.discussions.repository import ThreadRepository, CommentRepository
-from app.discussions.schemas import (
+from app.iam.models import User
+from app.iam.repository import UserRepository
+from app.threads.repository import ThreadRepository, CommentRepository
+from app.threads.schemas import (
     ThreadResponse,
     ThreadCreateRequest,
     CommentResponse,
     CommentCreateRequest,
     CommentUpdateRequest,
 )
-from app.iam.models import User
-from app.iam.repository import UserRepository
 
 
 class ThreadService:
@@ -30,7 +30,7 @@ class ThreadService:
             book_club_repository: BookClubRepository,
             book_service: BookService,
             user_repository: UserRepository,
-        ) -> None:
+    ) -> None:
 
         self.thread_repository = thread_repository
         self.book_club_repository = book_club_repository
@@ -115,10 +115,10 @@ class ThreadService:
         return ResponseModel.ok(message="Тред успешно удалён")
 
     async def update_thread(
-        self,
-        user: User,
-        thread_id: int,
-        model: ThreadCreateRequest
+            self,
+            user: User,
+            thread_id: int,
+            model: ThreadCreateRequest
     ) -> ResponseModel[ThreadResponse]:
         """
         Обновление треда.
@@ -152,7 +152,7 @@ class CommentService:
             thread_repository: ThreadRepository,
             book_club_repository: BookClubRepository,
             user_repository: UserRepository,
-        ) -> None:
+    ) -> None:
 
         self.comment_repository = comment_repository
         self.thread_repository = thread_repository
@@ -177,7 +177,7 @@ class CommentService:
         return response
 
     async def get_comments(
-        self, thread_id: int, limit: int, offset: int, user: Optional[User] = None
+            self, thread_id: int, limit: int, offset: int, user: Optional[User] = None
     ) -> ResponseModel[Page[CommentResponse]]:
         """
         Получение комментариев треда (старые сверху, постранично).
@@ -215,7 +215,7 @@ class CommentService:
         return ResponseModel.ok(page)
 
     async def create_comment(
-        self, user: User, thread_id: int, model: CommentCreateRequest
+            self, user: User, thread_id: int, model: CommentCreateRequest
     ) -> ResponseModel[CommentResponse]:
         """
         Создание комментария в треде.
@@ -234,7 +234,7 @@ class CommentService:
         return ResponseModel.ok(await self._to_response(db_comment))
 
     async def update_comment(
-        self, user: User, comment_id: int, model: CommentUpdateRequest
+            self, user: User, comment_id: int, model: CommentUpdateRequest
     ) -> ResponseModel[CommentResponse]:
         """
         Редактирование комментария.

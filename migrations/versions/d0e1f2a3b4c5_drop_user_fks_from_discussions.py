@@ -1,4 +1,4 @@
-"""drop user FKs from discussions domain
+"""drop user FKs from threads domain
 
 Продолжение развязки доменов от users (после c9d0e1f2a3b4 для bookclubs):
 threads.author_id, comments.author_id и comment_likes.user_id больше не
@@ -15,9 +15,8 @@ Create Date: 2026-07-20 11:50:00.000000
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = 'd0e1f2a3b4c5'

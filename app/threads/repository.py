@@ -5,8 +5,8 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors.errors import NotFound
-from app.discussions.models import Thread, Comment, CommentLike
-from app.discussions.schemas import ThreadCreateRequest, CommentCreateRequest, CommentUpdateRequest
+from app.threads.models import Thread, Comment, CommentLike
+from app.threads.schemas import ThreadCreateRequest, CommentCreateRequest, CommentUpdateRequest
 
 
 class ThreadRepository:

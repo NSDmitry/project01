@@ -3,9 +3,9 @@ import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from sqlalchemy import engine_from_config, pool
 from alembic import context
 from dotenv import load_dotenv
+from sqlalchemy import engine_from_config, pool
 
 # 👇 Добавляем путь к проекту, чтобы видеть твои модули
 sys.path.append(str(Path(__file__).resolve().parents[1]))
@@ -15,13 +15,13 @@ load_dotenv()
 database_url = os.getenv("DATABASE_URL")
 
 # ⬇️ Импортируй здесь Base из своего проекта
-from app.core.database import Base # убедись, что путь корректный
+from app.core.database import Base  # убедись, что путь корректный
 # Импортируем модели всех доменов, чтобы они зарегистрировались в Base.metadata
 # и autogenerate видел полную схему (единый источник истины - Alembic).
 import app.iam.models  # noqa: F401
 import app.bookclubs.models  # noqa: F401
 import app.genres.models  # noqa: F401
-import app.discussions.models  # noqa: F401
+import app.threads.models  # noqa: F401
 import app.books.models  # noqa: F401
 
 # Alembic config
@@ -38,6 +38,7 @@ if config.config_file_name:
 # Метадата моделей (для автогенерации)
 target_metadata = Base.metadata
 
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     context.configure(
@@ -49,6 +50,7 @@ def run_migrations_offline() -> None:
 
     with context.begin_transaction():
         context.run_migrations()
+
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
@@ -63,6 +65,7 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
+
 
 if context.is_offline_mode():
     run_migrations_offline()

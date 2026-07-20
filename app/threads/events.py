@@ -1,8 +1,8 @@
 from app.core import events
-from app.discussions.repository import ThreadRepository
+from app.threads.repository import ThreadRepository
 
 
-@events.subscribe(events.USER_DELETED, queue="discussions")
+@events.subscribe(events.USER_DELETED, queue="threads")
 async def on_user_deleted(payload: dict) -> None:
     async with events.session_factory() as db:
         await ThreadRepository(db).handle_user_deleted(
@@ -13,7 +13,7 @@ async def on_user_deleted(payload: dict) -> None:
         await db.commit()
 
 
-@events.subscribe(events.CLUBS_DELETED, queue="discussions")
+@events.subscribe(events.CLUBS_DELETED, queue="threads")
 async def on_clubs_deleted(payload: dict) -> None:
     async with events.session_factory() as db:
         await ThreadRepository(db).handle_clubs_deleted(payload["club_ids"])

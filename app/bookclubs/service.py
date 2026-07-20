@@ -1,9 +1,7 @@
 from typing import List
 
 from app.bookclubs.models import BookClub
-from app.genres.models import Genre
 from app.bookclubs.repository import BookClubRepository
-from app.discussions.repository import ThreadRepository
 from app.bookclubs.schemas import (
     CreateBookClubRequest,
     UpdateBookClubGenresRequest,
@@ -13,10 +11,12 @@ from app.bookclubs.schemas import (
 from app.core.errors.errors import UnprocessableEntity
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
+from app.genres.models import Genre
 from app.genres.repository import GenreRepository
 from app.iam.models import User
 from app.iam.repository import UserRepository
 from app.iam.schemas import UserSummary
+from app.threads.repository import ThreadRepository
 
 
 class BookClubService:
@@ -26,11 +26,11 @@ class BookClubService:
     thread_repository: ThreadRepository
 
     def __init__(
-        self,
-        book_club_repository: BookClubRepository,
-        genre_repository: GenreRepository,
-        user_repository: UserRepository,
-        thread_repository: ThreadRepository,
+            self,
+            book_club_repository: BookClubRepository,
+            genre_repository: GenreRepository,
+            user_repository: UserRepository,
+            thread_repository: ThreadRepository,
     ) -> None:
         self.book_club_repository = book_club_repository
         self.genre_repository = genre_repository
@@ -38,7 +38,7 @@ class BookClubService:
         self.thread_repository = thread_repository
 
     # owner и threads_count больше не живут в модели - клуб хранит только id.
-    # UserSummary и счётчик тредов подтягиваем батчем из iam/discussions
+    # UserSummary и счётчик тредов подтягиваем батчем из iam/threads
     # (после распила - вызовы соседних сервисов).
     async def _to_responses(self, clubs: List[BookClub]) -> List[BookClubResponse]:
         owner_ids = {club.owner_id for club in clubs if club.owner_id is not None}
@@ -73,7 +73,7 @@ class BookClubService:
         return ResponseModel.ok(await self._to_response(db_book_club))
 
     async def set_genres(
-        self, owner: User, club_id: int, model: UpdateBookClubGenresRequest
+            self, owner: User, club_id: int, model: UpdateBookClubGenresRequest
     ) -> ResponseModel[BookClubResponse]:
         genres = await self._resolve_genres(model.genres)
 
@@ -101,7 +101,7 @@ class BookClubService:
         return await self._page(db_clubs, total, limit, offset)
 
     async def search_book_clubs(
-        self, user: User, model: SearchBookClubsRequest
+            self, user: User, model: SearchBookClubsRequest
     ) -> ResponseModel[Page[BookClubResponse]]:
         db_clubs, total = await self.book_club_repository.get_book_clubs(
             model.limit, model.offset, user, model.relation, model.query
@@ -109,7 +109,8 @@ class BookClubService:
 
         return await self._page(db_clubs, total, model.limit, model.offset)
 
-    async def _page(self, db_clubs: List[BookClub], total: int, limit: int, offset: int) -> ResponseModel[Page[BookClubResponse]]:
+    async def _page(self, db_clubs: List[BookClub], total: int, limit: int, offset: int) -> ResponseModel[
+        Page[BookClubResponse]]:
         page = Page(
             items=await self._to_responses(db_clubs),
             total=total,
@@ -140,7 +141,7 @@ class BookClubService:
     async def delete_book_club(self, owner: User, book_club_id: int) -> ResponseModel:
         await self.book_club_repository.delete_book_club(owner, book_club_id)
         # FK threads.club_id больше нет - треды удалённого клуба чистит
-        # discussions (после распила - событие ClubDeleted)
+        # threads (после распила - событие ClubDeleted)
         await self.thread_repository.handle_clubs_deleted([book_club_id])
 
         return ResponseModel.ok(message="Книжный клуб успешно удален")
@@ -150,7 +151,6 @@ class BookClubService:
         club = await self._to_response(db_club)
 
         return ResponseModel.ok(club)
-
 
     async def leave(self, user: User, club_id: int) -> ResponseModel[BookClubResponse]:
         db_club: BookClub = await self.book_club_repository.remove_member(user, club_id)

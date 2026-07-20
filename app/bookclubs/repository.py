@@ -5,10 +5,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bookclubs.models import BookClub, ClubMember, BookClubGenre
-from app.genres.models import Genre
 from app.bookclubs.schemas import CreateBookClubRequest, BookClubRelation
 from app.core.authorization import require_permission
 from app.core.errors.errors import NotFound, Conflict
+from app.genres.models import Genre
 from app.iam.models import User
 
 
@@ -43,12 +43,12 @@ class BookClubRepository:
         return await self.get_book_club(club_id=new_book_club.id)
 
     async def get_book_clubs(
-        self,
-        limit: int,
-        offset: int,
-        user: User | None = None,
-        relation: BookClubRelation | None = None,
-        query: str | None = None,
+            self,
+            limit: int,
+            offset: int,
+            user: User | None = None,
+            relation: BookClubRelation | None = None,
+            query: str | None = None,
     ) -> Tuple[List[BookClub], int]:
         conditions = []
 
@@ -120,7 +120,7 @@ class BookClubRepository:
     async def handle_user_deleted(self, user_id: int, delete_owned_clubs: bool) -> List[int]:
         # FK на users больше нет - SET NULL/CASCADE, которые раньше делала БД
         # при удалении пользователя, выполняем явно. Возвращаем id удалённых
-        # клубов, чтобы discussions почистил их треды (FK у тредов тоже нет).
+        # клубов, чтобы threads почистил их треды (FK у тредов тоже нет).
         deleted_club_ids: List[int] = []
         if delete_owned_clubs:
             result = await self.db.execute(
