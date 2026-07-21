@@ -104,6 +104,43 @@ class TestCommentLikes:
         assert comment["likes_count"] == 1
         assert comment["is_liked"] is False
 
+    def test_likers_list_returns_users_freshest_first(self, api):
+        owner = AuthFlow.register(api)
+        club_id, _, comment_id = _create_comment(api, owner)
+
+        member = AuthFlow.register(api)
+        api.join_bookclub(club_id, headers=member.headers)
+        api.like_comment(comment_id, headers=owner.headers)
+        api.like_comment(comment_id, headers=member.headers)
+
+        response = api.comment_likers(comment_id)
+
+        assert_status_code(response, 200)
+        data = response.json()["data"]
+        assert data["total"] == 2
+        assert [item["id"] for item in data["items"]] == [member.user_id, owner.user_id]
+
+    def test_likers_list_is_paginated(self, api):
+        owner = AuthFlow.register(api)
+        club_id, _, comment_id = _create_comment(api, owner)
+
+        member = AuthFlow.register(api)
+        api.join_bookclub(club_id, headers=member.headers)
+        api.like_comment(comment_id, headers=owner.headers)
+        api.like_comment(comment_id, headers=member.headers)
+
+        first = api.comment_likers(comment_id, params={"limit": 1, "offset": 0}).json()["data"]
+        second = api.comment_likers(comment_id, params={"limit": 1, "offset": 1}).json()["data"]
+
+        assert first["total"] == 2
+        assert [item["id"] for item in first["items"]] == [member.user_id]
+        assert [item["id"] for item in second["items"]] == [owner.user_id]
+
+    def test_likers_list_returns_not_found_for_unknown_comment(self, api):
+        response = api.comment_likers(999999)
+
+        assert_status_code(response, 404)
+
     def test_outsider_cannot_like_comment(self, api):
         owner = AuthFlow.register(api)
         _, _, comment_id = _create_comment(api, owner)

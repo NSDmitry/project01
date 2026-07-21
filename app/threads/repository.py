@@ -183,6 +183,20 @@ class CommentRepository:
             await self.db.delete(like)
             await self.db.flush()
 
+    async def get_likers(self, comment_id: int, limit: int, offset: int) -> Tuple[List[int], int]:
+        total = await self.db.scalar(
+            select(func.count()).select_from(CommentLike).where(CommentLike.comment_id == comment_id)
+        )
+        result = await self.db.execute(
+            select(CommentLike.user_id)
+            .where(CommentLike.comment_id == comment_id)
+            .order_by(CommentLike.created_at.desc(), CommentLike.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        return result.scalars().all(), total
+
     async def get_likes_counts(self, comment_ids: List[int]) -> Dict[int, int]:
         if not comment_ids:
             return {}

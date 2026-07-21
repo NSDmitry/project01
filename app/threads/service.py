@@ -2,7 +2,7 @@ from typing import Optional
 
 from app.core import events
 from app.core.authorization import require_permission
-from app.core.contracts import Principal
+from app.core.contracts import Principal, UserSummary
 from app.core.errors.errors import Forbidden
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
@@ -218,6 +218,29 @@ class CommentService:
                 )
                 for comment in comments
             ],
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
+
+        return ResponseModel.ok(page)
+
+    async def get_comment_likers(self, comment_id: int, limit: int, offset: int) -> ResponseModel[Page[UserSummary]]:
+        """
+        Получение лайкнувших комментарий (свежие лайки сверху, постранично).
+        :param comment_id: Id комментария
+        :param limit: Размер страницы
+        :param offset: Смещение
+        :return: Страница пользователей
+        """
+        await self.comment_repository.get_comment(comment_id)
+        user_ids, total = await self.comment_repository.get_likers(comment_id, limit=limit, offset=offset)
+
+        summaries = await self.user_repository.get_summaries_by_ids(user_ids)
+        by_id = {summary.id: summary for summary in summaries}
+
+        page = Page(
+            items=[by_id[user_id] for user_id in user_ids if user_id in by_id],
             total=total,
             limit=limit,
             offset=offset,

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.core.contracts import Principal
+from app.core.contracts import Principal, UserSummary
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.iam.deps import get_current_user, get_optional_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
@@ -201,6 +201,26 @@ async def delete_comment(
         service: CommentService = Depends(get_comment_service)
 ):
     return await service.delete_comment(user=user, comment_id=comment_id)
+
+
+@comments_router.get(
+    "/api/comments/{comment_id}/likes",
+    response_model=ResponseModel[Page[UserSummary]],
+    summary="Получение лайкнувших комментарий (постранично, свежие сверху)",
+    description="Авторизация не требуется.",
+    responses={
+        200: {"description": "Страница пользователей, лайкнувших комментарий"},
+        404: {"description": "Комментарий с таким id не найден"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def get_comment_likers(
+        comment_id: int,
+        limit: int = Query(10, ge=1, le=100),
+        offset: int = Query(0, ge=0),
+        service: CommentService = Depends(get_comment_service)
+):
+    return await service.get_comment_likers(comment_id=comment_id, limit=limit, offset=offset)
 
 
 @comments_router.post(
