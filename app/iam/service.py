@@ -6,10 +6,11 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 
+from app.core import events
 from app.core.errors.errors import Conflict, Unauthorized, BadRequest
+from app.core.models.response_model import ResponseModel
 from app.core.rate_limit import check_registrations_limit, count_registration
 from app.iam import brute_force
-from app.core.models.response_model import ResponseModel
 from app.iam.models import User, UserSession
 from app.iam.repository import UserRepository, UserSessionRepository
 from app.iam.schemas import (
@@ -145,11 +146,11 @@ class AuthService:
     telegram_bot_token: str
 
     def __init__(
-        self,
-        user_service: UserService,
-        user_repository: UserRepository,
-        user_session_service: UserSessionService,
-        telegram_bot_token: str = ""
+            self,
+            user_service: UserService,
+            user_repository: UserRepository,
+            user_session_service: UserSessionService,
+            telegram_bot_token: str = ""
     ) -> None:
         self.user_service = user_service
         self.user_repository = user_repository
@@ -178,8 +179,7 @@ class AuthService:
 
         return ResponseModel.ok(response)
 
-
-    async def login(self, model: SignInRequest) -> ResponseModel[AuthUserResponse] :
+    async def login(self, model: SignInRequest) -> ResponseModel[AuthUserResponse]:
         """
         Авторизация пользователя.
         :param model: SignInRequest
@@ -270,12 +270,12 @@ class AuthService:
         )
 
     async def delete_current_user(
-        self,
-        user: User,
-        password: str | None,
-        delete_clubs: bool,
-        delete_threads: bool,
-        delete_comments: bool,
+            self,
+            user: User,
+            password: str | None,
+            delete_clubs: bool,
+            delete_threads: bool,
+            delete_comments: bool,
     ) -> ResponseModel[None]:
         # Необратимая операция - требуем пароль, а не только сессию.
         # У Telegram-пользователей пароля нет - подтверждать нечем, пропускаем.
@@ -284,12 +284,19 @@ class AuthService:
                 raise BadRequest(errors=["Для удаления аккаунта укажите пароль"])
             await confirm_password(user, password)
 
-        await self.user_repository.delete_user(
-            user_id=user.id,
-            delete_clubs=delete_clubs,
-            delete_threads=delete_threads,
-            delete_comments=delete_comments,
+        # У bookclubs и threads нет FK на users - домены чистят свои данные
+        # сами по событию user_deleted (bookclubs дальше публикует clubs_deleted
+        # для тредов удалённых клубов). iam про эти домены не знает.
+        await events.publish(
+            events.USER_DELETED,
+            {
+                "user_id": user.id,
+                "delete_clubs": delete_clubs,
+                "delete_threads": delete_threads,
+                "delete_comments": delete_comments,
+            },
         )
+        await self.user_repository.delete_user(user_id=user.id)
         # user_sessions без FK на users - осиротевшие сессии удаляем вручную.
         await self.user_session_service.logout_all_user_sessions(user.id)
 
@@ -315,6 +322,7 @@ class AuthService:
         :param plain_password: Обычный пароль
         :return: Захешированный пароль (str)
         """
+
         def _hash() -> str:
             salt = bcrypt.gensalt()
             hashed = bcrypt.hashpw(plain_password.encode('utf-8'), salt)

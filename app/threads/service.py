@@ -1,37 +1,60 @@
 from typing import Optional
 
-from app.bookclubs.repository import BookClubRepository
-from app.books.service import BookService
+from app.core import events
 from app.core.authorization import require_permission
+from app.core.contracts import Principal
 from app.core.errors.errors import Forbidden
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.discussions.repository import ThreadRepository, CommentRepository
-from app.discussions.schemas import (
+from app.threads.ports import BooksPort, ClubsPort, UsersPort
+from app.threads.repository import ThreadRepository, CommentRepository
+from app.threads.schemas import (
     ThreadResponse,
     ThreadCreateRequest,
     CommentResponse,
     CommentCreateRequest,
     CommentUpdateRequest,
 )
-from app.iam.models import User
 
 
 class ThreadService:
     thread_repository: ThreadRepository
-    book_club_repository: BookClubRepository
-    book_service: BookService
+    book_club_repository: ClubsPort
+    book_service: BooksPort
+    user_repository: UsersPort
 
     def __init__(
             self,
             thread_repository: ThreadRepository,
-            book_club_repository: BookClubRepository,
-            book_service: BookService,
-        ) -> None:
+            book_club_repository: ClubsPort,
+            book_service: BooksPort,
+            user_repository: UsersPort,
+    ) -> None:
 
         self.thread_repository = thread_repository
         self.book_club_repository = book_club_repository
         self.book_service = book_service
+        self.user_repository = user_repository
+
+    # author больше не relationship в модели - тред хранит только author_id.
+    # UserSummary подтягиваем батчем из iam (после распила - вызов user-сервиса).
+    async def _to_responses(self, threads) -> list[ThreadResponse]:
+        author_ids = {thread.author_id for thread in threads if thread.author_id is not None}
+        authors = {}
+        if author_ids:
+            summaries = await self.user_repository.get_summaries_by_ids(list(author_ids))
+            authors = {summary.id: summary for summary in summaries}
+
+        responses = []
+        for thread in threads:
+            response = ThreadResponse.model_validate(thread)
+            response.author = authors.get(thread.author_id)
+            responses.append(response)
+
+        return responses
+
+    async def _to_response(self, thread) -> ThreadResponse:
+        return (await self._to_responses([thread]))[0]
 
     async def get_threads(self, book_club_id: int, limit: int, offset: int) -> ResponseModel[Page[ThreadResponse]]:
         """
@@ -45,7 +68,7 @@ class ThreadService:
         threads, total = await self.thread_repository.get_threads(club.id, limit=limit, offset=offset)
 
         page = Page(
-            items=[ThreadResponse.model_validate(thread) for thread in threads],
+            items=await self._to_responses(threads),
             total=total,
             limit=limit,
             offset=offset,
@@ -53,7 +76,7 @@ class ThreadService:
 
         return ResponseModel.ok(page)
 
-    async def create_thread(self, user: User, model: ThreadCreateRequest) -> ResponseModel[ThreadResponse]:
+    async def create_thread(self, user: Principal, model: ThreadCreateRequest) -> ResponseModel[ThreadResponse]:
         """
         Создание треда в книжном клубе.
         :param user: токен доступа
@@ -71,10 +94,12 @@ class ThreadService:
             book_id = book.id
 
         db_thread = await self.thread_repository.create_thread(user.id, model, book_id=book_id)
+        # Счётчик тредов клуба ведёт домен клубов - уведомляем событием.
+        await events.publish(events.THREAD_CREATED, {"club_id": model.club_id})
 
-        return ResponseModel.ok(ThreadResponse.model_validate(db_thread))
+        return ResponseModel.ok(await self._to_response(db_thread))
 
-    async def delete_thread(self, user: User, thread_id: int) -> ResponseModel:
+    async def delete_thread(self, user: Principal, thread_id: int) -> ResponseModel:
         """
         Удаление треда.
         :param user:
@@ -87,14 +112,15 @@ class ThreadService:
         require_permission(user, db_thread.author_id, message="Удалять треды может только автор треда")
 
         await self.thread_repository.delete_thread(thread_id)
+        await events.publish(events.THREAD_DELETED, {"club_id": db_thread.club_id, "count": 1})
 
         return ResponseModel.ok(message="Тред успешно удалён")
 
     async def update_thread(
-        self,
-        user: User,
-        thread_id: int,
-        model: ThreadCreateRequest
+            self,
+            user: Principal,
+            thread_id: int,
+            model: ThreadCreateRequest
     ) -> ResponseModel[ThreadResponse]:
         """
         Обновление треда.
@@ -113,27 +139,55 @@ class ThreadService:
 
         db_thread = await self.thread_repository.update_thread(db_thread, model)
 
-        return ResponseModel.ok(ThreadResponse.model_validate(db_thread))
+        return ResponseModel.ok(await self._to_response(db_thread))
 
 
 class CommentService:
     comment_repository: CommentRepository
     thread_repository: ThreadRepository
-    book_club_repository: BookClubRepository
+    book_club_repository: ClubsPort
+    user_repository: UsersPort
 
     def __init__(
             self,
             comment_repository: CommentRepository,
             thread_repository: ThreadRepository,
-            book_club_repository: BookClubRepository,
-        ) -> None:
+            book_club_repository: ClubsPort,
+            user_repository: UsersPort,
+    ) -> None:
 
         self.comment_repository = comment_repository
         self.thread_repository = thread_repository
         self.book_club_repository = book_club_repository
+        self.user_repository = user_repository
+
+    # author больше не relationship - см. комментарий в ThreadService._to_responses.
+    async def _authors_by_id(self, comments) -> dict:
+        author_ids = {comment.author_id for comment in comments if comment.author_id is not None}
+        if not author_ids:
+            return {}
+
+        summaries = await self.user_repository.get_summaries_by_ids(list(author_ids))
+
+        return {summary.id: summary for summary in summaries}
+
+    async def _author_of(self, comment):
+        return (await self._authors_by_id([comment])).get(comment.author_id)
+
+    # Единая точка сборки ответа: автор, счётчик и флаг лайка всегда задаются явно.
+    @staticmethod
+    def _build_response(comment, author, likes_count: int = 0, is_liked: bool = False) -> CommentResponse:
+        return CommentResponse.model_validate(comment).model_copy(update={
+            "author": author,
+            "likes_count": likes_count,
+            "is_liked": is_liked,
+        })
+
+    async def _to_response(self, comment) -> CommentResponse:
+        return self._build_response(comment, await self._author_of(comment))
 
     async def get_comments(
-        self, thread_id: int, limit: int, offset: int, user: Optional[User] = None
+            self, thread_id: int, limit: int, offset: int, user: Optional[Principal] = None
     ) -> ResponseModel[Page[CommentResponse]]:
         """
         Получение комментариев треда (старые сверху, постранично).
@@ -152,13 +206,16 @@ class CommentService:
             await self.comment_repository.get_liked_comment_ids(comment_ids, user.id)
             if user else set()
         )
+        authors = await self._authors_by_id(comments)
 
         page = Page(
             items=[
-                CommentResponse.model_validate(comment).model_copy(update={
-                    "likes_count": likes_counts.get(comment.id, 0),
-                    "is_liked": comment.id in liked_ids,
-                })
+                self._build_response(
+                    comment,
+                    authors.get(comment.author_id),
+                    likes_counts.get(comment.id, 0),
+                    comment.id in liked_ids,
+                )
                 for comment in comments
             ],
             total=total,
@@ -169,7 +226,7 @@ class CommentService:
         return ResponseModel.ok(page)
 
     async def create_comment(
-        self, user: User, thread_id: int, model: CommentCreateRequest
+            self, user: Principal, thread_id: int, model: CommentCreateRequest
     ) -> ResponseModel[CommentResponse]:
         """
         Создание комментария в треде.
@@ -185,10 +242,10 @@ class CommentService:
 
         db_comment = await self.comment_repository.create_comment(thread.id, user.id, model)
 
-        return ResponseModel.ok(CommentResponse.model_validate(db_comment))
+        return ResponseModel.ok(await self._to_response(db_comment))
 
     async def update_comment(
-        self, user: User, comment_id: int, model: CommentUpdateRequest
+            self, user: Principal, comment_id: int, model: CommentUpdateRequest
     ) -> ResponseModel[CommentResponse]:
         """
         Редактирование комментария.
@@ -203,9 +260,9 @@ class CommentService:
 
         db_comment = await self.comment_repository.update_comment(db_comment, model)
 
-        return ResponseModel.ok(CommentResponse.model_validate(db_comment))
+        return ResponseModel.ok(await self._to_response(db_comment))
 
-    async def delete_comment(self, user: User, comment_id: int) -> ResponseModel:
+    async def delete_comment(self, user: Principal, comment_id: int) -> ResponseModel:
         """
         Удаление комментария.
         :param user:
@@ -225,7 +282,7 @@ class CommentService:
 
         return ResponseModel.ok(message="Комментарий успешно удалён")
 
-    async def like_comment(self, user: User, comment_id: int) -> ResponseModel[CommentResponse]:
+    async def like_comment(self, user: Principal, comment_id: int) -> ResponseModel[CommentResponse]:
         """
         Лайк комментария (идемпотентно - повторный лайк не ошибка).
         :param user: пользователь
@@ -242,7 +299,7 @@ class CommentService:
 
         return ResponseModel.ok(await self._comment_with_likes(db_comment, is_liked=True))
 
-    async def unlike_comment(self, user: User, comment_id: int) -> ResponseModel[CommentResponse]:
+    async def unlike_comment(self, user: Principal, comment_id: int) -> ResponseModel[CommentResponse]:
         """
         Снятие лайка с комментария (идемпотентно - снятие отсутствующего лайка не ошибка).
         :param user: пользователь
@@ -258,7 +315,6 @@ class CommentService:
     async def _comment_with_likes(self, comment, is_liked: bool) -> CommentResponse:
         likes_counts = await self.comment_repository.get_likes_counts([comment.id])
 
-        return CommentResponse.model_validate(comment).model_copy(update={
-            "likes_count": likes_counts.get(comment.id, 0),
-            "is_liked": is_liked,
-        })
+        return self._build_response(
+            comment, await self._author_of(comment), likes_counts.get(comment.id, 0), is_liked
+        )

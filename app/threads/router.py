@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, Query
 
+from app.core.contracts import Principal
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.discussions.deps import get_thread_service, get_comment_service
-from app.discussions.schemas import (
+from app.iam.deps import get_current_user, get_optional_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
+from app.threads.deps import get_thread_service, get_comment_service
+from app.threads.schemas import (
     ThreadResponse,
     ThreadCreateRequest,
     ThreadUpdateRequest,
@@ -11,12 +13,11 @@ from app.discussions.schemas import (
     CommentCreateRequest,
     CommentUpdateRequest,
 )
-from app.discussions.service import ThreadService, CommentService
-from app.iam.deps import get_current_user, get_optional_user
-from app.iam.models import User
+from app.threads.service import ThreadService, CommentService
 
 threads_router = APIRouter(prefix="/api/threads", tags=["threads"])
 comments_router = APIRouter(tags=["comments"])
+
 
 @threads_router.get(
     "/{club_id}",
@@ -30,21 +31,22 @@ comments_router = APIRouter(tags=["comments"])
     },
 )
 async def get_threads(
-    club_id: int,
-    limit: int = Query(10, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    service: ThreadService = Depends(get_thread_service)
+        club_id: int,
+        limit: int = Query(10, ge=1, le=100),
+        offset: int = Query(0, ge=0),
+        service: ThreadService = Depends(get_thread_service)
 ):
     return await service.get_threads(book_club_id=club_id, limit=limit, offset=offset)
+
 
 @threads_router.post(
     "",
     response_model=ResponseModel[ThreadResponse],
     summary="Создание треда",
     description=(
-        "Создание треда в книжном клубе.\n\n"
-        "**Требуется авторизация** с заголовком:\n"
-        "`X-Session-Id: <session_id>`\n\n"
+            "Создание треда в книжном клубе.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
     ),
     status_code=201,
     responses={
@@ -57,11 +59,12 @@ async def get_threads(
     }
 )
 async def create_thread(
-    model: ThreadCreateRequest,
-    user: User = Depends(get_current_user),
-    service: ThreadService = Depends(get_thread_service)
+        model: ThreadCreateRequest,
+        user: Principal = Depends(get_current_user),
+        service: ThreadService = Depends(get_thread_service)
 ):
     return await service.create_thread(user=user, model=model)
+
 
 @threads_router.delete(
     "/{thread_id}",
@@ -77,11 +80,12 @@ async def create_thread(
     }
 )
 async def delete_thread(
-    thread_id: int,
-    user: User = Depends(get_current_user),
-    service: ThreadService = Depends(get_thread_service)
+        thread_id: int,
+        user: Principal = Depends(get_current_user),
+        service: ThreadService = Depends(get_thread_service)
 ):
     return await service.delete_thread(user=user, thread_id=thread_id)
+
 
 @threads_router.put(
     "/{thread_id}",
@@ -96,10 +100,10 @@ async def delete_thread(
     }
 )
 async def update_thread(
-    thread_id: int,
-    model: ThreadUpdateRequest,
-    user: User = Depends(get_current_user),
-    service: ThreadService = Depends(get_thread_service)
+        thread_id: int,
+        model: ThreadUpdateRequest,
+        user: Principal = Depends(get_current_user),
+        service: ThreadService = Depends(get_thread_service)
 ):
     return await service.update_thread(user=user, thread_id=thread_id, model=model)
 
@@ -109,8 +113,8 @@ async def update_thread(
     response_model=ResponseModel[Page[CommentResponse]],
     summary="Получение комментариев треда (постранично, старые сверху)",
     description=(
-        "Авторизация не требуется. Если передан заголовок `X-Session-Id`, "
-        "поле `is_liked` отражает лайки текущего пользователя.\n\n"
+            "Авторизация не требуется. Если передан заголовок `X-Session-Id`, "
+            "поле `is_liked` отражает лайки текущего пользователя.\n\n"
     ),
     responses={
         200: {"description": "Страница комментариев треда"},
@@ -119,22 +123,23 @@ async def update_thread(
     },
 )
 async def get_comments(
-    thread_id: int,
-    limit: int = Query(10, ge=1, le=100),
-    offset: int = Query(0, ge=0),
-    user: User | None = Depends(get_optional_user),
-    service: CommentService = Depends(get_comment_service)
+        thread_id: int,
+        limit: int = Query(10, ge=1, le=100),
+        offset: int = Query(0, ge=0),
+        user: Principal | None = Depends(get_optional_user),
+        service: CommentService = Depends(get_comment_service)
 ):
     return await service.get_comments(thread_id=thread_id, limit=limit, offset=offset, user=user)
+
 
 @comments_router.post(
     "/api/threads/{thread_id}/comments",
     response_model=ResponseModel[CommentResponse],
     summary="Создание комментария",
     description=(
-        "Создание комментария в треде.\n\n"
-        "**Требуется авторизация** с заголовком:\n"
-        "`X-Session-Id: <session_id>`\n\n"
+            "Создание комментария в треде.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
     ),
     status_code=201,
     responses={
@@ -147,12 +152,13 @@ async def get_comments(
     }
 )
 async def create_comment(
-    thread_id: int,
-    model: CommentCreateRequest,
-    user: User = Depends(get_current_user),
-    service: CommentService = Depends(get_comment_service)
+        thread_id: int,
+        model: CommentCreateRequest,
+        user: Principal = Depends(get_current_user),
+        service: CommentService = Depends(get_comment_service)
 ):
     return await service.create_comment(user=user, thread_id=thread_id, model=model)
+
 
 @comments_router.put(
     "/api/comments/{comment_id}",
@@ -168,12 +174,13 @@ async def create_comment(
     }
 )
 async def update_comment(
-    comment_id: int,
-    model: CommentUpdateRequest,
-    user: User = Depends(get_current_user),
-    service: CommentService = Depends(get_comment_service)
+        comment_id: int,
+        model: CommentUpdateRequest,
+        user: Principal = Depends(get_current_user),
+        service: CommentService = Depends(get_comment_service)
 ):
     return await service.update_comment(user=user, comment_id=comment_id, model=model)
+
 
 @comments_router.delete(
     "/api/comments/{comment_id}",
@@ -189,20 +196,21 @@ async def update_comment(
     }
 )
 async def delete_comment(
-    comment_id: int,
-    user: User = Depends(get_current_user),
-    service: CommentService = Depends(get_comment_service)
+        comment_id: int,
+        user: Principal = Depends(get_current_user),
+        service: CommentService = Depends(get_comment_service)
 ):
     return await service.delete_comment(user=user, comment_id=comment_id)
+
 
 @comments_router.post(
     "/api/comments/{comment_id}/like",
     response_model=ResponseModel[CommentResponse],
     summary="Поставить лайк комментарию",
     description=(
-        "Лайк комментария. Идемпотентно - повторный лайк не ошибка.\n\n"
-        "**Требуется авторизация** с заголовком:\n"
-        "`X-Session-Id: <session_id>`\n\n"
+            "Лайк комментария. Идемпотентно - повторный лайк не ошибка.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
     ),
     status_code=200,
     responses={
@@ -214,20 +222,21 @@ async def delete_comment(
     }
 )
 async def like_comment(
-    comment_id: int,
-    user: User = Depends(get_current_user),
-    service: CommentService = Depends(get_comment_service)
+        comment_id: int,
+        user: Principal = Depends(get_current_user),
+        service: CommentService = Depends(get_comment_service)
 ):
     return await service.like_comment(user=user, comment_id=comment_id)
+
 
 @comments_router.delete(
     "/api/comments/{comment_id}/like",
     response_model=ResponseModel[CommentResponse],
     summary="Убрать лайк с комментария",
     description=(
-        "Снятие своего лайка. Идемпотентно - снятие отсутствующего лайка не ошибка.\n\n"
-        "**Требуется авторизация** с заголовком:\n"
-        "`X-Session-Id: <session_id>`\n\n"
+            "Снятие своего лайка. Идемпотентно - снятие отсутствующего лайка не ошибка.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
     ),
     status_code=200,
     responses={
@@ -238,8 +247,8 @@ async def like_comment(
     }
 )
 async def unlike_comment(
-    comment_id: int,
-    user: User = Depends(get_current_user),
-    service: CommentService = Depends(get_comment_service)
+        comment_id: int,
+        user: Principal = Depends(get_current_user),
+        service: CommentService = Depends(get_comment_service)
 ):
     return await service.unlike_comment(user=user, comment_id=comment_id)

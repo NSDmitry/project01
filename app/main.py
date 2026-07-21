@@ -3,20 +3,23 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi_limiter import FastAPILimiter
+from redis import asyncio as redis_asyncio
 
-from app.core.errors.APIException import APIException
-from app.core.models.response_model import ResponseModel
-from app.iam.router import auth_router, users_router
+# Импорт ради side-effect: регистрация доменных подписчиков на события.
+import app.bookclubs.events  # noqa: F401
+import app.threads.events  # noqa: F401
 from app.bookclubs.router import router as bookclubs_router
 from app.books.router import router as books_router
-from app.discussions.router import threads_router, comments_router
+from app.core import events
+from app.core.errors.APIException import APIException
+from app.core.models.response_model import ResponseModel
 from app.genres.router import router as genres_router
-from fastapi.middleware.cors import CORSMiddleware
+from app.iam.router import auth_router, users_router
 from app.settings import settings
-
-from redis import asyncio as redis_asyncio
-from fastapi_limiter import FastAPILimiter
+from app.threads.router import threads_router, comments_router
 
 
 class UTF8JSONResponse(JSONResponse):
@@ -27,9 +30,11 @@ class UTF8JSONResponse(JSONResponse):
 async def lifespan(app: FastAPI):
     redis_conn = redis_asyncio.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
     await FastAPILimiter.init(redis_conn)
+    await events.startup()
     try:
         yield
     finally:
+        await events.shutdown()
         await FastAPILimiter.close()
 
 

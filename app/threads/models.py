@@ -8,13 +8,14 @@ from app.core.db_base_model import DBLBase
 class Thread(Base, DBLBase):
     __tablename__ = "threads"
 
-    club_id = Column(BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False)
-    author_id = Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # id клуба из bookclubs - без FK, треды удаляются кодом при удалении клуба
+    club_id = Column(BigInteger, nullable=False)
+    # id пользователя из iam - без FK, обнуляется кодом при удалении автора
+    author_id = Column(BigInteger, nullable=True)
     book_id = Column(BigInteger, ForeignKey("books.id", ondelete="SET NULL"), nullable=True)
     title = Column(String, nullable=False)
     content = Column(Text, nullable=True)
 
-    author = relationship("User", lazy="selectin")
     book = relationship("Book", lazy="selectin")
 
 
@@ -22,10 +23,9 @@ class Comment(Base, DBLBase):
     __tablename__ = "comments"
 
     thread_id = Column(BigInteger, ForeignKey("threads.id", ondelete="CASCADE"), nullable=False)
-    author_id = Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    # id пользователя из iam - без FK, обнуляется кодом при удалении автора
+    author_id = Column(BigInteger, nullable=True)
     content = Column(Text, nullable=False)
-
-    author = relationship("User", lazy="selectin")
 
 
 class CommentLike(Base, DBLBase):
@@ -35,4 +35,5 @@ class CommentLike(Base, DBLBase):
     )
 
     comment_id = Column(BigInteger, ForeignKey("comments.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    # id пользователя из iam - без FK, лайки удаляются кодом при удалении пользователя
+    user_id = Column(BigInteger, nullable=False)

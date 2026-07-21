@@ -1,14 +1,8 @@
-from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.settings import settings
 
 Base = declarative_base()
-
-# Синхронный движок - используется миграциями Alembic, standalone-скриптами и тестами.
-engine = create_engine(settings.database_url, echo=False)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, expire_on_commit=True)
 
 # Асинхронный движок - используется путём запроса (зависимости FastAPI).
 async_database_url = settings.database_url.replace("postgresql://", "postgresql+asyncpg://", 1)

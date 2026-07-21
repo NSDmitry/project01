@@ -1,10 +1,10 @@
 from typing import List
 
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bookclubs.models import Genre
+from app.genres.models import Genre
 from app.core.errors.errors import Conflict, NotFound
 
 
@@ -24,6 +24,32 @@ class GenreRepository:
     async def get_by_codes(self, codes: List[str]) -> List[Genre]:
         result = await self.db.execute(
             select(Genre).where(Genre.code.in_(codes))
+        )
+
+        return result.scalars().all()
+
+    async def get_by_ids(self, ids: List[int]) -> List[Genre]:
+        if not ids:
+            return []
+
+        # id вторым ключом - детерминированный порядок при равных sort_order
+        result = await self.db.execute(
+            select(Genre).where(Genre.id.in_(ids)).order_by(Genre.sort_order, Genre.id)
+        )
+
+        return result.scalars().all()
+
+    async def search_ids(self, term: str) -> List[int]:
+        # экранируем спецсимволы LIKE, чтобы искать их как обычный текст
+        escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{escaped}%"
+        result = await self.db.execute(
+            select(Genre.id).where(
+                or_(
+                    Genre.name.ilike(pattern, escape="\\"),
+                    Genre.code.ilike(pattern, escape="\\"),
+                )
+            )
         )
 
         return result.scalars().all()

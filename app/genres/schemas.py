@@ -2,13 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-from app.core.schemas import ResponseSchema
-
-
-class GenreResponse(ResponseSchema):
-    id: int
-    code: str
-    name: str
+from app.core.contracts import GenreResponse  # noqa: F401 - контракт живёт в core, ре-экспорт для домена
 
 
 class CreateGenreRequest(BaseModel):

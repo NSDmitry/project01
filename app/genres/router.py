@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends
 from app.core.models.response_model import ResponseModel
 from app.genres.deps import get_genre_service
 from app.genres.schemas import CreateGenreRequest, UpdateGenreRequest, GenreResponse
+from app.core.contracts import Principal
 from app.genres.service import GenreService
-from app.iam.deps import get_current_user
-from app.iam.models import User
+from app.iam.deps import get_current_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
 
 router = APIRouter(prefix="/api/genres", tags=["genres"])
 
@@ -50,7 +50,7 @@ async def get_genres(
 )
 async def create_genre(
         model: CreateGenreRequest,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: GenreService = Depends(get_genre_service),
 ):
     return await service.create_genre(user, model)
@@ -79,7 +79,7 @@ async def create_genre(
 async def update_genre(
         genre_id: int,
         model: UpdateGenreRequest,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: GenreService = Depends(get_genre_service),
 ):
     return await service.update_genre(user, genre_id, model)
@@ -104,7 +104,7 @@ async def update_genre(
 )
 async def delete_genre(
         genre_id: int,
-        user: User = Depends(get_current_user),
+        user: Principal = Depends(get_current_user),
         service: GenreService = Depends(get_genre_service),
 ):
     return await service.delete_genre(user, genre_id)

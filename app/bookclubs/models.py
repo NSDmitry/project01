@@ -1,32 +1,24 @@
-from sqlalchemy import Column, BigInteger, Integer, String, ForeignKey, select, func
-from sqlalchemy.orm import relationship, column_property
+from sqlalchemy import Column, BigInteger, String, ForeignKey, select, func
+from sqlalchemy.orm import column_property
 
 from app.core.database import Base
 from app.core.db_base_model import DBLBase
-from app.discussions.models import Thread
 
 
 class ClubMember(Base):
     __tablename__ = "club_members"
 
     club_id = Column(BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True)
-    user_id = Column(BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-
-
-class Genre(Base):
-    __tablename__ = "genres"
-
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    code = Column(String, nullable=False, unique=True)
-    name = Column(String, nullable=False)
-    sort_order = Column(Integer, nullable=False, server_default="0")
+    # id пользователя из iam - без FK, домены связаны только идентификатором
+    user_id = Column(BigInteger, primary_key=True)
 
 
 class BookClubGenre(Base):
     __tablename__ = "book_club_genres"
 
     club_id = Column(BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True)
-    genre_id = Column(BigInteger, ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True)
+    # id жанра из genres - без FK, домены связаны только идентификатором
+    genre_id = Column(BigInteger, primary_key=True)
 
 
 class BookClub(Base, DBLBase):
@@ -34,27 +26,18 @@ class BookClub(Base, DBLBase):
 
     name = Column(String, nullable=False, unique=True)
     description = Column(String, nullable=False)
-    owner_id = Column(BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-
-    owner = relationship("User", lazy="selectin")
-    genres = relationship(
-        "Genre",
-        secondary="book_club_genres",
-        lazy="selectin",
-        order_by="Genre.sort_order",
-    )
+    # id пользователя из iam - без FK, обнуляется кодом при удалении владельца
+    owner_id = Column(BigInteger, nullable=True)
+    # Денормализованный счётчик тредов клуба. Треды - в другом домене (без FK),
+    # поэтому клуб не считает их подзапросом, а ведёт столбец по событиям
+    # THREAD_CREATED/THREAD_DELETED (см. events.py).
+    threads_count = Column(BigInteger, nullable=False, server_default="0")
 
 
-# Счётчики считаются коррелированным подзапросом прямо в SELECT клуба - один
-# запрос на клуб, без загрузки строк участников/тредов и без N+1 на списках.
+# Счётчик участников считается коррелированным подзапросом прямо в SELECT клуба -
+# один запрос на клуб, без загрузки строк участников и без N+1 на списках.
 BookClub.members_count = column_property(
     select(func.count(ClubMember.user_id))
     .where(ClubMember.club_id == BookClub.id)
-    .scalar_subquery()
-)
-
-BookClub.threads_count = column_property(
-    select(func.count(Thread.id))
-    .where(Thread.club_id == BookClub.id)
     .scalar_subquery()
 )

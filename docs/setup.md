@@ -43,6 +43,8 @@ cp .env.example .env
 - `DATABASE_URL` - строка подключения к основной базе данных
 - `ORIGIN_URLS` - список origin'ов для CORS
 - `REDIS_URL` - Redis для rate limiting и блокировок при подборе пароля
+- `RABBITMQ_URL` - RabbitMQ для кросс-доменных событий; пусто = доставка синхронно в том же процессе (без брокера)
+- `RABBITMQ_USER` / `RABBITMQ_PASSWORD` - учётка RabbitMQ для docker-compose
 - `TELEGRAM_BOT_TOKEN` - токен бота для входа через Telegram Mini App (утечка = подделка входа за любого пользователя)
 - `GOOGLE_BOOKS_API_KEY` - ключ Google Books API для поиска книг; пусто = запросы без ключа (меньшие квоты)
 - `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` - учётка Postgres для docker-compose

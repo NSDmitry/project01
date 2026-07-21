@@ -5,6 +5,7 @@ from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
+from app.core.contracts import UserSummary  # noqa: F401 - контракт живёт в core, ре-экспорт для домена
 from app.core.schemas import ResponseSchema
 from app.core.validators import validate_e164
 
@@ -29,10 +30,6 @@ class LoginAvailableRequest(BaseModel):
 
 class TelegramAuthRequest(BaseModel):
     init_data: str
-
-class UserSummary(ResponseSchema):
-    id: int
-    name: str
 
 class OwnUserResponse(ResponseSchema):
     id: int

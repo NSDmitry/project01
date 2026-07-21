@@ -3,9 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from app.books.schemas import BookResponse
+from app.core.contracts import BookResponse, UserSummary
 from app.core.schemas import ResponseSchema
-from app.iam.schemas import UserSummary
 
 
 class ThreadResponse(ResponseSchema):
