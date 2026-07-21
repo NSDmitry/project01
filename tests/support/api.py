@@ -157,6 +157,14 @@ class ApiClient:
     def delete_comment(self, comment_id: int, headers: dict[str, str] | None = None):
         return self._client.delete(f"/api/comments/{comment_id}", headers=headers)
 
+    def comment_likers(
+        self,
+        comment_id: int,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        return self._client.get(f"/api/comments/{comment_id}/likes", params=params, headers=headers)
+
     def like_comment(self, comment_id: int, headers: dict[str, str] | None = None):
         return self._client.post(f"/api/comments/{comment_id}/like", headers=headers)
 
