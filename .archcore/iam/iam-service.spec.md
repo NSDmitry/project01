@@ -1,6 +1,6 @@
 ---
 title: "IAM service: аутентификация, сессии, пользователи"
-status: draft
+status: accepted
 tags:
   - "domain:iam"
   - "iam"

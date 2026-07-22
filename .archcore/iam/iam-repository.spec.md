@@ -1,6 +1,6 @@
 ---
 title: "IAM repository: доступ к users и user_sessions"
-status: draft
+status: accepted
 tags:
   - "domain:iam"
   - "iam"

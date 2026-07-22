@@ -1,6 +1,6 @@
 ---
 title: "Принципы написания кода"
-status: draft
+status: accepted
 tags:
   - "imported"
   - "source:claude-md"

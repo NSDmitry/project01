@@ -1,6 +1,6 @@
 ---
 title: "Пунктуация: без длинных тире"
-status: draft
+status: accepted
 tags:
   - "imported"
   - "source:claude-md"

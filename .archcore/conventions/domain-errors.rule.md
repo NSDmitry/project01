@@ -1,6 +1,6 @@
 ---
 title: "Ошибки только через иерархию app/core/errors"
-status: draft
+status: accepted
 tags:
   - "conventions"
   - "errors"

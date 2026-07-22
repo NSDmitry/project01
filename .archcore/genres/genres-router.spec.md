@@ -1,6 +1,6 @@
 ---
 title: "Genres HTTP API: /api/genres"
-status: draft
+status: accepted
 tags:
   - "domain:genres"
   - "genres"

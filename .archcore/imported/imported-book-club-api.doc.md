@@ -1,6 +1,6 @@
 ---
 title: "Imported: Book Club API (интро)"
-status: draft
+status: accepted
 tags:
   - "imported"
   - "source:claude-md"

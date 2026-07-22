@@ -1,6 +1,6 @@
 ---
 title: "Кросс-доменное взаимодействие: порты и события, не импорты"
-status: draft
+status: accepted
 tags:
   - "architecture"
   - "conventions"

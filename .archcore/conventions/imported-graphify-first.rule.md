@@ -1,6 +1,6 @@
 ---
 title: "graphify-first: сначала граф, потом код"
-status: draft
+status: accepted
 tags:
   - "imported"
   - "source:claude-md"

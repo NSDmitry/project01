@@ -1,6 +1,6 @@
 ---
 title: "Bookclubs HTTP API: /api/bookclubs"
-status: draft
+status: accepted
 tags:
   - "bookclubs"
   - "domain:bookclubs"

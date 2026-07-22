@@ -1,6 +1,6 @@
 ---
 title: "Threads HTTP API: /api/threads и /api/comments"
-status: draft
+status: accepted
 tags:
   - "domain:threads"
   - "spec"

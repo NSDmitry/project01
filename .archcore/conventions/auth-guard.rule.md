@@ -1,6 +1,6 @@
 ---
 title: "Авторизация хендлеров через get_current_user"
-status: draft
+status: accepted
 tags:
   - "auth"
   - "conventions"

@@ -1,6 +1,6 @@
 ---
 title: "Imported: CLAUDE.md"
-status: draft
+status: accepted
 tags:
   - "imported"
   - "source:claude-md"

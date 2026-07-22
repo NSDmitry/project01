@@ -1,6 +1,6 @@
 ---
 title: "Threads repository: доступ к threads, comments, comment_likes"
-status: draft
+status: accepted
 tags:
   - "domain:threads"
   - "spec"

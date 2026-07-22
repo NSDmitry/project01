@@ -1,6 +1,6 @@
 ---
 title: "IAM HTTP API: /api/auth и /api/users"
-status: draft
+status: accepted
 tags:
   - "domain:iam"
   - "iam"

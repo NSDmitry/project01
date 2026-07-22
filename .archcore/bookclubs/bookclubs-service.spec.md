@@ -1,6 +1,6 @@
 ---
 title: "Bookclubs service: клубы, участие, жанры, поиск"
-status: draft
+status: accepted
 tags:
   - "bookclubs"
   - "domain:bookclubs"

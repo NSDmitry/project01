@@ -1,6 +1,6 @@
 ---
 title: "Core events: кросс-доменная событийная шина"
-status: draft
+status: accepted
 tags:
   - "core"
   - "events"

@@ -1,6 +1,6 @@
 ---
 title: "Threads service: треды, комментарии, лайки"
-status: draft
+status: accepted
 tags:
   - "domain:threads"
   - "spec"

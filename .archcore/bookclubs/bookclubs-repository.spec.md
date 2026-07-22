@@ -1,6 +1,6 @@
 ---
 title: "Bookclubs repository: доступ к book_clubs, club_members, book_club_genres"
-status: draft
+status: accepted
 tags:
   - "bookclubs"
   - "domain:bookclubs"
