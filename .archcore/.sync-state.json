@@ -1,0 +1,446 @@
+{
+  "version": 1,
+  "files": {},
+  "relations": [
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "conventions/project-stack.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "onboarding/running-the-project.guide.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "architecture/iam/iam-data-model.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "architecture/bookclubs/bookclubs-data-model.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "architecture/threads/threads-data-model.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "architecture/books/books-data-model.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "architecture/genres/genres-data-model.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "architecture/external-integrations.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "architecture/configuration.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "iam/iam-service.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "iam/iam-router.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "iam/iam-repository.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "threads/threads-service.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "threads/threads-router.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "threads/threads-repository.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "bookclubs/bookclubs-router.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "bookclubs/bookclubs-service.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "bookclubs/bookclubs-repository.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "architecture/core-events.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "genres/genres-router.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "conventions/auth-guard.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "conventions/domain-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "conventions/cross-domain-events.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "imported/imported-claude-md.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "imported/imported-book-club-api.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "conventions/imported-graphify-first.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "conventions/imported-code-writing-principles.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "conventions/imported-punctuation.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/iam/iam-data-model.doc.md",
+      "target": "architecture/external-integrations.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/bookclubs/bookclubs-data-model.doc.md",
+      "target": "architecture/external-integrations.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/threads/threads-data-model.doc.md",
+      "target": "architecture/external-integrations.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/books/books-data-model.doc.md",
+      "target": "architecture/external-integrations.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/genres/genres-data-model.doc.md",
+      "target": "architecture/external-integrations.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-service.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-router.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-repository.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-service.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-router.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-repository.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-router.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-service.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-repository.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/core-events.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "genres/genres-router.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-service.spec.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-router.spec.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-repository.spec.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-service.spec.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-router.spec.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-repository.spec.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-router.spec.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-service.spec.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-repository.spec.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/core-events.spec.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "genres/genres-router.spec.md",
+      "target": "architecture/entry-points.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "conventions/imported-graphify-first.rule.md",
+      "target": "conventions/project-stack.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "conventions/imported-code-writing-principles.rule.md",
+      "target": "conventions/project-stack.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "conventions/imported-punctuation.rule.md",
+      "target": "conventions/project-stack.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "imported/imported-book-club-api.doc.md",
+      "target": "imported/imported-claude-md.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "conventions/imported-graphify-first.rule.md",
+      "target": "imported/imported-claude-md.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "conventions/imported-code-writing-principles.rule.md",
+      "target": "imported/imported-claude-md.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "conventions/imported-punctuation.rule.md",
+      "target": "imported/imported-claude-md.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-service.spec.md",
+      "target": "iam/iam-router.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-service.spec.md",
+      "target": "iam/iam-repository.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-router.spec.md",
+      "target": "iam/iam-repository.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-service.spec.md",
+      "target": "threads/threads-router.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-service.spec.md",
+      "target": "threads/threads-repository.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-router.spec.md",
+      "target": "threads/threads-repository.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-service.spec.md",
+      "target": "bookclubs/bookclubs-router.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-service.spec.md",
+      "target": "bookclubs/bookclubs-repository.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-router.spec.md",
+      "target": "bookclubs/bookclubs-repository.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-router.spec.md",
+      "target": "conventions/auth-guard.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-router.spec.md",
+      "target": "conventions/auth-guard.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-router.spec.md",
+      "target": "conventions/auth-guard.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "genres/genres-router.spec.md",
+      "target": "conventions/auth-guard.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-router.spec.md",
+      "target": "conventions/domain-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-router.spec.md",
+      "target": "conventions/domain-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-router.spec.md",
+      "target": "conventions/domain-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "genres/genres-router.spec.md",
+      "target": "conventions/domain-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-service.spec.md",
+      "target": "conventions/domain-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-service.spec.md",
+      "target": "conventions/domain-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-service.spec.md",
+      "target": "conventions/domain-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "iam/iam-service.spec.md",
+      "target": "conventions/cross-domain-events.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-service.spec.md",
+      "target": "conventions/cross-domain-events.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-service.spec.md",
+      "target": "conventions/cross-domain-events.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/core-events.spec.md",
+      "target": "conventions/cross-domain-events.rule.md",
+      "type": "related"
+    }
+  ]
+}
