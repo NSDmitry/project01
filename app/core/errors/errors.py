@@ -40,3 +40,8 @@ class UnprocessableEntity(APIException):
 class InternalServerError(APIException):
     def __init__(self, message="Внутренняя ошибка сервера", errors=None):
         super().__init__(message, status.HTTP_500_INTERNAL_SERVER_ERROR, errors)
+
+
+class ServiceUnavailable(APIException):
+    def __init__(self, message="Сервис временно недоступен", errors=None):
+        super().__init__(message, status.HTTP_503_SERVICE_UNAVAILABLE, errors)

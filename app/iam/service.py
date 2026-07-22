@@ -243,7 +243,7 @@ class AuthService:
         :return: Сообщение об успешном выходе из системы
         """
         if not sid:
-            raise Unauthorized(errors=["Missing session"])
+            raise Unauthorized(errors=["Отсутствует заголовок X-Session-Id"])
 
         await self.user_session_service.logout_user_session(sid)
         return ResponseModel.ok(message="Успешный выход из системы")

@@ -10,12 +10,22 @@ from app.core.schemas import ResponseSchema
 from app.core.validators import validate_e164
 
 
+def validate_name(name: str) -> str:
+    name = name.strip()
+    if not name:
+        raise ValueError("Имя не может быть пустым")
+    if len(name) > 100:
+        raise ValueError("Имя должно быть не длиннее 100 символов")
+    return name
+
+
 class SignUpRequest(BaseModel):
     name: str
     phone_number: str
     password: str
 
     _validate_phone = field_validator("phone_number")(validate_e164)
+    _validate_name = field_validator("name")(validate_name)
 
 class SignInRequest(BaseModel):
     phone_number: str
@@ -48,6 +58,7 @@ class UpdateUserRequest(BaseModel):
     phone_number: str
 
     _validate_phone = field_validator("phone_number")(validate_e164)
+    _validate_name = field_validator("name")(validate_name)
 
 
 class ChangePasswordRequest(BaseModel):

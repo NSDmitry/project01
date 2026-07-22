@@ -3,8 +3,10 @@ from typing import List, Optional
 import httpx
 
 from app.books.schemas import BookSuggestionResponse
+from app.core.errors.errors import ServiceUnavailable
 
 GOOGLE_BOOKS_URL = "https://www.googleapis.com/books/v1/volumes"
+UNAVAILABLE_MESSAGE = "Сервис поиска книг временно недоступен"
 
 
 class GoogleBooksClient:
@@ -33,24 +35,28 @@ class GoogleBooksClient:
             published_year=year,
         )
 
+    async def _get(self, url: str, **params) -> httpx.Response:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                return await client.get(url, params=self._params(**params))
+        except httpx.HTTPError:
+            raise ServiceUnavailable(UNAVAILABLE_MESSAGE)
+
     async def search(self, query: str, limit: int = 10) -> List[BookSuggestionResponse]:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.get(
-                GOOGLE_BOOKS_URL,
-                params=self._params(q=query, maxResults=limit, printType="books"),
-            )
-        response.raise_for_status()
+        response = await self._get(GOOGLE_BOOKS_URL, q=query, maxResults=limit, printType="books")
+        if response.is_error:
+            raise ServiceUnavailable(UNAVAILABLE_MESSAGE)
 
         items = response.json().get("items", [])
         return [self._parse(item) for item in items if item.get("volumeInfo", {}).get("title")]
 
     async def get_volume(self, volume_id: str) -> Optional[BookSuggestionResponse]:
-        async with httpx.AsyncClient(timeout=10) as client:
-            response = await client.get(f"{GOOGLE_BOOKS_URL}/{volume_id}", params=self._params())
+        response = await self._get(f"{GOOGLE_BOOKS_URL}/{volume_id}")
 
         # Google отвечает 404 на несуществующий и 400/503 на некорректный volume_id.
         if response.status_code in (400, 404, 503):
             return None
-        response.raise_for_status()
+        if response.is_error:
+            raise ServiceUnavailable(UNAVAILABLE_MESSAGE)
 
         return self._parse(response.json())

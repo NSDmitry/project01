@@ -2,6 +2,7 @@ from fastapi import APIRouter, Body, Depends, Request
 from fastapi.params import Security
 
 from app.core.models.response_model import ResponseModel
+from app.core.params import QueryId
 from app.core.rate_limit import client_ip, rate_limiter
 from app.iam.deps import get_auth_service, get_current_user, get_user_service, session_header
 from app.iam.models import User
@@ -30,7 +31,8 @@ users_router = APIRouter(prefix="/api/users", tags=["Users"])
     dependencies=[rate_limiter(times=5, seconds=60)],
     responses={
         201: {"description": "Успешный ответ с идентификатором сессии"},
-        422: {"description": "Ошибка валидации номера телефона или пароля"},
+        400: {"description": "Пароль не соответствует требованиям"},
+        422: {"description": "Ошибка валидации номера телефона"},
         409: {"description": "Пользователь с таким номером телефона уже зарегистрирован"},
         429: {"description": "С этого адреса создано больше 3 аккаунтов за час"},
         500: {"description": "Внутренняя ошибка сервера"},
@@ -50,8 +52,7 @@ async def register(
     dependencies=[rate_limiter(times=5, seconds=60)],
     responses = {
         200: {"description": "Успешный ответ с идентификатором сессии"},
-        401: {"description": "Неверный пароль"},
-        404: {"description": "Пользователь не найден"},
+        401: {"description": "Неверный номер телефона или пароль"},
         429: {"description": "Номер временно заблокирован из-за подбора пароля"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
@@ -150,7 +151,7 @@ def get_current_user_public_info(
     }
 )
 async def get_user_by_id(
-    user_id: int,
+    user_id: QueryId,
     _: User = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)
 ):

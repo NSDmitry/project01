@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from app.core.contracts import Principal, UserSummary
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
+from app.core.params import PathId
 from app.iam.deps import get_current_user, get_optional_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
 from app.threads.deps import get_thread_service, get_comment_service
 from app.threads.schemas import (
@@ -31,7 +32,7 @@ comments_router = APIRouter(tags=["comments"])
     },
 )
 async def get_threads(
-        club_id: int,
+        club_id: PathId,
         limit: int = Query(10, ge=1, le=100),
         offset: int = Query(0, ge=0),
         service: ThreadService = Depends(get_thread_service)
@@ -55,6 +56,7 @@ async def get_threads(
         401: {"description": "Ошибка авторизации (неверный токен)"},
         404: {"description": "Книжный клуб с таким id не найден"},
         403: {"description": "Создавать треды могут только участники клуба"},
+        503: {"description": "Google Books временно недоступен (book_volume_id не удалось получить)"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
@@ -80,7 +82,7 @@ async def create_thread(
     }
 )
 async def delete_thread(
-        thread_id: int,
+        thread_id: PathId,
         user: Principal = Depends(get_current_user),
         service: ThreadService = Depends(get_thread_service)
 ):
@@ -100,7 +102,7 @@ async def delete_thread(
     }
 )
 async def update_thread(
-        thread_id: int,
+        thread_id: PathId,
         model: ThreadUpdateRequest,
         user: Principal = Depends(get_current_user),
         service: ThreadService = Depends(get_thread_service)
@@ -123,7 +125,7 @@ async def update_thread(
     },
 )
 async def get_comments(
-        thread_id: int,
+        thread_id: PathId,
         limit: int = Query(10, ge=1, le=100),
         offset: int = Query(0, ge=0),
         user: Principal | None = Depends(get_optional_user),
@@ -152,7 +154,7 @@ async def get_comments(
     }
 )
 async def create_comment(
-        thread_id: int,
+        thread_id: PathId,
         model: CommentCreateRequest,
         user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
@@ -174,7 +176,7 @@ async def create_comment(
     }
 )
 async def update_comment(
-        comment_id: int,
+        comment_id: PathId,
         model: CommentUpdateRequest,
         user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
@@ -196,7 +198,7 @@ async def update_comment(
     }
 )
 async def delete_comment(
-        comment_id: int,
+        comment_id: PathId,
         user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
@@ -215,7 +217,7 @@ async def delete_comment(
     },
 )
 async def get_comment_likers(
-        comment_id: int,
+        comment_id: PathId,
         limit: int = Query(10, ge=1, le=100),
         offset: int = Query(0, ge=0),
         service: CommentService = Depends(get_comment_service)
@@ -242,7 +244,7 @@ async def get_comment_likers(
     }
 )
 async def like_comment(
-        comment_id: int,
+        comment_id: PathId,
         user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):
@@ -267,7 +269,7 @@ async def like_comment(
     }
 )
 async def unlike_comment(
-        comment_id: int,
+        comment_id: PathId,
         user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
 ):

@@ -6,6 +6,7 @@ from app.core.models.response_model import ResponseModel
 from app.genres.deps import get_genre_service
 from app.genres.schemas import CreateGenreRequest, UpdateGenreRequest, GenreResponse
 from app.core.contracts import Principal
+from app.core.params import PathId
 from app.genres.service import GenreService
 from app.iam.deps import get_current_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
 
@@ -77,7 +78,7 @@ async def create_genre(
     },
 )
 async def update_genre(
-        genre_id: int,
+        genre_id: PathId,
         model: UpdateGenreRequest,
         user: Principal = Depends(get_current_user),
         service: GenreService = Depends(get_genre_service),
@@ -103,7 +104,7 @@ async def update_genre(
     },
 )
 async def delete_genre(
-        genre_id: int,
+        genre_id: PathId,
         user: Principal = Depends(get_current_user),
         service: GenreService = Depends(get_genre_service),
 ):

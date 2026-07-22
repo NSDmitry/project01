@@ -48,6 +48,7 @@ async def create_book(
         200: {"description": "Список найденных книг"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
         500: {"description": "Внутренняя ошибка сервера"},
+        503: {"description": "Google Books временно недоступен"},
     },
 )
 async def search_books(

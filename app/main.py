@@ -1,4 +1,5 @@
 import hmac
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
@@ -96,8 +97,24 @@ def api_exception_handler(request: Request, exc: APIException):
 
 @app.exception_handler(RequestValidationError)
 def validation_exception_handler(request: Request, exc: RequestValidationError):
-    errors = [e["msg"].removeprefix("Value error, ") for e in exc.errors()]
+    errors = []
+    for e in exc.errors():
+        msg = e["msg"].removeprefix("Value error, ")
+        # loc[0] - источник (body/query/path), дальше - путь до поля.
+        field = ".".join(str(part) for part in e["loc"][1:])
+        errors.append(f"{field}: {msg}" if field else msg)
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=ResponseModel.fail(message="Невозможно обработать запрос", errors=errors).model_dump(),
+    )
+
+
+@app.exception_handler(Exception)
+def unhandled_exception_handler(request: Request, exc: Exception):
+    # Обработчик регистрируется в ServerErrorMiddleware, который сам traceback
+    # не логирует - без exception() ошибка пропадёт из логов.
+    logging.getLogger("app").exception("Unhandled error: %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content=ResponseModel.fail(message="Внутренняя ошибка сервера").model_dump(),
     )

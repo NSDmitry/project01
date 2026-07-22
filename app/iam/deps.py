@@ -48,19 +48,19 @@ async def get_current_user(
 ) -> User:
 
     if not sid:
-        raise Unauthorized(errors=["Missing session"])
+        raise Unauthorized(errors=["Отсутствует заголовок X-Session-Id"])
 
     user_session = await user_session_service.get_user_session(sid)
 
     if not user_session:
-        raise Unauthorized(errors=["Invalid session"])
+        raise Unauthorized(errors=["Недействительная или истёкшая сессия"])
 
     try:
         return await user_repository.get_user_by_id(user_session.user_id)
     except NotFound:
         # Сессия без живого пользователя (у user_sessions.user_id нет FK) - это сбой
         # авторизации, а не отсутствие ресурса
-        raise Unauthorized(errors=["Invalid session"])
+        raise Unauthorized(errors=["Недействительная или истёкшая сессия"])
 
 
 async def get_optional_user(

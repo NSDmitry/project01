@@ -6,12 +6,12 @@ from app.core.contracts import GenreResponse  # noqa: F401 - контракт ж
 
 
 class CreateGenreRequest(BaseModel):
-    code: str = Field(min_length=1, max_length=50)
+    code: str = Field(min_length=1, max_length=50, pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")
     name: str = Field(min_length=1, max_length=100)
     sort_order: int = 0
 
 
 class UpdateGenreRequest(BaseModel):
-    code: str = Field(min_length=1, max_length=50)
+    code: str = Field(min_length=1, max_length=50, pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")
     name: str = Field(min_length=1, max_length=100)
     sort_order: int = 0

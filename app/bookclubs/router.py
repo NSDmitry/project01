@@ -11,6 +11,7 @@ from app.bookclubs.service import BookClubService
 from app.core.contracts import Principal, UserSummary
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
+from app.core.params import PathId
 from app.iam.deps import get_current_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
@@ -113,7 +114,7 @@ async def search_book_clubs(
     }
 )
 async def get_book_club(
-        club_id: int,
+        club_id: PathId,
         _: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
@@ -136,7 +137,7 @@ async def get_book_club(
     },
 )
 async def get_book_club_members(
-        club_id: int,
+        club_id: PathId,
         limit: int = Query(20, ge=1, le=100),
         offset: int = Query(0, ge=0),
         _: Principal = Depends(get_current_user),
@@ -161,7 +162,7 @@ async def get_book_club_members(
     },
 )
 async def delete_book_club(
-        club_id: int,
+        club_id: PathId,
         user: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
@@ -179,11 +180,13 @@ async def delete_book_club(
     responses={
         200: {"description": "Модель измененного книжного клуба"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        409: {"description": "Пользователь уже является участником клуба"},
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
 async def join(
-        club_id: int,
+        club_id: PathId,
         user: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
@@ -201,12 +204,12 @@ async def join(
     responses={
         200: {"description": "Модель измененного книжного клуба"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
-        404: {"description": "Пользователь не участник клуба"},
+        409: {"description": "Пользователь не состоит в клубе"},
         500: {"description": "Внутренняя ошибка сервера"},
     },
 )
 async def leave(
-        club_id: int,
+        club_id: PathId,
         user: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ):
@@ -233,7 +236,7 @@ async def leave(
     },
 )
 async def set_genres(
-        club_id: int,
+        club_id: PathId,
         model: UpdateBookClubGenresRequest,
         user: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
