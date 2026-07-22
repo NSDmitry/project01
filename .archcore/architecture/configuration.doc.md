@@ -17,7 +17,7 @@ Source: `.env.example`.
 - METRICS_TOKEN - Bearer-токен доступа к /metrics; пусто = эндпоинт отключён (secret)
 
 ## External services
-- REDIS_URL - Redis для rate limiting
+- REDIS_URL - Redis для rate limiting и блокировок подбора пароля; недоступный Redis ломает вход (500)
 - RABBITMQ_URL - RabbitMQ для кросс-доменных событий; пусто = синхронная доставка in-process (secret)
 - RABBITMQ_USER / RABBITMQ_PASSWORD - учётка RabbitMQ для docker-compose (secret)
 

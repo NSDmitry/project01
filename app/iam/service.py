@@ -179,12 +179,15 @@ class AuthService:
 
         return ResponseModel.ok(response)
 
-    async def login(self, model: SignInRequest) -> ResponseModel[AuthUserResponse]:
+    async def login(self, model: SignInRequest, client_ip: str) -> ResponseModel[AuthUserResponse]:
         """
         Авторизация пользователя.
         :param model: SignInRequest
+        :param client_ip: IP клиента - блокировка перебора паролей по случайным номерам
         :return: Токен доступа
         """
+        # IP-лок проверяем первым: самая широкая отсечка, до похода в БД и до bcrypt.
+        await brute_force.check_not_locked(client_ip, brute_force.IP)
         await brute_force.check_not_locked(model.phone_number)
 
         db_user = await self.user_repository.get_user_by_phone_number(model.phone_number)
@@ -194,12 +197,16 @@ class AuthService:
         # db_user.password is None - пользователь только из Telegram, пароля нет.
         if db_user is None or db_user.password is None:
             await brute_force.register_failure(model.phone_number)
+            await brute_force.register_failure(client_ip, brute_force.IP)
             raise Unauthorized(errors=["Неверный номер телефона или пароль"])
 
         if not await self._verify_password(model.password, db_user.password):
             await brute_force.register_failure(model.phone_number)
+            await brute_force.register_failure(client_ip, brute_force.IP)
             raise Unauthorized(errors=["Неверный номер телефона или пароль"])
 
+        # Сбрасываем только телефонный счётчик. IP-счётчик намеренно не сбрасываем:
+        # иначе атакующий с одним валидным аккаунтом обнуляет его каждые 19 неудач.
         await brute_force.reset(model.phone_number)
         sid = await self.user_session_service.create_user_session(db_user.id)
         response = AuthUserResponse(session_id=sid)

@@ -53,15 +53,16 @@ async def register(
     responses = {
         200: {"description": "Успешный ответ с идентификатором сессии"},
         401: {"description": "Неверный номер телефона или пароль"},
-        429: {"description": "Номер временно заблокирован из-за подбора пароля"},
+        429: {"description": "Слишком много неудачных попыток входа - временная блокировка"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )
 async def login(
     model: SignInRequest,
+    request: Request,
     sso_service: AuthService = Depends(get_auth_service)
 ):
-    return await sso_service.login(model=model)
+    return await sso_service.login(model=model, client_ip=client_ip(request))
 
 @auth_router.post(
     "/login-available",
