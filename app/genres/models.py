@@ -1,4 +1,5 @@
-from sqlalchemy import Column, BigInteger, Integer, String
+from sqlalchemy import BigInteger, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
@@ -6,7 +7,7 @@ from app.core.database import Base
 class Genre(Base):
     __tablename__ = "genres"
 
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    code = Column(String, nullable=False, unique=True)
-    name = Column(String, nullable=False)
-    sort_order = Column(Integer, nullable=False, server_default="0")
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    code: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")

@@ -12,6 +12,7 @@
 from typing import NamedTuple
 
 from fastapi_limiter import FastAPILimiter
+from redis.asyncio import Redis
 
 from app.core.errors.errors import TooManyRequests
 
@@ -65,7 +66,7 @@ async def reset(subject: str, policy: Policy = PHONE) -> None:
     await redis.delete(*_keys(subject, policy))
 
 
-async def _register_failure(redis, subject: str, policy: Policy) -> None:
+async def _register_failure(redis: Redis, subject: str, policy: Policy) -> None:
     fails_key, lock_key, level_key = _keys(subject, policy)
 
     fails = await redis.incr(fails_key)

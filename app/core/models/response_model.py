@@ -18,4 +18,4 @@ class ResponseModel(BaseModel, Generic[T]):
 
     @classmethod
     def fail(cls, message: str = "Произошла ошибка", errors: Optional[List[str]] = None) -> "ResponseModel[None]":
-        return cls(success=False, message=message, errors=errors or [])
+        return ResponseModel[None](success=False, message=message, errors=errors or [])

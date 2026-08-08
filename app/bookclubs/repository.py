@@ -3,6 +3,7 @@ from typing import List, Tuple
 from sqlalchemy import select, func, or_, delete, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.bookclubs.models import BookClub, ClubMember, BookClubGenre
 from app.bookclubs.schemas import CreateBookClubRequest, BookClubRelation
@@ -50,16 +51,22 @@ class BookClubRepository:
             query: str | None = None,
             genre_ids: List[int] | None = None,
     ) -> Tuple[List[BookClub], int]:
-        conditions = []
+        conditions: List[ColumnElement[bool]] = []
 
-        if relation == BookClubRelation.owner:
-            conditions.append(BookClub.owner_id == user.id)
-        elif relation == BookClubRelation.member:
-            conditions.append(
-                BookClub.id.in_(
-                    select(ClubMember.club_id).where(ClubMember.user_id == user.id)
+        if relation is not None:
+            # Фильтр «мои клубы» без пользователя молча вернул бы весь каталог -
+            # падаем, а не отдаём лишнее.
+            if user is None:
+                raise ValueError("Фильтр по relation требует авторизованного пользователя")
+
+            if relation == BookClubRelation.owner:
+                conditions.append(BookClub.owner_id == user.id)
+            elif relation == BookClubRelation.member:
+                conditions.append(
+                    BookClub.id.in_(
+                        select(ClubMember.club_id).where(ClubMember.user_id == user.id)
+                    )
                 )
-            )
 
         term = (query or "").strip()
         if term:
@@ -87,7 +94,7 @@ class BookClubRepository:
             select(BookClub).where(*conditions).order_by(BookClub.id).limit(limit).offset(offset)
         )
 
-        return result.scalars().all(), total
+        return list(result.scalars().all()), total or 0
 
     async def get_book_club(self, club_id: int) -> BookClub:
         result = await self.db.execute(select(BookClub).where(BookClub.id == club_id))
@@ -115,7 +122,7 @@ class BookClubRepository:
             .offset(offset)
         )
 
-        return result.scalars().all(), total
+        return list(result.scalars().all()), total or 0
 
     async def handle_user_deleted(self, user_id: int, delete_owned_clubs: bool) -> List[int]:
         # FK на users больше нет - SET NULL/CASCADE, которые раньше делала БД
@@ -138,7 +145,7 @@ class BookClubRepository:
 
         return deleted_club_ids
 
-    async def delete_book_club(self, owner: Principal, club_id: int):
+    async def delete_book_club(self, owner: Principal, club_id: int) -> None:
         club = await self.get_book_club(club_id=club_id)
 
         require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Any, List, Optional
 
 import httpx
 
@@ -15,7 +15,7 @@ class GoogleBooksClient:
     def __init__(self, api_key: str = "") -> None:
         self.api_key = api_key
 
-    def _params(self, **params) -> dict:
+    def _params(self, **params: Any) -> dict[str, Any]:
         if self.api_key:
             params["key"] = self.api_key
         return params
@@ -35,7 +35,7 @@ class GoogleBooksClient:
             published_year=year,
         )
 
-    async def _get(self, url: str, **params) -> httpx.Response:
+    async def _get(self, url: str, **params: Any) -> httpx.Response:
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 return await client.get(url, params=self._params(**params))

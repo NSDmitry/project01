@@ -1,3 +1,5 @@
+from typing import AsyncGenerator
+
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.settings import settings
@@ -12,7 +14,7 @@ async_engine = create_async_engine(async_database_url, echo=False)
 AsyncSessionLocal = async_sessionmaker(bind=async_engine, autoflush=False, expire_on_commit=False)
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     # Граница транзакции - запрос: репозитории только flush-ат, фиксируем здесь
     # один раз. Любая ошибка (в т.ч. APIException) откатывает всю транзакцию.
     async with AsyncSessionLocal() as session:

@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/genres", tags=["genres"])
 )
 async def get_genres(
         service: GenreService = Depends(get_genre_service),
-):
+) -> ResponseModel[List[GenreResponse]]:
     return await service.list_genres()
 
 
@@ -53,7 +53,7 @@ async def create_genre(
         model: CreateGenreRequest,
         user: Principal = Depends(get_current_user),
         service: GenreService = Depends(get_genre_service),
-):
+) -> ResponseModel[GenreResponse]:
     return await service.create_genre(user, model)
 
 
@@ -82,7 +82,7 @@ async def update_genre(
         model: UpdateGenreRequest,
         user: Principal = Depends(get_current_user),
         service: GenreService = Depends(get_genre_service),
-):
+) -> ResponseModel[GenreResponse]:
     return await service.update_genre(user, genre_id, model)
 
 
@@ -107,5 +107,5 @@ async def delete_genre(
         genre_id: PathId,
         user: Principal = Depends(get_current_user),
         service: GenreService = Depends(get_genre_service),
-):
+) -> ResponseModel:
     return await service.delete_genre(user, genre_id)

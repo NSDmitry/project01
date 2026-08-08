@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 from app.core import events
 from app.core.authorization import require_permission
@@ -6,11 +6,13 @@ from app.core.contracts import Principal, UserSummary
 from app.core.errors.errors import Forbidden
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
+from app.threads.models import Comment, Thread
 from app.threads.ports import BooksPort, ClubsPort, UsersPort
 from app.threads.repository import ThreadRepository, CommentRepository
 from app.threads.schemas import (
     ThreadResponse,
     ThreadCreateRequest,
+    ThreadUpdateRequest,
     CommentResponse,
     CommentCreateRequest,
     CommentUpdateRequest,
@@ -38,7 +40,7 @@ class ThreadService:
 
     # author больше не relationship в модели - тред хранит только author_id.
     # UserSummary подтягиваем батчем из iam (после распила - вызов user-сервиса).
-    async def _to_responses(self, threads) -> list[ThreadResponse]:
+    async def _to_responses(self, threads: Sequence[Thread]) -> list[ThreadResponse]:
         author_ids = {thread.author_id for thread in threads if thread.author_id is not None}
         authors = {}
         if author_ids:
@@ -48,12 +50,12 @@ class ThreadService:
         responses = []
         for thread in threads:
             response = ThreadResponse.model_validate(thread)
-            response.author = authors.get(thread.author_id)
+            response.author = authors.get(thread.author_id) if thread.author_id is not None else None
             responses.append(response)
 
         return responses
 
-    async def _to_response(self, thread) -> ThreadResponse:
+    async def _to_response(self, thread: Thread) -> ThreadResponse:
         return (await self._to_responses([thread]))[0]
 
     async def get_threads(self, book_club_id: int, limit: int, offset: int) -> ResponseModel[Page[ThreadResponse]]:
@@ -120,7 +122,7 @@ class ThreadService:
             self,
             user: Principal,
             thread_id: int,
-            model: ThreadCreateRequest
+            model: ThreadUpdateRequest
     ) -> ResponseModel[ThreadResponse]:
         """
         Обновление треда.
@@ -162,7 +164,7 @@ class CommentService:
         self.user_repository = user_repository
 
     # author больше не relationship - см. комментарий в ThreadService._to_responses.
-    async def _authors_by_id(self, comments) -> dict:
+    async def _authors_by_id(self, comments: Sequence[Comment]) -> dict[int, UserSummary]:
         author_ids = {comment.author_id for comment in comments if comment.author_id is not None}
         if not author_ids:
             return {}
@@ -171,19 +173,27 @@ class CommentService:
 
         return {summary.id: summary for summary in summaries}
 
-    async def _author_of(self, comment):
+    async def _author_of(self, comment: Comment) -> UserSummary | None:
+        if comment.author_id is None:
+            return None
+
         return (await self._authors_by_id([comment])).get(comment.author_id)
 
     # Единая точка сборки ответа: автор, счётчик и флаг лайка всегда задаются явно.
     @staticmethod
-    def _build_response(comment, author, likes_count: int = 0, is_liked: bool = False) -> CommentResponse:
+    def _build_response(
+        comment: Comment,
+        author: UserSummary | None,
+        likes_count: int = 0,
+        is_liked: bool = False,
+    ) -> CommentResponse:
         return CommentResponse.model_validate(comment).model_copy(update={
             "author": author,
             "likes_count": likes_count,
             "is_liked": is_liked,
         })
 
-    async def _to_response(self, comment) -> CommentResponse:
+    async def _to_response(self, comment: Comment) -> CommentResponse:
         return self._build_response(comment, await self._author_of(comment))
 
     async def get_comments(
@@ -212,7 +222,7 @@ class CommentService:
             items=[
                 self._build_response(
                     comment,
-                    authors.get(comment.author_id),
+                    authors.get(comment.author_id) if comment.author_id is not None else None,
                     likes_counts.get(comment.id, 0),
                     comment.id in liked_ids,
                 )
@@ -335,7 +345,7 @@ class CommentService:
 
         return ResponseModel.ok(await self._comment_with_likes(db_comment, is_liked=False))
 
-    async def _comment_with_likes(self, comment, is_liked: bool) -> CommentResponse:
+    async def _comment_with_likes(self, comment: Comment, is_liked: bool) -> CommentResponse:
         likes_counts = await self.comment_repository.get_likes_counts([comment.id])
 
         return self._build_response(
