@@ -100,12 +100,12 @@ class UserSessionService:
 
         return sid
 
-    async def get_user_session(self, sid: str) -> UserSession | None:
+    async def get_user_session(self, sid: str) -> UserSession:
         sid_hash = self._sid_hash(sid)
         session = await self.user_session_repository.get_user_session(sid_hash)
 
-        if not session:
-            return None
+        if session is None:
+            raise Unauthorized(errors=["Недействительная или истёкшая сессия"])
 
         now = self._utcnow()
 
