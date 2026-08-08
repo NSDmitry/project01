@@ -9,6 +9,7 @@
 """
 import json
 import logging
+from typing import Awaitable, Callable
 
 import aio_pika
 
@@ -27,8 +28,11 @@ GENRES_DELETED = "genres_deleted"
 THREAD_CREATED = "thread_created"
 THREAD_DELETED = "thread_deleted"
 
+# Хендлер получает распакованный payload события и ничего не возвращает.
+Handler = Callable[[dict], Awaitable[None]]
+
 # {событие: [(очередь, хендлер)]}
-_handlers: dict[str, list] = {}
+_handlers: dict[str, list[tuple[str, Handler]]] = {}
 
 # Хендлеры работают вне запроса, поэтому открывают свою сессию БД и коммитят
 # сами. Тесты подменяют фабрику на свою (как override get_db в conftest).
@@ -38,13 +42,13 @@ _connection: aio_pika.abc.AbstractRobustConnection | None = None
 _exchange: aio_pika.abc.AbstractExchange | None = None
 
 
-def subscribe(event: str, queue: str):
+def subscribe(event: str, queue: str) -> Callable[[Handler], Handler]:
     """Подписать хендлер на событие.
 
     queue - очередь домена-подписчика: при распиле монолита на сервисы очередь
     уезжает вместе со своим доменом, топология не меняется.
     """
-    def wrap(fn):
+    def wrap(fn: Handler) -> Handler:
         _handlers.setdefault(event, []).append((queue, fn))
         return fn
     return wrap
@@ -80,7 +84,7 @@ async def startup() -> None:
 
     # Группируем хендлеры по очереди: {очередь: {событие: хендлер}}. На каждый
     # домен - одна очередь с одним consumer, который диспетчеризует по routing_key.
-    by_queue: dict[str, dict] = {}
+    by_queue: dict[str, dict[str, Handler]] = {}
     for event, pairs in _handlers.items():
         for queue_name, fn in pairs:
             by_queue.setdefault(queue_name, {})[event] = fn
@@ -94,10 +98,14 @@ async def startup() -> None:
         await queue.consume(_consumer(event_handlers))
 
 
-def _consumer(handlers: dict):
+def _consumer(
+    handlers: dict[str, Handler],
+) -> Callable[[aio_pika.abc.AbstractIncomingMessage], Awaitable[None]]:
     async def consume(message: aio_pika.abc.AbstractIncomingMessage) -> None:
         try:
-            await handlers[message.routing_key](json.loads(message.body))
+            # routing_key объявлен Optional: пустой ключ даст KeyError и уйдёт в DLQ так же,
+            # как неизвестное событие.
+            await handlers[message.routing_key or ""](json.loads(message.body))
             await message.ack()
         except Exception:
             logger.exception("Событие %s не обработано", message.routing_key)

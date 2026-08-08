@@ -441,6 +441,21 @@
       "source": "architecture/core-events.spec.md",
       "target": "conventions/cross-domain-events.rule.md",
       "type": "related"
+    },
+    {
+      "source": "iam/iam-repository.spec.md",
+      "target": "conventions/domain-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "threads/threads-repository.spec.md",
+      "target": "conventions/domain-errors.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "bookclubs/bookclubs-repository.spec.md",
+      "target": "conventions/domain-errors.rule.md",
+      "type": "related"
     }
   ]
 }

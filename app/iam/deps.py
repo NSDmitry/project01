@@ -52,9 +52,6 @@ async def get_current_user(
 
     user_session = await user_session_service.get_user_session(sid)
 
-    if not user_session:
-        raise Unauthorized(errors=["Недействительная или истёкшая сессия"])
-
     try:
         return await user_repository.get_user_by_id(user_session.user_id)
     except NotFound:

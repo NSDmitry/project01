@@ -1,6 +1,7 @@
 import hmac
 import logging
 from contextlib import asynccontextmanager
+from typing import Any, AsyncGenerator
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
@@ -10,8 +11,9 @@ from fastapi_limiter import FastAPILimiter
 from redis import asyncio as redis_asyncio
 
 # Импорт ради side-effect: регистрация доменных подписчиков на события.
-import app.bookclubs.events  # noqa: F401
-import app.threads.events  # noqa: F401
+# Через from-import, иначе имя `app` связывается с пакетом и конфликтует с `app = FastAPI()`.
+from app.bookclubs import events as _bookclubs_events  # noqa: F401
+from app.threads import events as _threads_events  # noqa: F401
 from app.bookclubs.router import router as bookclubs_router
 from app.books.router import router as books_router
 from app.core import events
@@ -28,7 +30,7 @@ class UTF8JSONResponse(JSONResponse):
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     redis_conn = redis_asyncio.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
     await FastAPILimiter.init(redis_conn)
     await events.startup()
@@ -48,10 +50,11 @@ app = FastAPI(
 )
 
 if settings.docs_enabled:
-    app.router.routes = [r for r in app.router.routes if getattr(r, "path", None) != app.openapi_url]
+    openapi_url = app.openapi_url or "/openapi.json"
+    app.router.routes = [r for r in app.router.routes if getattr(r, "path", None) != openapi_url]
 
-    @app.api_route(app.openapi_url, methods=["GET", "HEAD"], include_in_schema=False)
-    def openapi():
+    @app.api_route(openapi_url, methods=["GET", "HEAD"], include_in_schema=False)
+    def openapi() -> dict[str, Any]:
         return app.openapi()
 
 
@@ -77,7 +80,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 Instrumentator().instrument(app)
 
 
-def verify_metrics_token(authorization: str = Header(default="")):
+def verify_metrics_token(authorization: str = Header(default="")) -> None:
     if not settings.metrics_token:
         # Токен не задан - метрики недоступны наружу.
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
@@ -86,17 +89,17 @@ def verify_metrics_token(authorization: str = Header(default="")):
 
 
 @app.get("/metrics", include_in_schema=False, dependencies=[Depends(verify_metrics_token)])
-def metrics():
+def metrics() -> Response:
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.exception_handler(APIException)
-def api_exception_handler(request: Request, exc: APIException):
+def api_exception_handler(request: Request, exc: APIException) -> JSONResponse:
     return exc.as_response()
 
 
 @app.exception_handler(RequestValidationError)
-def validation_exception_handler(request: Request, exc: RequestValidationError):
+def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
     errors = []
     for e in exc.errors():
         msg = e["msg"].removeprefix("Value error, ")
@@ -110,7 +113,7 @@ def validation_exception_handler(request: Request, exc: RequestValidationError):
 
 
 @app.exception_handler(Exception)
-def unhandled_exception_handler(request: Request, exc: Exception):
+def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     # Обработчик регистрируется в ServerErrorMiddleware, который сам traceback
     # не логирует - без exception() ошибка пропадёт из логов.
     logging.getLogger("app").exception("Unhandled error: %s %s", request.method, request.url.path)

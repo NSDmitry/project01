@@ -6,7 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors.errors import NotFound
 from app.threads.models import Thread, Comment, CommentLike
-from app.threads.schemas import ThreadCreateRequest, CommentCreateRequest, CommentUpdateRequest
+from app.threads.schemas import (
+    ThreadCreateRequest,
+    ThreadUpdateRequest,
+    CommentCreateRequest,
+    CommentUpdateRequest,
+)
 
 
 class ThreadRepository:
@@ -27,7 +32,7 @@ class ThreadRepository:
             .offset(offset)
         )
 
-        return result.scalars().all(), total
+        return list(result.scalars().all()), total or 0
 
     async def get_thread(self, thread_id: int) -> Thread:
         result = await self.db.execute(select(Thread).where(Thread.id == thread_id))
@@ -38,7 +43,7 @@ class ThreadRepository:
 
         return thread
 
-    async def create_thread(self, author_id: int, model: ThreadCreateRequest, book_id: int = None) -> Thread:
+    async def create_thread(self, author_id: int, model: ThreadCreateRequest, book_id: int | None = None) -> Thread:
         new_thread = Thread()
         new_thread.club_id = model.club_id
         new_thread.author_id = author_id
@@ -74,7 +79,7 @@ class ThreadRepository:
                 .where(Thread.author_id == user_id)
                 .group_by(Thread.club_id)
             )
-            threads_removed_by_club = dict(result.all())
+            threads_removed_by_club = dict(result.tuples().all())
             await self.db.execute(delete(Thread).where(Thread.author_id == user_id))
         else:
             await self.db.execute(
@@ -91,7 +96,7 @@ class ThreadRepository:
 
         return threads_removed_by_club
 
-    async def delete_thread(self, thread_id: int) -> Thread:
+    async def delete_thread(self, thread_id: int) -> Thread | None:
         result = await self.db.execute(select(Thread).where(Thread.id == thread_id))
         thread = result.scalar_one_or_none()
         if thread:
@@ -100,7 +105,7 @@ class ThreadRepository:
 
         return thread
 
-    async def update_thread(self, thread: Thread, model: ThreadCreateRequest) -> Thread:
+    async def update_thread(self, thread: Thread, model: ThreadUpdateRequest) -> Thread:
         thread.title = model.title
         thread.content = model.content
 
@@ -127,7 +132,7 @@ class CommentRepository:
             .offset(offset)
         )
 
-        return result.scalars().all(), total
+        return list(result.scalars().all()), total or 0
 
     async def get_comment(self, comment_id: int) -> Comment:
         result = await self.db.execute(select(Comment).where(Comment.id == comment_id))
@@ -149,7 +154,7 @@ class CommentRepository:
 
         return await self.get_comment(new_comment.id)
 
-    async def delete_comment(self, comment_id: int) -> Comment:
+    async def delete_comment(self, comment_id: int) -> Comment | None:
         result = await self.db.execute(select(Comment).where(Comment.id == comment_id))
         comment = result.scalar_one_or_none()
         if comment:
@@ -195,7 +200,7 @@ class CommentRepository:
             .offset(offset)
         )
 
-        return result.scalars().all(), total
+        return list(result.scalars().all()), total or 0
 
     async def get_likes_counts(self, comment_ids: List[int]) -> Dict[int, int]:
         if not comment_ids:
@@ -207,7 +212,7 @@ class CommentRepository:
             .group_by(CommentLike.comment_id)
         )
 
-        return dict(result.all())
+        return dict(result.tuples().all())
 
     async def get_liked_comment_ids(self, comment_ids: List[int], user_id: int) -> Set[int]:
         if not comment_ids:

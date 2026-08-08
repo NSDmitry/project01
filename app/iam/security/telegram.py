@@ -58,6 +58,11 @@ def verify_init_data(init_data: str, bot_token: str) -> dict:
     except json.JSONDecodeError:
         raise Unauthorized(errors=["Не удалось разобрать данные пользователя Telegram"])
 
+    # json.loads вернёт что угодно: на скаляре или списке проверка "id" not in user
+    # упала бы TypeError, то есть 500 вместо 401 на подделанных данных.
+    if not isinstance(user, dict):
+        raise Unauthorized(errors=["Не удалось разобрать данные пользователя Telegram"])
+
     if "id" not in user:
         raise Unauthorized(errors=["В данных Telegram отсутствует идентификатор пользователя"])
 

@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import Depends, Request, Response
 from fastapi_limiter import FastAPILimiter
 from fastapi_limiter.depends import RateLimiter
@@ -8,7 +10,7 @@ REGISTRATIONS_LIMIT = 3
 REGISTRATIONS_WINDOW = 3600
 
 
-def rate_limiter(times: int, seconds: int):
+def rate_limiter(times: int, seconds: int) -> Any:  # Depends() не типизирован
     """Rate-limit зависимость на Redis (ключ - IP + путь).
 
     Если лимитер не инициализирован (например в тестах, где lifespan не
@@ -27,7 +29,11 @@ def rate_limiter(times: int, seconds: int):
 def client_ip(request: Request) -> str:
     # Та же логика, что у default_identifier в fastapi_limiter: XFF от Caddy, иначе peer IP.
     forwarded = request.headers.get("X-Forwarded-For")
-    return forwarded.split(",")[0].strip() if forwarded else request.client.host
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+
+    # request.client пуст только вне HTTP-транспорта (например, в тестовом ASGI-вызове).
+    return request.client.host if request.client else "unknown"
 
 
 async def check_registrations_limit(ip: str) -> None:

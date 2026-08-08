@@ -22,6 +22,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # До Postgres и pytest: ошибка типов валит прогон за полминуты, а не за три.
+      - name: Check types
+        run: mypy
+
       - name: Start Postgres with Docker Compose
         run: docker compose -f docker-compose.test.yml up -d
 

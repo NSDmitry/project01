@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from app.books.deps import get_book_service
 from app.books.schemas import BookResponse, BookSuggestionResponse, CreateBookRequest
 from app.books.service import BookService
+from app.core.contracts import Principal
 from app.core.models.response_model import ResponseModel
 from app.iam.deps import get_current_user
 
@@ -29,9 +30,9 @@ router = APIRouter(prefix="/api/books", tags=["books"])
 )
 async def create_book(
     model: CreateBookRequest,
-    _user=Depends(get_current_user),
+    _user: Principal = Depends(get_current_user),
     service: BookService = Depends(get_book_service),
-):
+) -> ResponseModel[BookResponse]:
     return await service.create_book(model)
 
 
@@ -53,7 +54,7 @@ async def create_book(
 )
 async def search_books(
     q: str = Query(..., min_length=1, max_length=200),
-    _user=Depends(get_current_user),
+    _user: Principal = Depends(get_current_user),
     service: BookService = Depends(get_book_service),
-):
+) -> ResponseModel[List[BookSuggestionResponse]]:
     return await service.search_books(q)

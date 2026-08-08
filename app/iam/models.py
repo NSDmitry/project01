@@ -1,6 +1,8 @@
 import uuid
+from datetime import datetime
 
-from sqlalchemy import Column, String, BigInteger, UUID, DateTime, Boolean
+from sqlalchemy import String, BigInteger, UUID, DateTime, Boolean
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 from app.core.db_base_model import DBLBase
@@ -9,17 +11,20 @@ from app.core.db_base_model import DBLBase
 class User(Base, DBLBase):
     __tablename__ = "users"
 
-    name = Column(String, nullable=False)
-    phone_number = Column(String, unique=True, nullable=True)
-    telegram_id = Column(BigInteger, unique=True, nullable=True)
-    password = Column(String, nullable=True)
-    is_admin = Column(Boolean, nullable=False, server_default="false")
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    phone_number: Mapped[str | None] = mapped_column(String, unique=True, nullable=True)
+    telegram_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, nullable=True)
+    password: Mapped[str | None] = mapped_column(String, nullable=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
 
 
 class UserSession(Base, DBLBase):
     __tablename__ = "user_sessions"
 
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(BigInteger, nullable=False)
-    sid_hash = Column(String(64), nullable=False)
-    last_used = Column(DateTime(timezone=True), nullable=True)
+    # Сессии адресуются UUID, а не автоинкрементом из DBLBase - осознанное переопределение.
+    id: Mapped[uuid.UUID] = mapped_column(  # type: ignore[assignment]
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    sid_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    last_used: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

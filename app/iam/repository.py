@@ -1,6 +1,8 @@
 import logging
+from datetime import datetime
+from typing import cast
 
-from sqlalchemy import DateTime, or_, select, delete
+from sqlalchemy import CursorResult, or_, select, delete
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,8 +20,7 @@ class UserRepository:
         self.db = db
 
     async def get_user_by_id(self, user_id: int) -> User:
-        result = await self.db.execute(select(User).where(User.id == user_id))
-        db_user = result.scalar_one_or_none()
+        db_user = await self.db.get(User, user_id)
 
         if db_user is None:
             raise NotFound(errors=["Пользователь с таким id не найден"])
@@ -36,12 +37,12 @@ class UserRepository:
 
         return [UserSummary.model_validate(user) for user in result.scalars().all()]
 
-    async def get_user_by_phone_number(self, phone_number: str) -> User:
+    async def get_user_by_phone_number(self, phone_number: str) -> User | None:
         result = await self.db.execute(select(User).where(User.phone_number == phone_number))
 
         return result.scalar_one_or_none()
 
-    async def get_user_by_telegram_id(self, telegram_id: int) -> User:
+    async def get_user_by_telegram_id(self, telegram_id: int) -> User | None:
         result = await self.db.execute(select(User).where(User.telegram_id == telegram_id))
 
         return result.scalar_one_or_none()
@@ -57,7 +58,10 @@ class UserRepository:
         except IntegrityError:
             # Параллельный первый вход уже создал запись - используем существующую.
             await self.db.rollback()
-            return await self.get_user_by_telegram_id(telegram_id)
+            existing = await self.get_user_by_telegram_id(telegram_id)
+            if existing is None:
+                raise InternalServerError(errors=["Ошибка при создании пользователя."])
+            return existing
 
         await self.db.refresh(user_db_model)
 
@@ -124,7 +128,7 @@ class UserSessionRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def create_user_session(self, user_id: int, sid_hash: str, last_used: DateTime) -> UserSession:
+    async def create_user_session(self, user_id: int, sid_hash: str, last_used: datetime) -> UserSession:
         session = UserSession()
         session.user_id = user_id
         session.sid_hash = sid_hash
@@ -151,7 +155,7 @@ class UserSessionRepository:
         )
         await self.db.flush()
 
-    async def delete_user_session(self, sid_hash: str):
+    async def delete_user_session(self, sid_hash: str) -> None:
         result = await self.db.execute(select(UserSession).where(UserSession.sid_hash == sid_hash))
         session = result.scalar_one_or_none()
 
@@ -159,22 +163,22 @@ class UserSessionRepository:
             await self.db.delete(session)
             await self.db.flush()
 
-    async def get_user_session(self, sid_hash: str) -> UserSession:
+    async def get_user_session(self, sid_hash: str) -> UserSession | None:
         result = await self.db.execute(select(UserSession).where(UserSession.sid_hash == sid_hash))
 
         return result.scalar_one_or_none()
 
-    async def update_last_used(self, session: UserSession, last_used: DateTime) -> UserSession:
+    async def update_last_used(self, session: UserSession, last_used: datetime) -> UserSession:
         session.last_used = last_used
         await self.db.flush()
 
         return session
 
-    async def delete_all_user_sessions(self, user_id: int):
+    async def delete_all_user_sessions(self, user_id: int) -> None:
         await self.db.execute(delete(UserSession).where(UserSession.user_id == user_id))
         await self.db.flush()
 
-    async def delete_idle_sessions(self, cutoff: DateTime) -> int:
+    async def delete_idle_sessions(self, cutoff: datetime) -> int:
         result = await self.db.execute(
             delete(UserSession).where(
                 or_(
@@ -185,4 +189,5 @@ class UserSessionRepository:
         )
         await self.db.flush()
 
-        return result.rowcount
+        # DELETE возвращает CursorResult, но перегрузка execute() объявляет Result[Any].
+        return cast(CursorResult, result).rowcount

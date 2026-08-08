@@ -4,6 +4,7 @@ from sqlalchemy import select, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.contracts import GenreResponse
 from app.genres.models import Genre
 from app.core.errors.errors import Conflict, NotFound
 
@@ -19,16 +20,18 @@ class GenreRepository:
             select(Genre).order_by(Genre.sort_order)
         )
 
-        return result.scalars().all()
+        return list(result.scalars().all())
 
-    async def get_by_codes(self, codes: List[str]) -> List[Genre]:
+    # get_by_codes/get_by_ids - адаптер порта GenresPort для соседних доменов,
+    # поэтому отдают контракт из core, а не ORM-модель жанра.
+    async def get_by_codes(self, codes: List[str]) -> List[GenreResponse]:
         result = await self.db.execute(
             select(Genre).where(Genre.code.in_(codes))
         )
 
-        return result.scalars().all()
+        return [GenreResponse.model_validate(genre) for genre in result.scalars().all()]
 
-    async def get_by_ids(self, ids: List[int]) -> List[Genre]:
+    async def get_by_ids(self, ids: List[int]) -> List[GenreResponse]:
         if not ids:
             return []
 
@@ -37,7 +40,7 @@ class GenreRepository:
             select(Genre).where(Genre.id.in_(ids)).order_by(Genre.sort_order, Genre.id)
         )
 
-        return result.scalars().all()
+        return [GenreResponse.model_validate(genre) for genre in result.scalars().all()]
 
     async def search_ids(self, term: str) -> List[int]:
         # экранируем спецсимволы LIKE, чтобы искать их как обычный текст
@@ -52,7 +55,7 @@ class GenreRepository:
             )
         )
 
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def get_by_id(self, genre_id: int) -> Genre:
         genre = await self.db.get(Genre, genre_id)

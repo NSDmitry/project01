@@ -42,7 +42,7 @@ async def register(
     model: SignUpRequest,
     request: Request,
     sso_service: AuthService = Depends(get_auth_service)
-):
+) -> ResponseModel[AuthUserResponse]:
     return await sso_service.register(model=model, client_ip=client_ip(request))
 
 @auth_router.post(
@@ -61,7 +61,7 @@ async def login(
     model: SignInRequest,
     request: Request,
     sso_service: AuthService = Depends(get_auth_service)
-):
+) -> ResponseModel[AuthUserResponse]:
     return await sso_service.login(model=model, client_ip=client_ip(request))
 
 @auth_router.post(
@@ -78,7 +78,7 @@ async def login(
 async def login_available(
     model: LoginAvailableRequest,
     sso_service: AuthService = Depends(get_auth_service)
-):
+) -> ResponseModel[LoginAvailableResponse]:
     return await sso_service.check_login_available(model=model)
 
 @auth_router.post(
@@ -96,7 +96,7 @@ async def login_available(
 async def telegram(
     model: TelegramAuthRequest,
     sso_service: AuthService = Depends(get_auth_service)
-):
+) -> ResponseModel[AuthUserResponse]:
     return await sso_service.login_with_telegram(model=model)
 
 @auth_router.post(
@@ -111,8 +111,8 @@ async def telegram(
 )
 async def logout(
     sso_service: AuthService = Depends(get_auth_service),
-    sid: str = Security(session_header)
-):
+    sid: str = Security(session_header),  # type: ignore[assignment]
+) -> ResponseModel[None]:
     return await sso_service.logout(sid=sid)
 
 
@@ -133,7 +133,7 @@ async def logout(
 )
 def get_current_user_public_info(
     user: User = Depends(get_current_user)
-):
+) -> ResponseModel[OwnUserResponse]:
     return ResponseModel.ok(OwnUserResponse.model_validate(user))
 
 @users_router.get(
@@ -155,7 +155,7 @@ async def get_user_by_id(
     user_id: QueryId,
     _: User = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)
-):
+) -> ResponseModel[UserSummary]:
     return await user_service.get_user_by_id(user_id)
 
 @users_router.put(
@@ -173,7 +173,7 @@ async def change_user_info(
     model: UpdateUserRequest = Body(...),
     user: User = Depends(get_current_user),
     user_service: UserService = Depends(get_user_service)
-):
+) -> ResponseModel[OwnUserResponse]:
     return await user_service.update_user_info(user=user, model=model)
 
 
@@ -193,7 +193,7 @@ async def change_password(
     model: ChangePasswordRequest = Body(...),
     user: User = Depends(get_current_user),
     auth_service: AuthService = Depends(get_auth_service)
-):
+) -> ResponseModel[None]:
     return await auth_service.change_password(
         user=user,
         current_password=model.current_password,
@@ -232,7 +232,7 @@ async def delete_current_user(
     password: str | None = Body(default=None, embed=True),
     user: User = Depends(get_current_user),
     auth_service: AuthService = Depends(get_auth_service)
-):
+) -> ResponseModel[None]:
     return await auth_service.delete_current_user(
         user=user,
         password=password,

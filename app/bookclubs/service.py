@@ -42,7 +42,7 @@ class BookClubService:
         responses = []
         for club in clubs:
             response = BookClubResponse.model_validate(club)
-            response.owner = owners.get(club.owner_id)
+            response.owner = owners.get(club.owner_id) if club.owner_id is not None else None
             response.genres = genres_by_club.get(club.id, [])
             responses.append(response)
 
@@ -70,9 +70,7 @@ class BookClubService:
         genres_by_club: dict[int, List[GenreResponse]] = {}
         for club_id, ids in genre_ids_by_club.items():
             club_genre_ids = set(ids)
-            genres_by_club[club_id] = [
-                GenreResponse.model_validate(genre) for genre in genres if genre.id in club_genre_ids
-            ]
+            genres_by_club[club_id] = [genre for genre in genres if genre.id in club_genre_ids]
 
         return genres_by_club
 

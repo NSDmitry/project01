@@ -36,7 +36,7 @@ async def get_threads(
         limit: int = Query(10, ge=1, le=100),
         offset: int = Query(0, ge=0),
         service: ThreadService = Depends(get_thread_service)
-):
+) -> ResponseModel[Page[ThreadResponse]]:
     return await service.get_threads(book_club_id=club_id, limit=limit, offset=offset)
 
 
@@ -64,7 +64,7 @@ async def create_thread(
         model: ThreadCreateRequest,
         user: Principal = Depends(get_current_user),
         service: ThreadService = Depends(get_thread_service)
-):
+) -> ResponseModel[ThreadResponse]:
     return await service.create_thread(user=user, model=model)
 
 
@@ -85,7 +85,7 @@ async def delete_thread(
         thread_id: PathId,
         user: Principal = Depends(get_current_user),
         service: ThreadService = Depends(get_thread_service)
-):
+) -> ResponseModel:
     return await service.delete_thread(user=user, thread_id=thread_id)
 
 
@@ -106,7 +106,7 @@ async def update_thread(
         model: ThreadUpdateRequest,
         user: Principal = Depends(get_current_user),
         service: ThreadService = Depends(get_thread_service)
-):
+) -> ResponseModel[ThreadResponse]:
     return await service.update_thread(user=user, thread_id=thread_id, model=model)
 
 
@@ -130,7 +130,7 @@ async def get_comments(
         offset: int = Query(0, ge=0),
         user: Principal | None = Depends(get_optional_user),
         service: CommentService = Depends(get_comment_service)
-):
+) -> ResponseModel[Page[CommentResponse]]:
     return await service.get_comments(thread_id=thread_id, limit=limit, offset=offset, user=user)
 
 
@@ -158,7 +158,7 @@ async def create_comment(
         model: CommentCreateRequest,
         user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
-):
+) -> ResponseModel[CommentResponse]:
     return await service.create_comment(user=user, thread_id=thread_id, model=model)
 
 
@@ -180,7 +180,7 @@ async def update_comment(
         model: CommentUpdateRequest,
         user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
-):
+) -> ResponseModel[CommentResponse]:
     return await service.update_comment(user=user, comment_id=comment_id, model=model)
 
 
@@ -201,7 +201,7 @@ async def delete_comment(
         comment_id: PathId,
         user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
-):
+) -> ResponseModel:
     return await service.delete_comment(user=user, comment_id=comment_id)
 
 
@@ -221,7 +221,7 @@ async def get_comment_likers(
         limit: int = Query(10, ge=1, le=100),
         offset: int = Query(0, ge=0),
         service: CommentService = Depends(get_comment_service)
-):
+) -> ResponseModel[Page[UserSummary]]:
     return await service.get_comment_likers(comment_id=comment_id, limit=limit, offset=offset)
 
 
@@ -247,7 +247,7 @@ async def like_comment(
         comment_id: PathId,
         user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
-):
+) -> ResponseModel[CommentResponse]:
     return await service.like_comment(user=user, comment_id=comment_id)
 
 
@@ -272,5 +272,5 @@ async def unlike_comment(
         comment_id: PathId,
         user: Principal = Depends(get_current_user),
         service: CommentService = Depends(get_comment_service)
-):
+) -> ResponseModel[CommentResponse]:
     return await service.unlike_comment(user=user, comment_id=comment_id)

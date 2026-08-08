@@ -37,6 +37,11 @@ async def confirm_password(user: User, password: str) -> None:
     Неудачные попытки идут в ту же эскалирующую блокировку, что и login, -
     иначе украденная сессия позволяет перебирать пароль в обход phone-lockout.
     """
+    # Блокировка ключуется номером телефона, поэтому аккаунт без номера пустил бы
+    # всех таких пользователей в один общий счётчик попыток.
+    if user.phone_number is None or user.password is None:
+        raise BadRequest(errors=["У аккаунта не установлен пароль"])
+
     await brute_force.check_not_locked(user.phone_number)
 
     if not await AuthService._verify_password(password, user.password):
@@ -52,18 +57,18 @@ class UserService:
     def __init__(self, user_repository: UserRepository) -> None:
         self.user_repository = user_repository
 
-    async def get_user_by_id(self, user_id: int) -> UserSummary:
+    async def get_user_by_id(self, user_id: int) -> ResponseModel[UserSummary]:
         db_user: User = await self.user_repository.get_user_by_id(user_id)
 
         return ResponseModel.ok(UserSummary.model_validate(db_user))
 
-    async def update_user_info(self, user: User, model: UpdateUserRequest) -> OwnUserResponse:
+    async def update_user_info(self, user: User, model: UpdateUserRequest) -> ResponseModel[OwnUserResponse]:
         await self.validate_phone_number(model.phone_number, exclude_user_id=user.id)
         updated_user: User = await self.user_repository.update_user_info(user.id, model.name, model.phone_number)
 
         return ResponseModel.ok(OwnUserResponse.model_validate(updated_user))
 
-    async def validate_phone_number(self, phone_number: str, exclude_user_id: int | None = None):
+    async def validate_phone_number(self, phone_number: str, exclude_user_id: int | None = None) -> None:
         if not await self.__is_unique_phone_number(phone_number, exclude_user_id=exclude_user_id):
             raise Conflict(errors=["Пользователь с таким номером телефона уже зарегистрирован"])
 
@@ -99,8 +104,8 @@ class UserSessionService:
         sid_hash = self._sid_hash(sid)
         session = await self.user_session_repository.get_user_session(sid_hash)
 
-        if not session:
-            return None
+        if session is None:
+            raise Unauthorized(errors=["Недействительная или истёкшая сессия"])
 
         now = self._utcnow()
 
@@ -115,11 +120,11 @@ class UserSessionService:
 
         return session
 
-    async def logout_user_session(self, sid: str):
+    async def logout_user_session(self, sid: str) -> None:
         sid_hash = self._sid_hash(sid)
         await self.user_session_repository.delete_user_session(sid_hash)
 
-    async def logout_all_user_sessions(self, user_id: int):
+    async def logout_all_user_sessions(self, user_id: int) -> None:
         await self.user_session_repository.delete_all_user_sessions(user_id)
 
     async def cleanup_idle_sessions(self) -> int:
@@ -135,7 +140,7 @@ class UserSessionService:
         return hashlib.sha256(sid.encode("utf-8")).hexdigest()
 
     @staticmethod
-    def _utcnow():
+    def _utcnow() -> datetime:
         return datetime.now(timezone.utc)
 
 
@@ -255,7 +260,7 @@ class AuthService:
         await self.user_session_service.logout_user_session(sid)
         return ResponseModel.ok(message="Успешный выход из системы")
 
-    async def change_password(self, user, current_password: str, new_password: str) -> ResponseModel[None]:
+    async def change_password(self, user: User, current_password: str, new_password: str) -> ResponseModel[None]:
         # Telegram-пользователь: пароля нет, подтверждать и менять нечего.
         if user.password is None:
             raise BadRequest(errors=["У аккаунта не установлен пароль"])

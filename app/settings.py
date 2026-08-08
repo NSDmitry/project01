@@ -26,4 +26,5 @@ class Settings(BaseSettings):
     )
 
 
-settings = Settings()
+# Значения без дефолтов приходят из окружения/.env, а не из вызова.
+settings = Settings()  # type: ignore[call-arg]
