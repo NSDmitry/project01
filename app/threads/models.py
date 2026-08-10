@@ -16,6 +16,8 @@ class Thread(Base, DBLBase):
         # FK не создаёт индекс на дочерней стороне: без него удаление книги
         # сканирует threads целиком, чтобы выполнить ON DELETE SET NULL.
         Index("ix_threads_book_id", "book_id"),
+        # Лента этапа: обсуждение первых глав отделено от обсуждения финала.
+        Index("ix_threads_reading_stage_id", "reading_stage_id"),
     )
 
     # id клуба из bookclubs - без FK, треды удаляются кодом при удалении клуба
@@ -25,6 +27,12 @@ class Thread(Base, DBLBase):
     book_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("books.id", ondelete="SET NULL"), nullable=True
     )
+    # Этап захода из bookclubs, к которому привязано обсуждение. NULL - тред про
+    # книгу в целом. Без FK, как и club_id: домены связаны только идентификатором.
+    # FK здесь ещё и вредил бы - удаление клуба каскадом уносит этапы и в той же
+    # транзакции блокировало бы треды, которые чистит обработчик CLUBS_DELETED в
+    # своей сессии.
+    reading_stage_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     title: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Денормализованный счётчик комментариев треда. Комментарии в этом же домене,

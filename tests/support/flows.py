@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from tests.support.api import ApiClient
-from tests.support.factories import AuthFactory, BookclubFactory
+from tests.support.factories import AuthFactory, BookclubFactory, ReadingFactory
+from tests.support.google_books import install_fake_google, suggestion
 
 
 @dataclass(frozen=True)
@@ -40,3 +41,30 @@ class BookclubFlow:
         current_auth = auth or AuthFlow.register(api)
         current_payload = payload or BookclubFactory.payload()
         return api.create_bookclub(current_payload, headers=current_auth.headers)
+
+
+class ReadingFlow:
+    @staticmethod
+    def create(
+        api: ApiClient,
+        club_id: int,
+        owner: AuthSession,
+        payload: dict | None = None,
+        volume_id: str = "vol-1",
+    ):
+        # Книга приезжает из Google Books - в тестах клиент подменён.
+        install_fake_google([suggestion(volume_id=volume_id)])
+        return api.create_reading(
+            club_id,
+            payload or ReadingFactory.payload(book_volume_id=volume_id),
+            headers=owner.headers,
+        )
+
+
+class MemberFlow:
+    @staticmethod
+    def join(api: ApiClient, club_id: int) -> AuthSession:
+        member = AuthFlow.register(api)
+        api.join_bookclub(club_id, headers=member.headers)
+
+        return member

@@ -11,11 +11,11 @@ SQLAlchemy schema · 3 entities.
 
 | Entity | Key relations |
 |--------|---------------|
-| Thread (threads) | N:1 Book via book_id (FK SET NULL); 1:N Comment |
+| Thread (threads) | N:1 Book via book_id (FK SET NULL); reading_stage_id -> reading_stages (логическая, nullable); 1:N Comment |
 | Comment (comments) | N:1 Thread (FK CASCADE); 1:N CommentLike |
 | CommentLike (comment_likes) | N:1 Comment (FK CASCADE); user_id -> users (логическая); UNIQUE (comment_id, user_id) |
 
-Relations: лайк уникален на пару (comment_id, user_id); ссылка на пользователя кросс-доменная, без FK.
+Relations: лайк уникален на пару (comment_id, user_id); ссылка на пользователя кросс-доменная, без FK. Ссылка треда на этап захода клуба - тоже кросс-доменная и тоже без FK: этапы принадлежат домену bookclubs.
 
 Денормализованный счётчик: `threads.comments_count` ведётся репозиторием в одной транзакции с самим комментарием - комментарии в своём домене, событий для счётчика нет. Комментарии, уходящие каскадом вместе с тредом, счётчика не касаются: строки треда уже нет.
 
@@ -26,6 +26,7 @@ Relations: лайк уникален на пару (comment_id, user_id); ссы
 | ix_threads_club_id_created_at_id | club_id, created_at, id | лента тредов клуба: фильтр и сортировка без отдельного Sort |
 | ix_threads_author_id | author_id | удаление или анонимизация автора |
 | ix_threads_book_id | book_id | ON DELETE SET NULL при удалении книги |
+| ix_threads_reading_stage_id | reading_stage_id | лента обсуждений одного этапа захода |
 | ix_comments_thread_id_created_at_id | thread_id, created_at, id | комментарии треда: фильтр и сортировка без отдельного Sort |
 | ix_comments_author_id | author_id | удаление или анонимизация автора |
 | ix_comment_likes_user_id | user_id | удаление лайков при удалении пользователя |
@@ -45,6 +46,11 @@ Relations: лайк уникален на пару (comment_id, user_id); ссы
   обычных UPDATE по таблице тот же план вырождается в heap fetch на каждую строку
   и становится на порядок дороже. Счётчик снимает эту зависимость от состояния
   autovacuum.
+- Ссылка на этап захода сознательно оставлена без FK. Помимо правила «домены
+  связаны только идентификатором», FK здесь создавал бы пересечение блокировок:
+  удаление клуба каскадом уносит этапы в незафиксированной транзакции запроса, а
+  треды того же клуба чистит обработчик CLUBS_DELETED в отдельной сессии, и он
+  ждал бы эту транзакцию вечно.
 - Удаление клуба каскадом стоит секунды не из-за самих строк, а из-за
   построчных FK-триггеров на дочерних таблицах. Удаление детей явными
   множественными DELETE не дешевле (проверено замером - вдвое дороже), поэтому

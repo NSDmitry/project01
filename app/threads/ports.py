@@ -22,3 +22,9 @@ class ClubsPort(Protocol):
 class BooksPort(Protocol):
     # Возвращает книгу с полем id (в монолите - ORM, после распила - DTO книги).
     async def get_or_create_book(self, volume_id: str) -> Any: ...
+
+
+class ReadingsPort(Protocol):
+    # id клуба, которому принадлежит этап захода, либо None - этапа нет. Тредам
+    # хватает этого, чтобы проверить, что этап из того же клуба.
+    async def get_stage_club_id(self, stage_id: int) -> int | None: ...

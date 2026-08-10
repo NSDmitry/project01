@@ -3,10 +3,10 @@ from __future__ import annotations
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
-from datetime import datetime
+from pydantic import BaseModel, Field, model_validator
+from datetime import date, datetime
 
-from app.core.contracts import GenreResponse, UserSummary
+from app.core.contracts import BookResponse, GenreResponse, UserSummary
 from app.core.params import MAX_OFFSET
 from app.core.schemas import ResponseSchema
 
@@ -35,6 +35,96 @@ class SearchBookClubsRequest(BaseModel):
     limit: int = Field(20, ge=1, le=100)
     offset: int = Field(0, ge=0, le=MAX_OFFSET)
 
+class ReadingStageRequest(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    due_date: date
+    # Последняя страница этапа. Без неё прогресс по номеру страницы к этапу
+    # не привязывается - только явным выбором этапа.
+    end_page: Optional[int] = Field(default=None, ge=1)
+
+class CreateReadingRequest(BaseModel):
+    book_volume_id: str = Field(min_length=1, max_length=100)
+    started_at: date
+    deadline: date
+    stages: list[ReadingStageRequest] = Field(default_factory=list, max_length=50)
+
+    @model_validator(mode="after")
+    def check_schedule(self) -> "CreateReadingRequest":
+        if self.deadline < self.started_at:
+            raise ValueError("Дедлайн не может быть раньше даты старта")
+
+        previous_date: date | None = None
+        previous_page: int | None = None
+        for stage in self.stages:
+            if not self.started_at <= stage.due_date <= self.deadline:
+                raise ValueError("Дата этапа должна попадать в интервал от старта до дедлайна")
+            if previous_date is not None and stage.due_date <= previous_date:
+                raise ValueError("Даты этапов должны идти строго по возрастанию")
+            if stage.end_page is not None:
+                if previous_page is not None and stage.end_page <= previous_page:
+                    raise ValueError("Страницы этапов должны идти строго по возрастанию")
+                previous_page = stage.end_page
+            previous_date = stage.due_date
+
+        return self
+
+class UpdateReadingProgressRequest(BaseModel):
+    # Этап важнее страницы: если пришли оба, страница сохраняется как есть, но
+    # в графике участника считает выбранный этап.
+    stage_id: Optional[int] = Field(default=None, ge=1)
+    page: Optional[int] = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def check_any(self) -> "UpdateReadingProgressRequest":
+        if self.stage_id is None and self.page is None:
+            raise ValueError("Нужно передать этап или страницу")
+
+        return self
+
+class ReadingStageResponse(ResponseSchema):
+    id: int
+    position: int
+    title: str
+    due_date: date
+    end_page: Optional[int] = None
+
+class ReadingResponse(ResponseSchema):
+    id: int
+    club_id: int
+    book: Optional[BookResponse] = None
+    started_at: date
+    deadline: date
+    # None - заход идёт прямо сейчас.
+    finished_at: Optional[datetime] = None
+    stages: list[ReadingStageResponse] = []
+
+class ReadingProgressSummary(ResponseSchema):
+    members_count: int = 0
+    # Сколько участников закрыли этап, чья дата уже наступила.
+    on_track_count: int = 0
+    on_track_ratio: float = 0.0
+    # Этап, который должен быть закрыт к сегодняшнему дню. None - ни один срок
+    # ещё не наступил, тогда в графике считаются все.
+    current_stage: Optional[ReadingStageResponse] = None
+
+class CurrentReadingResponse(ResponseSchema):
+    reading: ReadingResponse
+    progress: ReadingProgressSummary
+
+class CurrentReadingSummary(ResponseSchema):
+    """Текущий заход в карточке клуба - без этапов и поимённого прогресса."""
+    id: int
+    book: Optional[BookResponse] = None
+    deadline: date
+    on_track_ratio: float = 0.0
+
+class ReadingProgressResponse(ResponseSchema):
+    user: Optional[UserSummary] = None
+    stage: Optional[ReadingStageResponse] = None
+    page: Optional[int] = None
+    on_track: bool = False
+    updated_at: datetime
+
 class BookClubResponse(ResponseSchema):
     id: int
     name: str
@@ -44,3 +134,5 @@ class BookClubResponse(ResponseSchema):
     members_count: int = 0
     threads_count: int = 0
     genres: list[GenreResponse] = []
+    # None - клуб сейчас ничего не читает.
+    current_reading: Optional[CurrentReadingSummary] = None

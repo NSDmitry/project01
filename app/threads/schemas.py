@@ -33,12 +33,15 @@ class ThreadResponse(ResponseSchema):
     club_id: int
     author: Optional[UserSummary] = None
     book: Optional[BookResponse] = None
+    # None - тред не привязан к этапу текущего захода клуба.
+    reading_stage_id: Optional[int] = None
 
 class ThreadCreateRequest(BaseModel):
     title: str = Field(max_length=200)
     content: str = Field(max_length=10000)
     club_id: int
     book_volume_id: Optional[str] = None
+    reading_stage_id: Optional[int] = Field(default=None, ge=1)
 
     _validate_title = field_validator("title")(strip_title)
     _validate_content = field_validator("content")(strip_content)

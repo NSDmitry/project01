@@ -1,9 +1,11 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, Query
 
 from app.core.contracts import Principal, UserSummary
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.core.params import PageOffset, PathId
+from app.core.params import PageOffset, PathId, QueryId
 from app.iam.deps import get_current_user, get_optional_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
 from app.threads.deps import get_thread_service, get_comment_service
 from app.threads.schemas import (
@@ -24,7 +26,10 @@ comments_router = APIRouter(tags=["comments"])
     "/{club_id}",
     response_model=ResponseModel[Page[ThreadResponse]],
     summary="Получение тредов книжного клуба (постранично, последние сверху)",
-    description="",
+    description=(
+            "Необязательный `reading_stage_id` оставляет только обсуждения "
+            "конкретного этапа текущего захода клуба.\n\n"
+    ),
     responses={
         200: {"description": "Страница тредов клуба"},
         404: {"description": "Книжный клуб с таким id не найден"},
@@ -35,9 +40,12 @@ async def get_threads(
         club_id: PathId,
         limit: int = Query(10, ge=1, le=100),
         offset: PageOffset = 0,
+        reading_stage_id: Optional[QueryId] = None,
         service: ThreadService = Depends(get_thread_service)
 ) -> ResponseModel[Page[ThreadResponse]]:
-    return await service.get_threads(book_club_id=club_id, limit=limit, offset=offset)
+    return await service.get_threads(
+        book_club_id=club_id, limit=limit, offset=offset, reading_stage_id=reading_stage_id
+    )
 
 
 @threads_router.post(

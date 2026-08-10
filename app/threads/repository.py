@@ -1,4 +1,4 @@
-from typing import Dict, List, Set, Tuple
+from typing import Any, Dict, List, Set, Tuple
 
 from sqlalchemy import select, func, delete, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -21,17 +21,37 @@ class ThreadRepository:
         self.db = db
 
     # Общее число тредов не считаем: его держит BookClub.threads_count, а клуб
-    # сервис к этому моменту уже загрузил.
-    async def get_threads(self, club_id: int, limit: int, offset: int) -> List[Thread]:
+    # сервис к этому моменту уже загрузил. Исключение - выборка по этапу захода,
+    # для неё есть count_threads.
+    async def get_threads(
+        self, club_id: int, limit: int, offset: int, reading_stage_id: int | None = None
+    ) -> List[Thread]:
         result = await self.db.execute(
             select(Thread)
-            .where(Thread.club_id == club_id)
+            .where(*self._thread_filters(club_id, reading_stage_id))
             .order_by(Thread.created_at.desc(), Thread.id.desc())
             .limit(limit)
             .offset(offset)
         )
 
         return list(result.scalars().all())
+
+    @staticmethod
+    def _thread_filters(club_id: int, reading_stage_id: int | None) -> List[Any]:
+        filters: List[Any] = [Thread.club_id == club_id]
+        if reading_stage_id is not None:
+            filters.append(Thread.reading_stage_id == reading_stage_id)
+
+        return filters
+
+    async def count_threads(self, club_id: int, reading_stage_id: int) -> int:
+        total = await self.db.scalar(
+            select(func.count())
+            .select_from(Thread)
+            .where(*self._thread_filters(club_id, reading_stage_id))
+        )
+
+        return total or 0
 
     async def get_thread(self, thread_id: int) -> Thread:
         thread = await self.db.get(Thread, thread_id)
@@ -46,6 +66,7 @@ class ThreadRepository:
         new_thread.club_id = model.club_id
         new_thread.author_id = author_id
         new_thread.book_id = book_id
+        new_thread.reading_stage_id = model.reading_stage_id
         new_thread.title = model.title
         new_thread.content = model.content
 
