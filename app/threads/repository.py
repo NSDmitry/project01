@@ -35,10 +35,9 @@ class ThreadRepository:
         return list(result.scalars().all()), total or 0
 
     async def get_thread(self, thread_id: int) -> Thread:
-        result = await self.db.execute(select(Thread).where(Thread.id == thread_id))
-        thread = result.scalar_one_or_none()
+        thread = await self.db.get(Thread, thread_id)
 
-        if not thread:
+        if thread is None:
             raise NotFound(errors=["Тред с таким id не найден"])
 
         return thread
@@ -97,8 +96,8 @@ class ThreadRepository:
         return threads_removed_by_club
 
     async def delete_thread(self, thread_id: int) -> Thread | None:
-        result = await self.db.execute(select(Thread).where(Thread.id == thread_id))
-        thread = result.scalar_one_or_none()
+        thread = await self.db.get(Thread, thread_id)
+
         if thread:
             await self.db.delete(thread)
             await self.db.flush()
@@ -109,9 +108,12 @@ class ThreadRepository:
         thread.title = model.title
         thread.content = model.content
 
+        # refresh, а не повторный get: после UPDATE поле updated_at (onupdate=now())
+        # помечено просроченным, а get() отдаёт объект из identity map как есть.
         await self.db.flush()
+        await self.db.refresh(thread)
 
-        return await self.get_thread(thread.id)
+        return thread
 
 
 class CommentRepository:
@@ -135,10 +137,9 @@ class CommentRepository:
         return list(result.scalars().all()), total or 0
 
     async def get_comment(self, comment_id: int) -> Comment:
-        result = await self.db.execute(select(Comment).where(Comment.id == comment_id))
-        comment = result.scalar_one_or_none()
+        comment = await self.db.get(Comment, comment_id)
 
-        if not comment:
+        if comment is None:
             raise NotFound(errors=["Комментарий с таким id не найден"])
 
         return comment
@@ -155,8 +156,8 @@ class CommentRepository:
         return await self.get_comment(new_comment.id)
 
     async def delete_comment(self, comment_id: int) -> Comment | None:
-        result = await self.db.execute(select(Comment).where(Comment.id == comment_id))
-        comment = result.scalar_one_or_none()
+        comment = await self.db.get(Comment, comment_id)
+
         if comment:
             await self.db.delete(comment)
             await self.db.flush()
@@ -167,8 +168,9 @@ class CommentRepository:
         comment.content = model.content
 
         await self.db.flush()
+        await self.db.refresh(comment)
 
-        return await self.get_comment(comment.id)
+        return comment
 
     async def add_like(self, comment_id: int, user_id: int) -> None:
         # ON CONFLICT DO NOTHING: конкурентные лайки одного пользователя не падают об уникальный ключ

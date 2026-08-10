@@ -63,3 +63,21 @@ class TestThreadBook:
         assert_status_code(response, 404)
         # Тред не должен создаться.
         assert db.execute(text("SELECT count(*) FROM threads")).scalar() == 0
+
+    def test_update_thread_keeps_book(self, api):
+        # Регрессия: тред читается через get() из identity map - после UPDATE
+        # ответ должен остаться полным (updated_at и книга).
+        install_fake_google([suggestion(volume_id="vol-1")])
+        owner = AuthFlow.register(api)
+        club_id = BookclubFlow.create(api, auth=owner).json()["data"]["id"]
+        thread_id = api.create_thread(
+            _thread_payload(club_id, "vol-1"), headers=owner.headers
+        ).json()["data"]["id"]
+
+        response = api.update_thread(
+            thread_id, ThreadFactory.update_payload(title="Обновлено"), headers=owner.headers
+        )
+
+        assert_status_code(response, 200)
+        assert response.json()["data"]["title"] == "Обновлено"
+        assert response.json()["data"]["book"]["google_volume_id"] == "vol-1"
