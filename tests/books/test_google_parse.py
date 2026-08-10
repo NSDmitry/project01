@@ -23,6 +23,12 @@ class TestGoogleParse:
     def test_rewrites_http_cover_to_https(self):
         book = GoogleBooksClient._parse(_item(imageLinks={"thumbnail": "http://g/big?u=http://x"}))
 
+        # Меняется только схема - вложенный в query адрес остаётся как был.
+        assert book.cover_url == "https://g/big?u=http://x"
+
+    def test_keeps_https_cover_untouched(self):
+        book = GoogleBooksClient._parse(_item(imageLinks={"thumbnail": "https://g/big?u=http://x"}))
+
         assert book.cover_url == "https://g/big?u=http://x"
 
     def test_missing_cover_and_pages_are_none(self):
@@ -31,7 +37,17 @@ class TestGoogleParse:
         assert book.cover_url is None
         assert book.page_count is None
 
+    def test_null_image_links_are_none(self):
+        book = GoogleBooksClient._parse(_item(imageLinks=None))
+
+        assert book.cover_url is None
+
     def test_zero_page_count_is_none(self):
         book = GoogleBooksClient._parse(_item(pageCount=0))
+
+        assert book.page_count is None
+
+    def test_non_integer_page_count_is_none(self):
+        book = GoogleBooksClient._parse(_item(pageCount="480 pages"))
 
         assert book.page_count is None
