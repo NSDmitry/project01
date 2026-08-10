@@ -1,8 +1,8 @@
 import re
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
-from sqlalchemy import select, func, delete, literal_column, update
+from sqlalchemy import CursorResult, select, func, delete, literal_column, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +11,9 @@ from sqlalchemy.sql.elements import ColumnElement
 from app.bookclubs.models import (
     BookClub,
     BookClubGenre,
+    BookNomination,
     ClubMember,
+    NominationVote,
     Reading,
     ReadingProgress,
     ReadingStage,
@@ -19,7 +21,7 @@ from app.bookclubs.models import (
 from app.bookclubs.schemas import (
     CreateBookClubRequest,
     BookClubRelation,
-    CreateReadingRequest,
+    ReadingScheduleRequest,
     UpdateBookClubRequest,
 )
 from app.core.authorization import require_permission
@@ -204,9 +206,10 @@ class BookClubRepository:
             .values(members_count=func.greatest(BookClub.members_count - 1, 0))
         )
         await self.db.execute(delete(ClubMember).where(ClubMember.user_id == user_id))
-        # Прогресс в заходах привязан к пользователю без FK - чистим явно. Заходы
-        # удалённых клубов уносит каскад по club_id.
+        # Прогресс в заходах и голоса привязаны к пользователю без FK - чистим
+        # явно. Заходы и номинации удалённых клубов уносит каскад по club_id.
         await self.db.execute(delete(ReadingProgress).where(ReadingProgress.user_id == user_id))
+        await self.db.execute(delete(NominationVote).where(NominationVote.user_id == user_id))
         await self.db.flush()
 
         return deleted_club_ids
@@ -323,6 +326,13 @@ class BookClubRepository:
                 ),
             )
         )
+        # Голос бывшего участника - по той же причине: книгу клубу выбирают те,
+        # кто в нём состоит.
+        await self.db.execute(
+            delete(NominationVote).where(
+                NominationVote.user_id == user.id, NominationVote.club_id == club_id
+            )
+        )
         await self.db.flush()
 
         return await self.get_book_club(club_id=club_id)
@@ -345,7 +355,7 @@ class ReadingRepository:
 
         return reading
 
-    async def create_reading(self, club_id: int, book_id: int | None, model: CreateReadingRequest) -> Reading:
+    async def create_reading(self, club_id: int, book_id: int | None, model: ReadingScheduleRequest) -> Reading:
         reading = Reading(
             club_id=club_id,
             book_id=book_id,
@@ -525,3 +535,107 @@ class ReadingRepository:
                 counts[reading_id] = counts.get(reading_id, 0) + count
 
         return counts
+
+
+class NominationRepository:
+    db: AsyncSession
+
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def create_nomination(self, club_id: int, book_id: int) -> BookNomination:
+        nomination = BookNomination(club_id=club_id, book_id=book_id)
+        self.db.add(nomination)
+
+        try:
+            # Одна книга в клубе номинируется один раз - это держит уникальный ключ.
+            await self.db.flush()
+        except IntegrityError:
+            await self.db.rollback()
+            raise Conflict(errors=["Эта книга уже номинирована в клубе"])
+
+        return await self.get_nomination(nomination.id)
+
+    async def get_nomination(self, nomination_id: int) -> BookNomination:
+        # Запросом, а не db.get: книгу подтягивает selectin-загрузка при SELECT,
+        # объект из identity map пришёл бы без неё.
+        result = await self.db.execute(
+            select(BookNomination).where(BookNomination.id == nomination_id)
+        )
+        nomination = result.scalar_one_or_none()
+
+        if nomination is None:
+            raise NotFound("Номинация с таким id не найдена")
+
+        return nomination
+
+    async def count_nominations(self, club_id: int) -> int:
+        total = await self.db.scalar(
+            select(func.count()).select_from(BookNomination).where(BookNomination.club_id == club_id)
+        )
+
+        return total or 0
+
+    async def get_nominations(self, club_id: int) -> List[BookNomination]:
+        result = await self.db.execute(
+            select(BookNomination)
+            .where(BookNomination.club_id == club_id)
+            .order_by(BookNomination.id)
+        )
+
+        return list(result.scalars().all())
+
+    async def count_votes(self, club_id: int) -> Dict[int, int]:
+        """Число голосов по каждой номинации клуба; без голосов - ключа нет."""
+        result = await self.db.execute(
+            select(NominationVote.nomination_id, func.count())
+            .where(NominationVote.club_id == club_id)
+            .group_by(NominationVote.nomination_id)
+        )
+
+        return dict(result.tuples().all())
+
+    async def get_vote(self, club_id: int, user_id: int) -> Optional[NominationVote]:
+        return await self.db.get(NominationVote, {"user_id": user_id, "club_id": club_id})
+
+    async def set_vote(self, club_id: int, user_id: int, nomination_id: int) -> None:
+        # Upsert по PK (user_id, club_id): голос за другую номинацию переставляет
+        # тот же голос, повторный за ту же - ничего не меняет. Проверка «уже
+        # голосовал» в коде здесь не нужна и была бы гонкой.
+        statement = pg_insert(NominationVote).values(
+            user_id=user_id, club_id=club_id, nomination_id=nomination_id
+        )
+        await self.db.execute(
+            statement.on_conflict_do_update(
+                index_elements=["user_id", "club_id"],
+                set_={"nomination_id": statement.excluded.nomination_id},
+            )
+        )
+
+        try:
+            await self.db.flush()
+        except IntegrityError:
+            # Номинацию (или клуб) снесли между её чтением и записью голоса -
+            # чаще всего владелец закрыл голосование. Для голосующего это то же
+            # самое, что несуществующая номинация, а не ошибка сервера.
+            await self.db.rollback()
+            raise NotFound("Номинация с таким id не найдена")
+
+    async def delete_vote(self, club_id: int, user_id: int, nomination_id: int) -> bool:
+        """Снять голос с номинации. False - голоса за неё не было."""
+        result = await self.db.execute(
+            delete(NominationVote).where(
+                NominationVote.user_id == user_id,
+                NominationVote.club_id == club_id,
+                NominationVote.nomination_id == nomination_id,
+            )
+        )
+        await self.db.flush()
+
+        # DELETE возвращает CursorResult, но перегрузка execute() объявляет Result[Any].
+        return cast(CursorResult, result).rowcount > 0
+
+    async def clear_nominations(self, club_id: int) -> None:
+        # Голоса уносит каскад по nomination_id.
+        await self.db.execute(delete(BookNomination).where(BookNomination.club_id == club_id))
+        await self.db.flush()

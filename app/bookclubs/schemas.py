@@ -42,14 +42,14 @@ class ReadingStageRequest(BaseModel):
     # не привязывается - только явным выбором этапа.
     end_page: Optional[int] = Field(default=None, ge=1)
 
-class CreateReadingRequest(BaseModel):
-    book_volume_id: str = Field(min_length=1, max_length=100)
+class ReadingScheduleRequest(BaseModel):
+    """Сроки захода и его этапы - общее у создания захода и закрытия голосования."""
     started_at: date
     deadline: date
     stages: list[ReadingStageRequest] = Field(default_factory=list, max_length=50)
 
     @model_validator(mode="after")
-    def check_schedule(self) -> "CreateReadingRequest":
+    def check_schedule(self) -> "ReadingScheduleRequest":
         if self.deadline < self.started_at:
             raise ValueError("Дедлайн не может быть раньше даты старта")
 
@@ -67,6 +67,12 @@ class CreateReadingRequest(BaseModel):
             previous_date = stage.due_date
 
         return self
+
+class CreateReadingRequest(ReadingScheduleRequest):
+    book_volume_id: str = Field(min_length=1, max_length=100)
+
+class CreateNominationRequest(BaseModel):
+    book_volume_id: str = Field(min_length=1, max_length=100)
 
 class UpdateReadingProgressRequest(BaseModel):
     # Этап важнее страницы: если пришли оба, страница сохраняется как есть, но
@@ -124,6 +130,14 @@ class ReadingProgressResponse(ResponseSchema):
     page: Optional[int] = None
     on_track: bool = False
     updated_at: datetime
+
+class NominationResponse(ResponseSchema):
+    id: int
+    club_id: int
+    book: Optional[BookResponse] = None
+    votes_count: int = 0
+    # Голос текущего пользователя отдан за эту номинацию.
+    voted: bool = False
 
 class BookClubResponse(ResponseSchema):
     id: int

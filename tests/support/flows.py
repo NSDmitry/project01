@@ -61,6 +61,15 @@ class ReadingFlow:
         )
 
 
+class NominationFlow:
+    @staticmethod
+    def create(api: ApiClient, club_id: int, member: AuthSession, volume_id: str = "vol-1"):
+        # Книга приезжает из Google Books - в тестах клиент подменён. Ранее
+        # номинированные книги уже лежат в БД и повторной подмены не требуют.
+        install_fake_google([suggestion(volume_id=volume_id)])
+        return api.nominate_book(club_id, {"book_volume_id": volume_id}, headers=member.headers)
+
+
 class MemberFlow:
     @staticmethod
     def join(api: ApiClient, club_id: int) -> AuthSession:

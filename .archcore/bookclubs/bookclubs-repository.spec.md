@@ -1,5 +1,5 @@
 ---
-title: "Bookclubs repository: доступ к book_clubs, club_members, book_club_genres, readings"
+title: "Bookclubs repository: доступ к book_clubs, club_members, book_club_genres, readings, nominations"
 status: accepted
 tags:
   - "bookclubs"
@@ -8,7 +8,7 @@ tags:
 ---
 
 ## Purpose & Scope
-Контракт слоя хранения bookclubs: `BookClubRepository` и `ReadingRepository` (@app/bookclubs/repository.py). Потребители - @app/bookclubs/service.py, порт `ClubsPort` домена threads (`get_book_club`, `is_member`), порт `ReadingsPort` домена threads (`get_stage_club_id`) и обработчики событий. Вне scope: резолв жанров, владельцев и книг (спек сервиса).
+Контракт слоя хранения bookclubs: `BookClubRepository`, `ReadingRepository` и `NominationRepository` (@app/bookclubs/repository.py). Потребители - @app/bookclubs/service.py, порт `ClubsPort` домена threads (`get_book_club`, `is_member`), порт `ReadingsPort` домена threads (`get_stage_club_id`) и обработчики событий. Вне scope: резолв жанров, владельцев и книг (спек сервиса).
 
 ## Surface
 - CRUD: `create_book_club`, `get_book_clubs`, `get_book_club`, `update_book_club`, `delete_book_club`.
@@ -16,7 +16,8 @@ tags:
 - Жанры: `set_genres`, `get_genre_ids`, `handle_genres_deleted`.
 - События: `handle_user_deleted`, `change_threads_count`.
 - Заходы (`ReadingRepository`): `create_reading`, `get_reading`, `get_active_readings`, `get_readings`, `finish_reading`, `get_stages`, `get_stage_club_id`, `set_progress`, `get_progress`, `get_progress_page`, `get_expected_positions`, `count_on_track`.
-- Модели: `BookClub`, `ClubMember`, `BookClubGenre`, `Reading`, `ReadingStage`, `ReadingProgress` - @app/bookclubs/models.py.
+- Голосование (`NominationRepository`): `create_nomination`, `get_nomination`, `get_nominations`, `count_nominations`, `count_votes`, `get_vote`, `set_vote`, `delete_vote`, `clear_nominations`.
+- Модели: `BookClub`, `ClubMember`, `BookClubGenre`, `Reading`, `ReadingStage`, `ReadingProgress`, `BookNomination`, `NominationVote` - @app/bookclubs/models.py.
 
 ## Normative Behavior
 1. WHEN создаётся клуб, репозиторий MUST в одной транзакции создать клуб, добавить владельца в участники, привязать жанры и завести счётчик участников равным единице.
@@ -33,11 +34,16 @@ tags:
 12. `change_threads_count` MUST менять счётчик атомарным UPDATE с `GREATEST(threads_count + delta, 0)` - защита от ухода в минус при дублях событий (at-least-once доставка).
 13. Репозиторий MUST завершать записи `flush`, а не `commit` - транзакцию держит session dependency.
 14. `create_reading` MUST создавать заход и его этапы в одной транзакции, а позиции этапов MUST расставляться по порядку присланного списка, начиная с единицы. Клиент номера этапов не задаёт.
-15. Чтение захода MUST идти запросом, а не выдачей объекта из identity map: книга подтягивается загрузчиком при выполнении SELECT, а уже загруженный объект вернулся бы без неё.
+15. Чтение захода и номинации MUST идти запросом, а не выдачей объекта из identity map: книга подтягивается загрузчиком при выполнении SELECT, а уже загруженный объект вернулся бы без неё.
 16. `set_progress` MUST быть upsert-ом по паре (заход, участник): повторная отметка MUST переписывать строку, а не падать об уникальный ключ и не заводить вторую. `updated_at` MUST выставляться явно - ORM-хук onupdate на пути INSERT ... ON CONFLICT не срабатывает.
 17. `get_expected_positions` MUST отдавать максимальную позицию этапа, чья дата уже наступила, по каждому заходу; заход без наступивших этапов в результате MUST отсутствовать - сверять прогресс ещё не с чем.
 18. `count_on_track` MUST считать участников, чей закрытый этап не ниже ожидаемого, одним запросом на все заходы страницы (группировка по заходу и позиции), а не запросом на заход.
-19. WHEN участник выходит из клуба или удаляется пользователь, репозиторий MUST удалить его строки прогресса: иначе доля участников в графике считается от числа участников, а числитель включает ушедших.
+19. WHEN участник выходит из клуба или удаляется пользователь, репозиторий MUST удалить его строки прогресса и его голос: иначе доля участников в графике считается от числа участников, а числитель включает ушедших, и книгу клубу выбирают те, кто в нём уже не состоит.
+20. `set_vote` MUST быть upsert-ом по паре (участник, клуб): голос за другую номинацию MUST переписывать ту же строку, повторный голос за ту же номинацию MUST оставлять её без изменений. Предварительной проверки «уже голосовал» быть MUST NOT - два параллельных голоса прошли бы её оба.
+21. `count_votes` MUST считать голоса всех номинаций клуба одним агрегатным запросом; номинация без голосов в результате MUST отсутствовать. Денормализованного счётчика голосов быть MUST NOT.
+22. `delete_vote` MUST снимать голос только с указанной номинации и MUST сообщать вызывающему, был ли голос снят - переставленный на другую номинацию голос снимать MUST NOT.
+23. `clear_nominations` MUST удалять все номинации клуба; голоса MUST уносить каскад по номинации, отдельного удаления в коде быть MUST NOT.
+24. `count_nominations` MUST считать кандидатов клуба, не загружая их: потолок кандидатов проверяется на каждой номинации, а грузить ради счёта список с книгами незачем.
 
 ## Constraints & Invariants
 - Инвариант: участник уникален на пару (club_id, user_id) - составной PK club_members; повторный join ловится IntegrityError.
@@ -49,7 +55,8 @@ tags:
 - Инвариант: фильтр по `relation` осмыслен только вместе с пользователем - оба параметра опциональны по отдельности, но `relation` без пользователя недопустим.
 - Инвариант: изменения атрибутов загруженной модели фиксируются `flush`, а не `refresh` - сессия создаётся с `autoflush=False`, поэтому `refresh` перечитал бы строку и молча затёр несохранённые правки.
 - Инвариант: единственность незакрытого захода у клуба держит частичный уникальный индекс, а не предварительная проверка: два параллельных создания прошли бы SELECT оба.
-- Инвариант: заходы, этапы и прогресс удалённого клуба уносит каскад БД по club_id - кода для этого нет.
+- Инвариант: один голос участника на клуб держит первичный ключ (user_id, club_id), а не код; одна номинация на книгу в клубе - уникальный ключ (club_id, book_id).
+- Инвариант: заходы, этапы, прогресс, номинации и голоса удалённого клуба уносит каскад БД по club_id - кода для этого нет.
 
 ## Failure Behavior
 1. IF имя клуба занято, THEN `create_book_club` и `update_book_club` MUST откатить и выбросить Conflict.
@@ -61,6 +68,9 @@ tags:
 7. IF у клуба уже есть незакрытый заход, THEN `create_reading` MUST откатить и выбросить Conflict.
 8. IF заход не найден, THEN `get_reading` MUST выбросить NotFound.
 9. IF заход уже закрыт, THEN `finish_reading` MUST выбросить Conflict, а дата закрытия MUST остаться прежней.
+10. IF книга уже номинирована в этом клубе, THEN `create_nomination` MUST откатить и выбросить Conflict.
+11. IF номинация не найдена, THEN `get_nomination` MUST выбросить NotFound.
+12. IF номинации (или клуба) уже нет к моменту записи голоса - владелец закрыл голосование между чтением номинации и вставкой, - THEN `set_vote` MUST откатить и выбросить NotFound. Отдать голосующему ошибку сервера здесь недопустимо: для него это то же самое, что несуществующая номинация.
 
 ## Conformance
-Реализация конформна, когда выполняет поведения 1-19, держит инварианты уникальности, генерируемого столбца, счётчика участников и единственного незакрытого захода и правила отказов 1-9. Проверяется тестами tests/bookclubs/ и tests/readings/.
+Реализация конформна, когда выполняет поведения 1-24, держит инварианты уникальности, генерируемого столбца, счётчика участников, единственного незакрытого захода и единственного голоса участника и правила отказов 1-12. Проверяется тестами tests/bookclubs/, tests/readings/ и tests/nominations/.
