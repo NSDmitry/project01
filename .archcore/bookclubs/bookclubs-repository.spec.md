@@ -1,5 +1,5 @@
 ---
-title: "Bookclubs repository: доступ к book_clubs, club_members, book_club_genres"
+title: "Bookclubs repository: доступ к book_clubs, club_members, book_club_genres, readings"
 status: accepted
 tags:
   - "bookclubs"
@@ -8,14 +8,15 @@ tags:
 ---
 
 ## Purpose & Scope
-Контракт слоя хранения bookclubs: `BookClubRepository` (@app/bookclubs/repository.py). Потребители - @app/bookclubs/service.py, порт `ClubsPort` домена threads (`get_book_club`, `is_member`) и обработчики событий. Вне scope: резолв жанров и владельцев (спек сервиса).
+Контракт слоя хранения bookclubs: `BookClubRepository` и `ReadingRepository` (@app/bookclubs/repository.py). Потребители - @app/bookclubs/service.py, порт `ClubsPort` домена threads (`get_book_club`, `is_member`), порт `ReadingsPort` домена threads (`get_stage_club_id`) и обработчики событий. Вне scope: резолв жанров, владельцев и книг (спек сервиса).
 
 ## Surface
 - CRUD: `create_book_club`, `get_book_clubs`, `get_book_club`, `update_book_club`, `delete_book_club`.
 - Участие: `is_member`, `get_members`, `join_book_club`, `remove_member`.
 - Жанры: `set_genres`, `get_genre_ids`, `handle_genres_deleted`.
 - События: `handle_user_deleted`, `change_threads_count`.
-- Модели: `BookClub`, `ClubMember`, `BookClubGenre` - @app/bookclubs/models.py.
+- Заходы (`ReadingRepository`): `create_reading`, `get_reading`, `get_active_readings`, `get_readings`, `finish_reading`, `get_stages`, `get_stage_club_id`, `set_progress`, `get_progress`, `get_progress_page`, `get_expected_positions`, `count_on_track`.
+- Модели: `BookClub`, `ClubMember`, `BookClubGenre`, `Reading`, `ReadingStage`, `ReadingProgress` - @app/bookclubs/models.py.
 
 ## Normative Behavior
 1. WHEN создаётся клуб, репозиторий MUST в одной транзакции создать клуб, добавить владельца в участники, привязать жанры и завести счётчик участников равным единице.
@@ -31,6 +32,12 @@ tags:
 11. WHEN приходит USER_DELETED с `delete_clubs=true`, `handle_user_deleted` MUST удалить клубы владельца и вернуть их id (для CLUBS_DELETED); при `false` - занулить `owner_id`; членство пользователя MUST удаляться всегда, а счётчики затронутых клубов - уменьшаться до удаления строк членства.
 12. `change_threads_count` MUST менять счётчик атомарным UPDATE с `GREATEST(threads_count + delta, 0)` - защита от ухода в минус при дублях событий (at-least-once доставка).
 13. Репозиторий MUST завершать записи `flush`, а не `commit` - транзакцию держит session dependency.
+14. `create_reading` MUST создавать заход и его этапы в одной транзакции, а позиции этапов MUST расставляться по порядку присланного списка, начиная с единицы. Клиент номера этапов не задаёт.
+15. Чтение захода MUST идти запросом, а не выдачей объекта из identity map: книга подтягивается загрузчиком при выполнении SELECT, а уже загруженный объект вернулся бы без неё.
+16. `set_progress` MUST быть upsert-ом по паре (заход, участник): повторная отметка MUST переписывать строку, а не падать об уникальный ключ и не заводить вторую. `updated_at` MUST выставляться явно - ORM-хук onupdate на пути INSERT ... ON CONFLICT не срабатывает.
+17. `get_expected_positions` MUST отдавать максимальную позицию этапа, чья дата уже наступила, по каждому заходу; заход без наступивших этапов в результате MUST отсутствовать - сверять прогресс ещё не с чем.
+18. `count_on_track` MUST считать участников, чей закрытый этап не ниже ожидаемого, одним запросом на все заходы страницы (группировка по заходу и позиции), а не запросом на заход.
+19. WHEN участник выходит из клуба или удаляется пользователь, репозиторий MUST удалить его строки прогресса: иначе доля участников в графике считается от числа участников, а числитель включает ушедших.
 
 ## Constraints & Invariants
 - Инвариант: участник уникален на пару (club_id, user_id) - составной PK club_members; повторный join ловится IntegrityError.
@@ -41,6 +48,8 @@ tags:
 - Инвариант: UPDATE счётчика MUST помечать уже загруженный объект клуба просроченным (`synchronize_session="fetch"`) - иначе следующий `get_book_club` в той же сессии отдаст его из identity map со старым значением.
 - Инвариант: фильтр по `relation` осмыслен только вместе с пользователем - оба параметра опциональны по отдельности, но `relation` без пользователя недопустим.
 - Инвариант: изменения атрибутов загруженной модели фиксируются `flush`, а не `refresh` - сессия создаётся с `autoflush=False`, поэтому `refresh` перечитал бы строку и молча затёр несохранённые правки.
+- Инвариант: единственность незакрытого захода у клуба держит частичный уникальный индекс, а не предварительная проверка: два параллельных создания прошли бы SELECT оба.
+- Инвариант: заходы, этапы и прогресс удалённого клуба уносит каскад БД по club_id - кода для этого нет.
 
 ## Failure Behavior
 1. IF имя клуба занято, THEN `create_book_club` и `update_book_club` MUST откатить и выбросить Conflict.
@@ -49,6 +58,9 @@ tags:
 4. IF клуб не найден, THEN `get_book_club` MUST выбросить NotFound.
 5. IF задан `relation`, но не передан пользователь, THEN `get_book_clubs` MUST выбросить ошибку, а не игнорировать фильтр - молчаливый пропуск вернул бы вызывающему весь каталог клубов вместо его собственных.
 6. IF в запросе нет ни одного словесного символа, THEN поиск MUST вырождаться в отсутствие текстового фильтра, а не в пустую выдачу.
+7. IF у клуба уже есть незакрытый заход, THEN `create_reading` MUST откатить и выбросить Conflict.
+8. IF заход не найден, THEN `get_reading` MUST выбросить NotFound.
+9. IF заход уже закрыт, THEN `finish_reading` MUST выбросить Conflict, а дата закрытия MUST остаться прежней.
 
 ## Conformance
-Реализация конформна, когда выполняет поведения 1-13, держит инварианты уникальности, генерируемого столбца и счётчика участников и правила отказов 1-6. Проверяется тестами tests/bookclubs/, включая tests/bookclubs/test_bookclubs_search.py и tests/bookclubs/test_denormalized_counters.py.
+Реализация конформна, когда выполняет поведения 1-19, держит инварианты уникальности, генерируемого столбца, счётчика участников и единственного незакрытого захода и правила отказов 1-9. Проверяется тестами tests/bookclubs/ и tests/readings/.

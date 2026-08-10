@@ -123,6 +123,34 @@ class ApiClient:
     def update_bookclub(self, club_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.patch(f"/api/bookclubs/{club_id}", json=payload, headers=headers)
 
+    def create_reading(self, club_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.post(f"/api/bookclubs/{club_id}/readings", json=payload, headers=headers)
+
+    def current_reading(self, club_id: int, headers: dict[str, str] | None = None):
+        return self._client.get(f"/api/bookclubs/{club_id}/readings/current", headers=headers)
+
+    def readings(
+        self,
+        club_id: int,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        return self._client.get(f"/api/bookclubs/{club_id}/readings", params=params, headers=headers)
+
+    def set_reading_progress(self, reading_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.put(f"/api/readings/{reading_id}/progress", json=payload, headers=headers)
+
+    def reading_progress(
+        self,
+        reading_id: int,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        return self._client.get(f"/api/readings/{reading_id}/progress", params=params, headers=headers)
+
+    def finish_reading(self, reading_id: int, headers: dict[str, str] | None = None):
+        return self._client.post(f"/api/readings/{reading_id}/finish", headers=headers)
+
     def search_books(self, q: str, headers: dict[str, str] | None = None):
         return self._client.get("/api/books/search", params={"q": q}, headers=headers)
 

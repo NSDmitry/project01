@@ -5,6 +5,7 @@ import hmac
 import json
 import time
 import uuid
+from datetime import date, timedelta
 from urllib.parse import urlencode
 
 from faker import Faker
@@ -125,14 +126,55 @@ class GenreFactory:
         }
 
 
+class ReadingFactory:
+    @staticmethod
+    def stage(*, title: str = "Главы 1-5", due_in_days: int = -1, end_page: int | None = None) -> dict[str, object]:
+        return {
+            "title": title,
+            "due_date": str(date.today() + timedelta(days=due_in_days)),
+            "end_page": end_page,
+        }
+
+    @staticmethod
+    def payload(
+        *,
+        book_volume_id: str = "vol-1",
+        started_in_days: int = -10,
+        deadline_in_days: int = 10,
+        stages: list[dict] | None = None,
+    ) -> dict[str, object]:
+        # По умолчанию срок первого этапа уже прошёл, второго - ещё нет: с таким
+        # заходом проверяется и «в графике», и отставание.
+        default_stages = [
+            ReadingFactory.stage(title="Главы 1-5", due_in_days=-1, end_page=100),
+            ReadingFactory.stage(title="Главы 6-10", due_in_days=5, end_page=200),
+        ]
+        return {
+            "book_volume_id": book_volume_id,
+            "started_at": str(date.today() + timedelta(days=started_in_days)),
+            "deadline": str(date.today() + timedelta(days=deadline_in_days)),
+            "stages": stages if stages is not None else default_stages,
+        }
+
+
 class ThreadFactory:
     @staticmethod
-    def create_payload(*, club_id: int, title: str | None = None, content: str | None = None) -> dict[str, str | int]:
-        return {
+    def create_payload(
+        *,
+        club_id: int,
+        title: str | None = None,
+        content: str | None = None,
+        reading_stage_id: int | None = None,
+    ) -> dict[str, str | int]:
+        payload: dict[str, str | int] = {
             "title": title if title is not None else faker.sentence(nb_words=4),
             "content": content if content is not None else faker.paragraph(),
             "club_id": club_id,
         }
+        if reading_stage_id is not None:
+            payload["reading_stage_id"] = reading_stage_id
+
+        return payload
 
     @staticmethod
     def update_payload(*, title: str | None = None, content: str | None = None) -> dict[str, str]:

@@ -11,9 +11,9 @@ tags:
 HTTP-контракт домена threads (@app/threads/router.py): роуты тредов и комментариев с лайками. Потребители - клиенты API. Вне scope: бизнес-правила (спек сервиса).
 
 ## Surface
-- `/api/threads`: GET `/{club_id}` (страница тредов), POST `` (201), PUT `/{thread_id}`, DELETE `/{thread_id}`.
+- `/api/threads`: GET `/{club_id}` (страница тредов, необязательный фильтр по этапу захода), POST `` (201), PUT `/{thread_id}`, DELETE `/{thread_id}`.
 - Комментарии: GET/POST `/api/threads/{thread_id}/comments`, PUT/DELETE `/api/comments/{comment_id}`, GET `/api/comments/{comment_id}/likes`, POST/DELETE `/api/comments/{comment_id}/like`.
-- Конверт `ResponseModel`, страницы `Page`; id в путях - `PathId` (границы BIGINT), смещение - `PageOffset` (@app/core/params.py).
+- Конверт `ResponseModel`, страницы `Page`; id в путях - `PathId` (границы BIGINT), id в query - `QueryId`, смещение - `PageOffset` (@app/core/params.py).
 
 ## Normative Behavior
 1. Мутации (POST/PUT/DELETE) MUST требовать `X-Session-Id` (`Depends(get_current_user)`).
@@ -22,10 +22,13 @@ HTTP-контракт домена threads (@app/threads/router.py): роуты 
 4. Пагинация MUST принимать `limit` 1-100 (default 10) и `offset` в диапазоне 0..`MAX_OFFSET` (default 0). Потолок смещения общий для всех списочных ручек проекта и задан одной константой.
 5. WHEN тред или комментарий создан, роутер MUST вернуть 201 с данными в `data`.
 6. POST/DELETE `/like` MUST возвращать комментарий с актуальными `likes_count` и `is_liked`.
+7. POST `` MUST принимать необязательный идентификатор этапа захода клуба и возвращать его в теле треда; тред без этапа - обсуждение книги в целом.
+8. GET `/{club_id}` MUST принимать необязательный фильтр по этапу захода и при нём отдавать только обсуждения этого этапа вместе с их собственным `total`.
 
 ## Constraints & Invariants
 - Инвариант: единственный кросс-доменный импорт роутера - identity-провайдер `app.iam.deps` (санкционированный seam, см. комментарий в файле).
 - Ограничение: rate limiting на роутах threads отсутствует - только на IAM.
+- Инвариант: этап захода в контракте тредов - только идентификатор; сам этап с заголовком и датой отдают ручки заходов домена клубов.
 
 ## Failure Behavior
 1. IF id вне границ BIGINT или тело не проходит валидацию, THEN роутер MUST вернуть 422.
@@ -34,6 +37,7 @@ HTTP-контракт домена threads (@app/threads/router.py): роуты 
 4. IF `X-Session-Id` отсутствует или невалиден на мутации, THEN роутер MUST вернуть 401.
 5. IF Google Books недоступен при создании треда с `book_volume_id`, THEN роутер MUST вернуть 503.
 6. IF `offset` превышает потолок, THEN роутер MUST вернуть 422, а не обслуживать запрос. Глубокое смещение на длинной ленте комментариев заставляет БД собрать и отсортировать всё до страницы; живому клиенту такие страницы недостижимы. Снять потолок можно только вместе с переходом на курсорную пагинацию.
+7. IF этап не найден или принадлежит другому клубу, THEN POST `` MUST вернуть 404.
 
 ## Conformance
-Реализация конформна, когда выполняет поведения 1-6 и правила отказов 1-6; коды задекларированы в `responses` роутов и проверяются тестами tests/threads/ и tests/comments/.
+Реализация конформна, когда выполняет поведения 1-8 и правила отказов 1-7; коды задекларированы в `responses` роутов и проверяются тестами tests/threads/ и tests/comments/.

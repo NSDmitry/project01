@@ -1,14 +1,19 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.bookclubs.deps import get_book_club_service
+from app.bookclubs.deps import get_book_club_service, get_reading_service
 from app.bookclubs.schemas import (
     CreateBookClubRequest,
+    CreateReadingRequest,
+    CurrentReadingResponse,
+    ReadingProgressResponse,
+    ReadingResponse,
     UpdateBookClubGenresRequest,
     UpdateBookClubRequest,
+    UpdateReadingProgressRequest,
     SearchBookClubsRequest,
     BookClubResponse,
 )
-from app.bookclubs.service import BookClubService
+from app.bookclubs.service import BookClubService, ReadingService
 from app.core.contracts import Principal, UserSummary
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
@@ -16,6 +21,9 @@ from app.core.params import PageOffset, PathId
 from app.iam.deps import get_current_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
+# Заходы клуба адресуются и через клуб (создание, текущий, архив), и напрямую по
+# своему id (прогресс, закрытие) - отсюда второй роутер со своим префиксом.
+readings_router = APIRouter(prefix="/api/readings", tags=["readings"])
 
 
 @router.post(
@@ -275,3 +283,178 @@ async def update_book_club(
         service: BookClubService = Depends(get_book_club_service)
 ) -> ResponseModel[BookClubResponse]:
     return await service.update_book_club(user, club_id, model)
+
+
+@router.post(
+    "/{club_id}/readings",
+    response_model=ResponseModel[ReadingResponse],
+    summary="Создание захода клуба",
+    description=(
+            "Заводит совместное чтение: книга (по `book_volume_id` из поиска книг), "
+            "дата старта, дедлайн и список этапов - частей книги со своими датами. "
+            "У этапа можно указать `end_page`, тогда прогресс участника, отмеченный "
+            "номером страницы, сам сопоставится с этапом.\n\n"
+            "Доступно только владельцу клуба. Незакрытый заход у клуба может быть "
+            "только один.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    status_code=201,
+    responses={
+        201: {"description": "Успешный ответ с данными захода"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не является владельцем книжного клуба"},
+        404: {"description": "Книжный клуб или книга с таким id не найдены"},
+        409: {"description": "У клуба уже есть текущий заход"},
+        422: {"description": "Ошибка валидации сроков или этапов"},
+        503: {"description": "Google Books временно недоступен"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def create_reading(
+        club_id: PathId,
+        model: CreateReadingRequest,
+        user: Principal = Depends(get_current_user),
+        service: ReadingService = Depends(get_reading_service)
+) -> ResponseModel[ReadingResponse]:
+    return await service.create_reading(user, club_id, model)
+
+
+@router.get(
+    "/{club_id}/readings/current",
+    response_model=ResponseModel[CurrentReadingResponse],
+    summary="Текущий заход клуба со сводкой прогресса",
+    description=(
+            "Возвращает незакрытый заход клуба с этапами и сводкой: сколько участников "
+            "в графике и какой этап должен быть закрыт к сегодняшнему дню "
+            "(`current_stage`). Пока срок первого этапа не наступил, в графике "
+            "считаются все участники.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Текущий заход и сводка прогресса"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        404: {"description": "Книжный клуб не найден или у клуба нет текущего захода"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def get_current_reading(
+        club_id: PathId,
+        _: Principal = Depends(get_current_user),
+        service: ReadingService = Depends(get_reading_service)
+) -> ResponseModel[CurrentReadingResponse]:
+    return await service.get_current_reading(club_id)
+
+
+@router.get(
+    "/{club_id}/readings",
+    response_model=ResponseModel[Page[ReadingResponse]],
+    summary="Архив заходов клуба (постранично, свежие сверху)",
+    description=(
+            "Все заходы клуба, включая текущий - у него `finished_at` пустой.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Страница заходов клуба"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def get_readings(
+        club_id: PathId,
+        limit: int = Query(20, ge=1, le=100),
+        offset: PageOffset = 0,
+        _: Principal = Depends(get_current_user),
+        service: ReadingService = Depends(get_reading_service)
+) -> ResponseModel[Page[ReadingResponse]]:
+    return await service.get_readings(club_id, limit=limit, offset=offset)
+
+
+@readings_router.put(
+    "/{reading_id}/progress",
+    response_model=ResponseModel[ReadingProgressResponse],
+    summary="Отметить свой прогресс в заходе",
+    description=(
+            "Заменяет прогресс целиком: передайте `stage_id` (закрытый этап) и/или "
+            "`page` (номер страницы). Если прислана только страница, закрытым "
+            "считается последний этап, чей `end_page` уже прочитан.\n\n"
+            "Доступно участникам клуба, пока заход не закрыт.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Обновлённый прогресс участника"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Отмечать прогресс могут только участники клуба"},
+        404: {"description": "Заход или этап с таким id не найден"},
+        409: {"description": "Заход уже закрыт"},
+        422: {"description": "Не передан ни этап, ни страница"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def set_reading_progress(
+        reading_id: PathId,
+        model: UpdateReadingProgressRequest,
+        user: Principal = Depends(get_current_user),
+        service: ReadingService = Depends(get_reading_service)
+) -> ResponseModel[ReadingProgressResponse]:
+    return await service.set_progress(user, reading_id, model)
+
+
+@readings_router.get(
+    "/{reading_id}/progress",
+    response_model=ResponseModel[Page[ReadingProgressResponse]],
+    summary="Прогресс участников захода (постранично, свежие отметки сверху)",
+    description=(
+            "Отметки участников: закрытый этап, страница и признак `on_track` - "
+            "успевает ли участник к сроку текущего этапа. Участники, не отметившие "
+            "ничего, в выдаче не появляются.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Страница прогресса участников"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        404: {"description": "Заход с таким id не найден"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def get_reading_progress(
+        reading_id: PathId,
+        limit: int = Query(20, ge=1, le=100),
+        offset: PageOffset = 0,
+        _: Principal = Depends(get_current_user),
+        service: ReadingService = Depends(get_reading_service)
+) -> ResponseModel[Page[ReadingProgressResponse]]:
+    return await service.get_progress(reading_id, limit=limit, offset=offset)
+
+
+@readings_router.post(
+    "/{reading_id}/finish",
+    response_model=ResponseModel[ReadingResponse],
+    summary="Закрыть заход",
+    description=(
+            "Переводит заход в архив: клуб может завести следующий, а прогресс "
+            "закрытого захода больше не меняется.\n\n"
+            "Доступно только владельцу клуба.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Закрытый заход"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не является владельцем книжного клуба"},
+        404: {"description": "Заход с таким id не найден"},
+        409: {"description": "Заход уже закрыт"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def finish_reading(
+        reading_id: PathId,
+        user: Principal = Depends(get_current_user),
+        service: ReadingService = Depends(get_reading_service)
+) -> ResponseModel[ReadingResponse]:
+    return await service.finish_reading(user, reading_id)

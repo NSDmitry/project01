@@ -3,11 +3,11 @@ from typing import Optional, Sequence
 from app.core import events
 from app.core.authorization import require_permission
 from app.core.contracts import Principal, UserSummary
-from app.core.errors.errors import Forbidden
+from app.core.errors.errors import Forbidden, NotFound
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.threads.models import Comment, Thread
-from app.threads.ports import BooksPort, ClubsPort, UsersPort
+from app.threads.ports import BooksPort, ClubsPort, ReadingsPort, UsersPort
 from app.threads.repository import ThreadRepository, CommentRepository
 from app.threads.schemas import (
     ThreadResponse,
@@ -23,6 +23,7 @@ class ThreadService:
     thread_repository: ThreadRepository
     book_club_repository: ClubsPort
     book_service: BooksPort
+    reading_repository: ReadingsPort
     user_repository: UsersPort
 
     def __init__(
@@ -30,12 +31,14 @@ class ThreadService:
             thread_repository: ThreadRepository,
             book_club_repository: ClubsPort,
             book_service: BooksPort,
+            reading_repository: ReadingsPort,
             user_repository: UsersPort,
     ) -> None:
 
         self.thread_repository = thread_repository
         self.book_club_repository = book_club_repository
         self.book_service = book_service
+        self.reading_repository = reading_repository
         self.user_repository = user_repository
 
     # author больше не relationship в модели - тред хранит только author_id.
@@ -58,20 +61,36 @@ class ThreadService:
     async def _to_response(self, thread: Thread) -> ThreadResponse:
         return (await self._to_responses([thread]))[0]
 
-    async def get_threads(self, book_club_id: int, limit: int, offset: int) -> ResponseModel[Page[ThreadResponse]]:
+    async def get_threads(
+            self,
+            book_club_id: int,
+            limit: int,
+            offset: int,
+            reading_stage_id: Optional[int] = None,
+    ) -> ResponseModel[Page[ThreadResponse]]:
         """
         Получение тредов книжного клуба (последние сверху, постранично).
         :param book_club_id: Id книжного клуба
         :param limit: Размер страницы
         :param offset: Смещение
+        :param reading_stage_id: Id этапа захода - оставить только его обсуждения
         :return: Страница тредов
         """
         club = await self.book_club_repository.get_book_club(club_id=book_club_id)
-        threads = await self.thread_repository.get_threads(club.id, limit=limit, offset=offset)
+        threads = await self.thread_repository.get_threads(
+            club.id, limit=limit, offset=offset, reading_stage_id=reading_stage_id
+        )
+        # Денормализованный счётчик клуба считает все треды - с фильтром по этапу
+        # он не подходит.
+        total = (
+            club.threads_count
+            if reading_stage_id is None
+            else await self.thread_repository.count_threads(club.id, reading_stage_id)
+        )
 
         page = Page(
             items=await self._to_responses(threads),
-            total=club.threads_count,
+            total=total,
             limit=limit,
             offset=offset,
         )
@@ -89,6 +108,11 @@ class ThreadService:
 
         if not await self.book_club_repository.is_member(model.club_id, user.id):
             raise Forbidden(errors=["Создавать треды могут только участники клуба"])
+
+        if model.reading_stage_id is not None:
+            stage_club_id = await self.reading_repository.get_stage_club_id(model.reading_stage_id)
+            if stage_club_id != model.club_id:
+                raise NotFound(errors=["Этап с таким id не найден в этом клубе"])
 
         book_id = None
         if model.book_volume_id:

@@ -1,6 +1,19 @@
-from sqlalchemy import BigInteger, Computed, String, ForeignKey, Index
+from datetime import date, datetime
+
+from sqlalchemy import (
+    BigInteger,
+    Computed,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import TSVECTOR
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.core.db_base_model import DBLBase
@@ -70,3 +83,84 @@ class BookClub(Base, DBLBase):
         ),
         deferred=True,
     )
+
+
+class Reading(Base, DBLBase):
+    """Заход клуба: книга, сроки и этапы, по которым сверяется прогресс участников."""
+    __tablename__ = "readings"
+    __table_args__ = (
+        # Архив заходов клуба: фильтр по club_id и сортировка по id одним индексом.
+        Index("ix_readings_club_id_id", "club_id", "id"),
+        # «Текущий заход» - тот, что не закрыт. Двух таких у клуба быть не может,
+        # и это держит БД, а не проверка в коде: две параллельные попытки создать
+        # заход иначе обе прошли бы через SELECT и обе вставили строку.
+        Index(
+            "uq_readings_active_club_id",
+            "club_id",
+            unique=True,
+            postgresql_where=text("finished_at IS NULL"),
+        ),
+    )
+
+    club_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False
+    )
+    # Книга из домена books. FK как у threads.book_id: удаление книги не должно
+    # уносить историю чтения клуба.
+    book_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("books.id", ondelete="SET NULL"), nullable=True
+    )
+    started_at: Mapped[date] = mapped_column(Date, nullable=False)
+    deadline: Mapped[date] = mapped_column(Date, nullable=False)
+    # NULL - заход идёт. Непустое значение переводит его в архив.
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    book = relationship("Book", lazy="selectin")
+
+
+class ReadingStage(Base, DBLBase):
+    """Этап захода: часть книги (главы или страницы) со своей датой."""
+    __tablename__ = "reading_stages"
+    __table_args__ = (
+        # Уникальный ключ обслуживает и выборку этапов захода (reading_id - префикс).
+        UniqueConstraint("reading_id", "position", name="uq_reading_stages_reading_id_position"),
+    )
+
+    reading_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("readings.id", ondelete="CASCADE"), nullable=False
+    )
+    # Порядковый номер этапа, начиная с 1. По нему сравнивается прогресс: участник
+    # в графике, если закрыл этап не ниже того, чья дата уже наступила.
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String, nullable=False)
+    due_date: Mapped[date] = mapped_column(Date, nullable=False)
+    # Последняя страница этапа. NULL - этап задан главами, прогресс по номеру
+    # страницы к нему не привязать.
+    end_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class ReadingProgress(Base, DBLBase):
+    """Прогресс одного участника в заходе - последний закрытый этап и страница."""
+    __tablename__ = "reading_progress"
+    __table_args__ = (
+        # Один участник - одна строка прогресса на заход. Ключ обслуживает и
+        # выборку прогресса захода (reading_id - префикс).
+        UniqueConstraint("reading_id", "user_id", name="uq_reading_progress_reading_id_user_id"),
+        # Удаление пользователя и выход из клуба чистят прогресс по user_id.
+        Index("ix_reading_progress_user_id", "user_id"),
+        # FK не создаёт индекс на дочерней стороне: без него удаление этапа
+        # сканирует таблицу целиком, чтобы выполнить ON DELETE SET NULL.
+        Index("ix_reading_progress_stage_id", "stage_id"),
+    )
+
+    reading_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("readings.id", ondelete="CASCADE"), nullable=False
+    )
+    # id пользователя из iam - без FK, домены связаны только идентификатором
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Последний закрытый этап. NULL - участник отметил только страницу, а сопоставить
+    # её с этапом не вышло (у этапов не заданы страницы).
+    stage_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("reading_stages.id", ondelete="SET NULL"), nullable=True
+    )
+    page: Mapped[int | None] = mapped_column(Integer, nullable=True)

@@ -1,8 +1,8 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bookclubs.deps import get_club_repository
-from app.bookclubs.repository import BookClubRepository
+from app.bookclubs.deps import get_club_repository, get_reading_repository
+from app.bookclubs.repository import BookClubRepository, ReadingRepository
 from app.books.deps import get_book_service
 from app.books.service import BookService
 from app.core.database import get_db
@@ -24,12 +24,14 @@ def get_thread_service(
         thread_repository: ThreadRepository = Depends(get_thread_repository),
         book_club_repository: BookClubRepository = Depends(get_club_repository),
         book_service: BookService = Depends(get_book_service),
+        reading_repository: ReadingRepository = Depends(get_reading_repository),
         user_repository: UserRepository = Depends(get_user_repository),
 ) -> ThreadService:
     return ThreadService(
         thread_repository=thread_repository,
         book_club_repository=book_club_repository,
         book_service=book_service,
+        reading_repository=reading_repository,
         user_repository=user_repository,
     )
 

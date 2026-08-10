@@ -1,13 +1,27 @@
 import re
-from typing import Any, List, Tuple
+from datetime import date, datetime, timezone
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import select, func, delete, literal_column, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.bookclubs.models import BookClub, ClubMember, BookClubGenre
-from app.bookclubs.schemas import CreateBookClubRequest, BookClubRelation, UpdateBookClubRequest
+from app.bookclubs.models import (
+    BookClub,
+    BookClubGenre,
+    ClubMember,
+    Reading,
+    ReadingProgress,
+    ReadingStage,
+)
+from app.bookclubs.schemas import (
+    CreateBookClubRequest,
+    BookClubRelation,
+    CreateReadingRequest,
+    UpdateBookClubRequest,
+)
 from app.core.authorization import require_permission
 from app.core.contracts import Principal
 from app.core.errors.errors import NotFound, Conflict
@@ -190,6 +204,9 @@ class BookClubRepository:
             .values(members_count=func.greatest(BookClub.members_count - 1, 0))
         )
         await self.db.execute(delete(ClubMember).where(ClubMember.user_id == user_id))
+        # Прогресс в заходах привязан к пользователю без FK - чистим явно. Заходы
+        # удалённых клубов уносит каскад по club_id.
+        await self.db.execute(delete(ReadingProgress).where(ReadingProgress.user_id == user_id))
         await self.db.flush()
 
         return deleted_club_ids
@@ -296,6 +313,215 @@ class BookClubRepository:
 
         await self.db.delete(member)
         await self._change_members_count(club_id, -1)
+        # Прогресс бывшего участника уходит вместе с ним, иначе он продолжал бы
+        # попадать в сводку захода, где доля считается от числа участников.
+        await self.db.execute(
+            delete(ReadingProgress).where(
+                ReadingProgress.user_id == user.id,
+                ReadingProgress.reading_id.in_(
+                    select(Reading.id).where(Reading.club_id == club_id)
+                ),
+            )
+        )
         await self.db.flush()
 
         return await self.get_book_club(club_id=club_id)
+
+
+class ReadingRepository:
+    db: AsyncSession
+
+    def __init__(self, db: AsyncSession) -> None:
+        self.db = db
+
+    async def get_reading(self, reading_id: int) -> Reading:
+        # Всегда через запрос, а не db.get: книга подтягивается selectin-загрузкой
+        # при выполнении SELECT, а объект из identity map пришёл бы без неё.
+        result = await self.db.execute(select(Reading).where(Reading.id == reading_id))
+        reading = result.scalar_one_or_none()
+
+        if reading is None:
+            raise NotFound("Заход с таким id не найден")
+
+        return reading
+
+    async def create_reading(self, club_id: int, book_id: int | None, model: CreateReadingRequest) -> Reading:
+        reading = Reading(
+            club_id=club_id,
+            book_id=book_id,
+            started_at=model.started_at,
+            deadline=model.deadline,
+        )
+        self.db.add(reading)
+
+        try:
+            # Незакрытый заход у клуба один - это держит частичный уникальный индекс.
+            await self.db.flush()
+        except IntegrityError:
+            await self.db.rollback()
+            raise Conflict(errors=["У клуба уже есть текущий заход - сначала закройте его"])
+
+        for position, stage in enumerate(model.stages, start=1):
+            self.db.add(
+                ReadingStage(
+                    reading_id=reading.id,
+                    position=position,
+                    title=stage.title,
+                    due_date=stage.due_date,
+                    end_page=stage.end_page,
+                )
+            )
+        await self.db.flush()
+
+        return await self.get_reading(reading.id)
+
+    async def get_active_readings(self, club_ids: List[int]) -> List[Reading]:
+        if not club_ids:
+            return []
+
+        result = await self.db.execute(
+            select(Reading).where(Reading.club_id.in_(club_ids), Reading.finished_at.is_(None))
+        )
+
+        return list(result.scalars().all())
+
+    async def get_readings(self, club_id: int, limit: int, offset: int) -> Tuple[List[Reading], int]:
+        total = await self.db.scalar(
+            select(func.count()).select_from(Reading).where(Reading.club_id == club_id)
+        )
+        result = await self.db.execute(
+            select(Reading)
+            .where(Reading.club_id == club_id)
+            .order_by(Reading.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        return list(result.scalars().all()), total or 0
+
+    async def finish_reading(self, reading: Reading) -> Reading:
+        if reading.finished_at is not None:
+            raise Conflict(errors=["Заход уже закрыт"])
+
+        reading.finished_at = datetime.now(timezone.utc)
+        await self.db.flush()
+
+        return reading
+
+    async def get_stages(self, reading_ids: List[int]) -> Dict[int, List[ReadingStage]]:
+        if not reading_ids:
+            return {}
+
+        result = await self.db.execute(
+            select(ReadingStage)
+            .where(ReadingStage.reading_id.in_(reading_ids))
+            .order_by(ReadingStage.reading_id, ReadingStage.position)
+        )
+
+        stages: Dict[int, List[ReadingStage]] = {}
+        for stage in result.scalars().all():
+            stages.setdefault(stage.reading_id, []).append(stage)
+
+        return stages
+
+    async def get_stage_club_id(self, stage_id: int) -> Optional[int]:
+        """id клуба, которому принадлежит этап, либо None - этапа нет."""
+        club_id: Optional[int] = await self.db.scalar(
+            select(Reading.club_id)
+            .join(ReadingStage, ReadingStage.reading_id == Reading.id)
+            .where(ReadingStage.id == stage_id)
+        )
+
+        return club_id
+
+    async def set_progress(
+        self, reading_id: int, user_id: int, stage_id: int | None, page: int | None
+    ) -> ReadingProgress:
+        # Upsert: у участника одна строка прогресса на заход, повторная отметка
+        # переписывает её, а не падает об уникальный ключ. updated_at ставим явно -
+        # onupdate работает только на пути ORM, а не в INSERT ... ON CONFLICT.
+        statement = pg_insert(ReadingProgress).values(
+            reading_id=reading_id, user_id=user_id, stage_id=stage_id, page=page
+        )
+        await self.db.execute(
+            statement.on_conflict_do_update(
+                constraint="uq_reading_progress_reading_id_user_id",
+                set_={
+                    "stage_id": statement.excluded.stage_id,
+                    "page": statement.excluded.page,
+                    "updated_at": func.now(),
+                },
+            )
+        )
+        await self.db.flush()
+
+        progress = await self.get_progress(reading_id, user_id)
+        if progress is None:
+            raise NotFound("Прогресс не найден")
+
+        return progress
+
+    async def get_progress(self, reading_id: int, user_id: int) -> Optional[ReadingProgress]:
+        result = await self.db.execute(
+            select(ReadingProgress).where(
+                ReadingProgress.reading_id == reading_id, ReadingProgress.user_id == user_id
+            )
+        )
+
+        return result.scalar_one_or_none()
+
+    async def get_progress_page(
+        self, reading_id: int, limit: int, offset: int
+    ) -> Tuple[List[ReadingProgress], int]:
+        total = await self.db.scalar(
+            select(func.count()).select_from(ReadingProgress).where(
+                ReadingProgress.reading_id == reading_id
+            )
+        )
+        result = await self.db.execute(
+            select(ReadingProgress)
+            .where(ReadingProgress.reading_id == reading_id)
+            .order_by(ReadingProgress.updated_at.desc(), ReadingProgress.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+
+        return list(result.scalars().all()), total or 0
+
+    async def get_expected_positions(self, reading_ids: List[int], today: date) -> Dict[int, int]:
+        """Последний этап каждого захода, чья дата уже наступила.
+
+        Заходы без наступивших этапов в ответе отсутствуют - сверять прогресс
+        ещё не с чем.
+        """
+        if not reading_ids:
+            return {}
+
+        result = await self.db.execute(
+            select(ReadingStage.reading_id, func.max(ReadingStage.position))
+            .where(ReadingStage.reading_id.in_(reading_ids), ReadingStage.due_date <= today)
+            .group_by(ReadingStage.reading_id)
+        )
+
+        return dict(result.tuples().all())
+
+    async def count_on_track(self, expected_positions: Dict[int, int]) -> Dict[int, int]:
+        """Сколько участников каждого захода закрыли этап не ниже ожидаемого."""
+        if not expected_positions:
+            return {}
+
+        # Группировка по (заход, этап) отдаёт единицы строк на заход - порог
+        # применяем в Python, чтобы не собирать запрос с разным условием на каждый заход.
+        result = await self.db.execute(
+            select(ReadingProgress.reading_id, ReadingStage.position, func.count())
+            .join(ReadingStage, ReadingStage.id == ReadingProgress.stage_id)
+            .where(ReadingProgress.reading_id.in_(list(expected_positions)))
+            .group_by(ReadingProgress.reading_id, ReadingStage.position)
+        )
+
+        counts: Dict[int, int] = {}
+        for reading_id, position, count in result.tuples().all():
+            if position >= expected_positions[reading_id]:
+                counts[reading_id] = counts.get(reading_id, 0) + count
+
+        return counts
