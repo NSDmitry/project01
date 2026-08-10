@@ -22,6 +22,11 @@ class ClubMember(Base):
 
 class BookClubGenre(Base):
     __tablename__ = "book_club_genres"
+    __table_args__ = (
+        # PK (club_id, genre_id) обслуживает выборку по club_id, но не по одному
+        # genre_id: поиск клубов по жанру шёл полным сканом связки.
+        Index("ix_book_club_genres_genre_id", "genre_id"),
+    )
 
     club_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True
@@ -35,6 +40,17 @@ class BookClub(Base, DBLBase):
     __table_args__ = (
         # Фильтр «мои клубы» по владению и обнуление владельца при удалении пользователя.
         Index("ix_book_clubs_owner_id", "owner_id"),
+        # Поиск по подстроке: ILIKE '%...%' btree не использует, нужен триграммный
+        # GIN. Работает только вместе с UNION-формой запроса в репозитории - в
+        # одном OR с подзапросом по жанрам планировщик всё равно берёт Seq Scan.
+        Index(
+            "ix_book_clubs_name_trgm", "name",
+            postgresql_using="gin", postgresql_ops={"name": "gin_trgm_ops"},
+        ),
+        Index(
+            "ix_book_clubs_description_trgm", "description",
+            postgresql_using="gin", postgresql_ops={"description": "gin_trgm_ops"},
+        ),
     )
 
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -45,3 +61,7 @@ class BookClub(Base, DBLBase):
     # поэтому клуб не считает их подзапросом, а ведёт столбец по событиям
     # THREAD_CREATED/THREAD_DELETED (см. events.py).
     threads_count: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    # Денормализованный счётчик участников. В отличие от threads_count участники
+    # живут в этом же домене, поэтому столбец правится в той же транзакции, что и
+    # club_members - без событий и без риска разъехаться.
+    members_count: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")

@@ -67,11 +67,11 @@ class ThreadService:
         :return: Страница тредов
         """
         club = await self.book_club_repository.get_book_club(club_id=book_club_id)
-        threads, total = await self.thread_repository.get_threads(club.id, limit=limit, offset=offset)
+        threads = await self.thread_repository.get_threads(club.id, limit=limit, offset=offset)
 
         page = Page(
             items=await self._to_responses(threads),
-            total=total,
+            total=club.threads_count,
             limit=limit,
             offset=offset,
         )
@@ -208,7 +208,7 @@ class CommentService:
         :return: Страница комментариев
         """
         thread = await self.thread_repository.get_thread(thread_id)
-        comments, total = await self.comment_repository.get_comments(thread.id, limit=limit, offset=offset)
+        comments = await self.comment_repository.get_comments(thread.id, limit=limit, offset=offset)
 
         comment_ids = [comment.id for comment in comments]
         likes_counts = await self.comment_repository.get_likes_counts(comment_ids)
@@ -228,7 +228,7 @@ class CommentService:
                 )
                 for comment in comments
             ],
-            total=total,
+            total=thread.comments_count,
             limit=limit,
             offset=offset,
         )

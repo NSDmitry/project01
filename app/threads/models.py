@@ -27,6 +27,9 @@ class Thread(Base, DBLBase):
     )
     title: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Денормализованный счётчик комментариев треда. Комментарии в этом же домене,
+    # поэтому столбец правится в той же транзакции - без событий.
+    comments_count: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
 
     book = relationship("Book", lazy="selectin")
 

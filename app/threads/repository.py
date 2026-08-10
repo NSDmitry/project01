@@ -20,10 +20,9 @@ class ThreadRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_threads(self, club_id: int, limit: int, offset: int) -> Tuple[List[Thread], int]:
-        total = await self.db.scalar(
-            select(func.count()).select_from(Thread).where(Thread.club_id == club_id)
-        )
+    # Общее число тредов не считаем: его держит BookClub.threads_count, а клуб
+    # сервис к этому моменту уже загрузил.
+    async def get_threads(self, club_id: int, limit: int, offset: int) -> List[Thread]:
         result = await self.db.execute(
             select(Thread)
             .where(Thread.club_id == club_id)
@@ -32,7 +31,7 @@ class ThreadRepository:
             .offset(offset)
         )
 
-        return list(result.scalars().all()), total or 0
+        return list(result.scalars().all())
 
     async def get_thread(self, thread_id: int) -> Thread:
         thread = await self.db.get(Thread, thread_id)
@@ -85,6 +84,20 @@ class ThreadRepository:
                 update(Thread).values(author_id=None).where(Thread.author_id == user_id)
             )
         if delete_comments:
+            # Счётчик правим до удаления: после DELETE считать уже нечего.
+            # Вычитаем ровно столько, сколько уходит из каждого треда.
+            removed_by_thread = (
+                select(Comment.thread_id, func.count().label("cnt"))
+                .where(Comment.author_id == user_id)
+                .group_by(Comment.thread_id)
+                .subquery()
+            )
+            await self.db.execute(
+                update(Thread)
+                .where(Thread.id == removed_by_thread.c.thread_id)
+                .values(comments_count=func.greatest(Thread.comments_count - removed_by_thread.c.cnt, 0))
+                .execution_options(synchronize_session=False)
+            )
             await self.db.execute(delete(Comment).where(Comment.author_id == user_id))
         else:
             await self.db.execute(
@@ -122,10 +135,9 @@ class CommentRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_comments(self, thread_id: int, limit: int, offset: int) -> Tuple[List[Comment], int]:
-        total = await self.db.scalar(
-            select(func.count()).select_from(Comment).where(Comment.thread_id == thread_id)
-        )
+    # Общее число комментариев не считаем: его держит Thread.comments_count,
+    # а тред сервис к этому моменту уже загрузил.
+    async def get_comments(self, thread_id: int, limit: int, offset: int) -> List[Comment]:
         result = await self.db.execute(
             select(Comment)
             .where(Comment.thread_id == thread_id)
@@ -134,7 +146,17 @@ class CommentRepository:
             .offset(offset)
         )
 
-        return list(result.scalars().all()), total or 0
+        return list(result.scalars().all())
+
+    async def _change_comments_count(self, thread_id: int, delta: int) -> None:
+        # Инкремент на стороне БД - параллельные комментарии в один тред иначе
+        # затирали бы приращения друг друга.
+        await self.db.execute(
+            update(Thread)
+            .where(Thread.id == thread_id)
+            .values(comments_count=func.greatest(Thread.comments_count + delta, 0))
+            .execution_options(synchronize_session="fetch")
+        )
 
     async def get_comment(self, comment_id: int) -> Comment:
         comment = await self.db.get(Comment, comment_id)
@@ -152,6 +174,7 @@ class CommentRepository:
 
         self.db.add(new_comment)
         await self.db.flush()
+        await self._change_comments_count(thread_id, +1)
 
         return await self.get_comment(new_comment.id)
 
@@ -159,8 +182,10 @@ class CommentRepository:
         comment = await self.db.get(Comment, comment_id)
 
         if comment:
+            thread_id = comment.thread_id
             await self.db.delete(comment)
             await self.db.flush()
+            await self._change_comments_count(thread_id, -1)
 
         return comment
 

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from app.core.contracts import Principal, UserSummary
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.core.params import PathId
+from app.core.params import PageOffset, PathId
 from app.iam.deps import get_current_user, get_optional_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
 from app.threads.deps import get_thread_service, get_comment_service
 from app.threads.schemas import (
@@ -34,7 +34,7 @@ comments_router = APIRouter(tags=["comments"])
 async def get_threads(
         club_id: PathId,
         limit: int = Query(10, ge=1, le=100),
-        offset: int = Query(0, ge=0),
+        offset: PageOffset = 0,
         service: ThreadService = Depends(get_thread_service)
 ) -> ResponseModel[Page[ThreadResponse]]:
     return await service.get_threads(book_club_id=club_id, limit=limit, offset=offset)
@@ -127,7 +127,7 @@ async def update_thread(
 async def get_comments(
         thread_id: PathId,
         limit: int = Query(10, ge=1, le=100),
-        offset: int = Query(0, ge=0),
+        offset: PageOffset = 0,
         user: Principal | None = Depends(get_optional_user),
         service: CommentService = Depends(get_comment_service)
 ) -> ResponseModel[Page[CommentResponse]]:
@@ -219,7 +219,7 @@ async def delete_comment(
 async def get_comment_likers(
         comment_id: PathId,
         limit: int = Query(10, ge=1, le=100),
-        offset: int = Query(0, ge=0),
+        offset: PageOffset = 0,
         service: CommentService = Depends(get_comment_service)
 ) -> ResponseModel[Page[UserSummary]]:
     return await service.get_comment_likers(comment_id=comment_id, limit=limit, offset=offset)

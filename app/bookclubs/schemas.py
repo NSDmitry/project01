@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 
 from app.core.contracts import GenreResponse, UserSummary
+from app.core.params import MAX_OFFSET
 from app.core.schemas import ResponseSchema
 
 class BookClubRelation(str, Enum):
@@ -29,7 +30,7 @@ class SearchBookClubsRequest(BaseModel):
     query: Optional[str] = None
     relation: Optional[BookClubRelation] = None
     limit: int = Field(20, ge=1, le=100)
-    offset: int = Field(0, ge=0)
+    offset: int = Field(0, ge=0, le=MAX_OFFSET)
 
 class BookClubResponse(ResponseSchema):
     id: int

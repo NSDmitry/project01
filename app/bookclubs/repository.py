@@ -1,6 +1,6 @@
 from typing import List, Tuple
 
-from sqlalchemy import select, func, or_, delete, update
+from sqlalchemy import select, func, delete, union, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
@@ -23,6 +23,7 @@ class BookClubRepository:
         new_book_club.name = model.name
         new_book_club.description = model.description
         new_book_club.owner_id = owner.id
+        new_book_club.members_count = 1
 
         self.db.add(new_book_club)
 
@@ -75,17 +76,21 @@ class BookClubRepository:
             pattern = f"%{escaped}%"
             # ищем подстроку в названии, описании или по жанрам клуба:
             # id подходящих жанров сервис берёт у genres (после распила - у сервиса жанров)
-            term_conditions = [
-                BookClub.name.ilike(pattern, escape="\\"),
-                BookClub.description.ilike(pattern, escape="\\"),
+            #
+            # Ветки объединяются UNION, а не OR. С OR ветка по жанрам не
+            # индексируется, и планировщик читает book_clubs целиком, не трогая
+            # триграммные индексы по name/description. С UNION каждая ветка идёт
+            # своим индексом.
+            branches = [
+                select(BookClub.id).where(BookClub.name.ilike(pattern, escape="\\")),
+                select(BookClub.id).where(BookClub.description.ilike(pattern, escape="\\")),
             ]
             if genre_ids:
-                term_conditions.append(
-                    BookClub.id.in_(
-                        select(BookClubGenre.club_id).where(BookClubGenre.genre_id.in_(genre_ids))
-                    )
+                branches.append(
+                    select(BookClubGenre.club_id).where(BookClubGenre.genre_id.in_(genre_ids))
                 )
-            conditions.append(or_(*term_conditions))
+            matching = union(*branches).subquery()
+            conditions.append(BookClub.id.in_(select(matching.c.id)))
 
         total = await self.db.scalar(
             select(func.count()).select_from(BookClub).where(*conditions)
@@ -110,10 +115,9 @@ class BookClubRepository:
 
         return member is not None
 
-    async def get_members(self, club_id: int, limit: int, offset: int) -> Tuple[List[int], int]:
-        total = await self.db.scalar(
-            select(func.count()).select_from(ClubMember).where(ClubMember.club_id == club_id)
-        )
+    # Общее число участников не считаем: его держит BookClub.members_count,
+    # а клуб сервис к этому моменту уже загрузил.
+    async def get_members(self, club_id: int, limit: int, offset: int) -> List[int]:
         result = await self.db.execute(
             select(ClubMember.user_id)
             .where(ClubMember.club_id == club_id)
@@ -122,7 +126,20 @@ class BookClubRepository:
             .offset(offset)
         )
 
-        return list(result.scalars().all()), total or 0
+        return list(result.scalars().all())
+
+    async def _change_members_count(self, club_id: int, delta: int) -> None:
+        # Инкремент считает БД, а не Python: параллельные join/leave по одному клубу
+        # иначе затирали бы друг друга (прочитали 5 - оба записали 6).
+        # synchronize_session="fetch" помечает уже загруженный объект клуба
+        # просроченным, иначе get_book_club отдал бы его из identity map со старым
+        # счётчиком.
+        await self.db.execute(
+            update(BookClub)
+            .where(BookClub.id == club_id)
+            .values(members_count=func.greatest(BookClub.members_count + delta, 0))
+            .execution_options(synchronize_session="fetch")
+        )
 
     async def handle_user_deleted(self, user_id: int, delete_owned_clubs: bool) -> List[int]:
         # FK на users больше нет - SET NULL/CASCADE, которые раньше делала БД
@@ -140,6 +157,19 @@ class BookClubRepository:
             await self.db.execute(
                 update(BookClub).values(owner_id=None).where(BookClub.owner_id == user_id)
             )
+        # Счётчик уменьшаем до удаления строк: после DELETE подзапрос уже не найдёт,
+        # в каких клубах пользователь состоял. В клубе он максимум один раз (PK),
+        # поэтому ровно -1 на затронутый клуб. Удалённые выше клубы под UPDATE не
+        # попадут - их строк уже нет.
+        await self.db.execute(
+            update(BookClub)
+            .where(
+                BookClub.id.in_(
+                    select(ClubMember.club_id).where(ClubMember.user_id == user_id)
+                )
+            )
+            .values(members_count=func.greatest(BookClub.members_count - 1, 0))
+        )
         await self.db.execute(delete(ClubMember).where(ClubMember.user_id == user_id))
         await self.db.flush()
 
@@ -192,18 +222,6 @@ class BookClubRepository:
 
         return await self.get_book_club(club_id=club_id)
 
-    async def get_members_counts(self, club_ids: List[int]) -> dict[int, int]:
-        if not club_ids:
-            return {}
-
-        result = await self.db.execute(
-            select(ClubMember.club_id, func.count())
-            .where(ClubMember.club_id.in_(club_ids))
-            .group_by(ClubMember.club_id)
-        )
-
-        return {club_id: count for club_id, count in result.all()}
-
     async def get_genre_ids(self, club_ids: List[int]) -> dict[int, List[int]]:
         if not club_ids:
             return {}
@@ -245,6 +263,8 @@ class BookClubRepository:
             await self.db.rollback()
             raise Conflict(errors=["Пользователь уже является участником клуба, повторное добавление не требуется"])
 
+        await self._change_members_count(club_id, +1)
+
         return await self.get_book_club(club_id=club_id)
 
     async def remove_member(self, user: Principal, club_id: int) -> BookClub:
@@ -256,6 +276,7 @@ class BookClubRepository:
             raise Conflict(errors=["Пользователь не состоит в клубе"])
 
         await self.db.delete(member)
+        await self._change_members_count(club_id, -1)
         await self.db.flush()
 
         return await self.get_book_club(club_id=club_id)

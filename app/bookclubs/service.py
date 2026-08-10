@@ -40,14 +40,12 @@ class BookClubService:
     async def _to_responses(self, clubs: List[BookClub]) -> List[BookClubResponse]:
         owners = await self._owners_by_id(clubs)
         genres_by_club = await self._genres_by_club(clubs)
-        members_counts = await self.book_club_repository.get_members_counts([club.id for club in clubs])
 
         responses = []
         for club in clubs:
             response = BookClubResponse.model_validate(club)
             response.owner = owners.get(club.owner_id) if club.owner_id is not None else None
             response.genres = genres_by_club.get(club.id, [])
-            response.members_count = members_counts.get(club.id, 0)
             responses.append(response)
 
         return responses
@@ -158,12 +156,12 @@ class BookClubService:
         return ResponseModel.ok(await self._to_response(db_club))
 
     async def get_members(self, club_id: int, limit: int, offset: int) -> ResponseModel[Page[UserSummary]]:
-        await self.book_club_repository.get_book_club(club_id)
-        user_ids, total = await self.book_club_repository.get_members(club_id, limit=limit, offset=offset)
+        club = await self.book_club_repository.get_book_club(club_id)
+        user_ids = await self.book_club_repository.get_members(club_id, limit=limit, offset=offset)
 
         page = Page(
             items=await self.user_repository.get_summaries_by_ids(user_ids),
-            total=total,
+            total=club.members_count,
             limit=limit,
             offset=offset,
         )

@@ -12,7 +12,7 @@ from app.bookclubs.service import BookClubService
 from app.core.contracts import Principal, UserSummary
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
-from app.core.params import PathId
+from app.core.params import PageOffset, PathId
 from app.iam.deps import get_current_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
@@ -62,7 +62,7 @@ async def create(
 )
 async def get_all_book_clubs(
         limit: int = Query(20, ge=1, le=100),
-        offset: int = Query(0, ge=0),
+        offset: PageOffset = 0,
         _: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ) -> ResponseModel[Page[BookClubResponse]]:
@@ -138,7 +138,7 @@ async def get_book_club(
 async def get_book_club_members(
         club_id: PathId,
         limit: int = Query(20, ge=1, le=100),
-        offset: int = Query(0, ge=0),
+        offset: PageOffset = 0,
         _: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
 ) -> ResponseModel[Page[UserSummary]]:
