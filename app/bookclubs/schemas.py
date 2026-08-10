@@ -33,6 +33,6 @@ class BookClubResponse(ResponseSchema):
     description: str
     created_at: datetime
     owner: Optional[UserSummary] = None
-    members_count: int
+    members_count: int = 0
     threads_count: int = 0
     genres: list[GenreResponse] = []

@@ -165,6 +165,18 @@ class BookClubRepository:
 
         return await self.get_book_club(club_id=club_id)
 
+    async def get_members_counts(self, club_ids: List[int]) -> dict[int, int]:
+        if not club_ids:
+            return {}
+
+        result = await self.db.execute(
+            select(ClubMember.club_id, func.count())
+            .where(ClubMember.club_id.in_(club_ids))
+            .group_by(ClubMember.club_id)
+        )
+
+        return {club_id: count for club_id, count in result.all()}
+
     async def get_genre_ids(self, club_ids: List[int]) -> dict[int, List[int]]:
         if not club_ids:
             return {}

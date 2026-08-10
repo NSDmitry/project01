@@ -1,5 +1,5 @@
-from sqlalchemy import BigInteger, String, ForeignKey, select, func
-from sqlalchemy.orm import Mapped, column_property, mapped_column
+from sqlalchemy import BigInteger, String, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 from app.core.db_base_model import DBLBase
@@ -36,12 +36,3 @@ class BookClub(Base, DBLBase):
     # поэтому клуб не считает их подзапросом, а ведёт столбец по событиям
     # THREAD_CREATED/THREAD_DELETED (см. events.py).
     threads_count: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
-
-
-# Счётчик участников считается коррелированным подзапросом прямо в SELECT клуба -
-# один запрос на клуб, без загрузки строк участников и без N+1 на списках.
-BookClub.members_count = column_property(
-    select(func.count(ClubMember.user_id))
-    .where(ClubMember.club_id == BookClub.id)
-    .scalar_subquery()
-)
