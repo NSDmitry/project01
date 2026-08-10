@@ -28,6 +28,32 @@ class TestThreadBook:
         assert book["author"] == "Михаил Булгаков"
         assert book["published_year"] == 1967
 
+    def test_book_from_google_is_saved_with_cover_and_pages(self, api, db):
+        install_fake_google([suggestion(volume_id="vol-1")])
+        owner = AuthFlow.register(api)
+        club_id = BookclubFlow.create(api, auth=owner).json()["data"]["id"]
+
+        response = api.create_thread(_thread_payload(club_id, "vol-1"), headers=owner.headers)
+        book = response.json()["data"]["book"]
+
+        assert_status_code(response, 201)
+        assert book["cover_url"] == "https://books.google.com/books/content?id=vol-1&img=1"
+        assert book["page_count"] == 480
+        assert db.execute(text("SELECT page_count FROM books")).scalar() == 480
+
+    def test_book_without_cover_and_pages_is_still_saved(self, api):
+        install_fake_google([suggestion(volume_id="vol-1", cover_url=None, page_count=None)])
+        owner = AuthFlow.register(api)
+        club_id = BookclubFlow.create(api, auth=owner).json()["data"]["id"]
+
+        response = api.create_thread(_thread_payload(club_id, "vol-1"), headers=owner.headers)
+        book = response.json()["data"]["book"]
+
+        assert_status_code(response, 201)
+        assert book["google_volume_id"] == "vol-1"
+        assert book["cover_url"] is None
+        assert book["page_count"] is None
+
     def test_create_thread_without_book(self, api):
         install_fake_google([])
         owner = AuthFlow.register(api)

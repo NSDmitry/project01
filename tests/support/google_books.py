@@ -9,6 +9,8 @@ def suggestion(volume_id: str = "vol-1", title: str = "Мастер и Марг�
         description="Роман о визите дьявола в Москву",
         genres="Fiction, Classics",
         published_year=1967,
+        cover_url="https://books.google.com/books/content?id=vol-1&img=1",
+        page_count=480,
     )
     defaults.update(kwargs)
     return BookSuggestionResponse(volume_id=volume_id, title=title, **defaults)

@@ -15,3 +15,6 @@ class Book(Base, DBLBase):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     genres: Mapped[str | None] = mapped_column(String, nullable=True)
     published_year: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # NULL - книга заведена вручную или Google не отдал данные.
+    cover_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)

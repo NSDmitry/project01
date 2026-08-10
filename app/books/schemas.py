@@ -22,3 +22,5 @@ class BookSuggestionResponse(BaseModel):
     description: Optional[str] = None
     genres: Optional[str] = None
     published_year: Optional[int] = None
+    cover_url: Optional[str] = None
+    page_count: Optional[int] = None

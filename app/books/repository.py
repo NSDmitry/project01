@@ -28,6 +28,8 @@ class BookRepository:
             description=data.description,
             genres=data.genres,
             published_year=data.published_year,
+            cover_url=data.cover_url,
+            page_count=data.page_count,
         )
         self.db.add(book)
         await self.db.flush()

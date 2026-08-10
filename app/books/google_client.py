@@ -21,10 +21,24 @@ class GoogleBooksClient:
         return params
 
     @staticmethod
-    def _parse(item: dict) -> BookSuggestionResponse:
+    def _cover_url(info: dict) -> Optional[str]:
+        # imageLinks может прийти явным null - тогда get с дефолтом отдаст None.
+        links = info.get("imageLinks") or {}
+        url: Optional[str] = links.get("thumbnail") or links.get("smallThumbnail")
+        if not url:
+            return None
+
+        # Google отдаёт ссылки по http, клиенты с ATS/CSP такую картинку не покажут.
+        # Заменяем только схему: внутри query бывает вложенный http-адрес.
+        return "https://" + url[len("http://"):] if url.startswith("http://") else url
+
+    @classmethod
+    def _parse(cls, item: dict) -> BookSuggestionResponse:
         info = item.get("volumeInfo", {})
         published_date = info.get("publishedDate", "")
         year = int(published_date[:4]) if published_date[:4].isdigit() else None
+        # Объём приходит нулём или строкой, если Google его не знает.
+        pages = info.get("pageCount")
 
         return BookSuggestionResponse(
             volume_id=item["id"],
@@ -33,6 +47,8 @@ class GoogleBooksClient:
             description=info.get("description") or None,
             genres=", ".join(info.get("categories", [])) or None,
             published_year=year,
+            cover_url=cls._cover_url(info),
+            page_count=pages if isinstance(pages, int) and pages > 0 else None,
         )
 
     async def _get(self, url: str, **params: Any) -> httpx.Response:

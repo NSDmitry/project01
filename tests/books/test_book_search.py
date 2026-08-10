@@ -17,6 +17,8 @@ class TestBookSearch:
         assert data[0]["title"] == "Мастер и Маргарита"
         assert data[0]["author"] == "Михаил Булгаков"
         assert data[0]["published_year"] == 1967
+        assert data[0]["cover_url"] == "https://books.google.com/books/content?id=vol-1&img=1"
+        assert data[0]["page_count"] == 480
 
     def test_search_requires_auth(self, api):
         install_fake_google([suggestion()])
