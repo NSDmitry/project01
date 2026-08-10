@@ -41,3 +41,6 @@ class BookResponse(ResponseSchema):
     description: str | None = None
     genres: str | None = None
     published_year: int | None = None
+    # None - книга заведена вручную или Google не отдал данные.
+    cover_url: str | None = None
+    page_count: int | None = None

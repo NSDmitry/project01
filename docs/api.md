@@ -41,7 +41,7 @@
 
 ## Книги
 
-- `GET /api/books/search?q=<запрос>` - поиск книг в Google Books (подсказки для автокомплита); требует авторизации, в БД ничего не сохраняет. Каждая подсказка содержит `volume_id`, `title`, `author`, `description`, `genres`, `published_year`
+- `GET /api/books/search?q=<запрос>` - поиск книг в Google Books (подсказки для автокомплита); требует авторизации, в БД ничего не сохраняет. Каждая подсказка содержит `volume_id`, `title`, `author`, `description`, `genres`, `published_year`, `cover_url`, `page_count`. Обложки и числа страниц у книги может не быть - Google отдаёт их не для всех томов
 
 ## Треды
 

@@ -21,7 +21,14 @@ class GoogleBooksClient:
         return params
 
     @staticmethod
-    def _parse(item: dict) -> BookSuggestionResponse:
+    def _cover_url(info: dict) -> Optional[str]:
+        links = info.get("imageLinks", {})
+        url = links.get("thumbnail") or links.get("smallThumbnail")
+        # Google отдаёт ссылки по http, клиенты с ATS/CSP такую картинку не покажут.
+        return url.replace("http://", "https://", 1) if url else None
+
+    @classmethod
+    def _parse(cls, item: dict) -> BookSuggestionResponse:
         info = item.get("volumeInfo", {})
         published_date = info.get("publishedDate", "")
         year = int(published_date[:4]) if published_date[:4].isdigit() else None
@@ -33,6 +40,9 @@ class GoogleBooksClient:
             description=info.get("description") or None,
             genres=", ".join(info.get("categories", [])) or None,
             published_year=year,
+            cover_url=cls._cover_url(info),
+            # Google отдаёт 0 для книг без известного объёма.
+            page_count=info.get("pageCount") or None,
         )
 
     async def _get(self, url: str, **params: Any) -> httpx.Response:
