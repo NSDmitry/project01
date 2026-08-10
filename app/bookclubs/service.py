@@ -6,6 +6,7 @@ from app.bookclubs.schemas import (
     CreateBookClubRequest,
     UpdateBookClubGenresRequest,
     SearchBookClubsRequest,
+    UpdateBookClubRequest,
     BookClubResponse,
 )
 from app.bookclubs.ports import GenresPort, UsersPort
@@ -31,19 +32,22 @@ class BookClubService:
         self.genre_repository = genre_repository
         self.user_repository = user_repository
 
-    # owner и genres больше не живут в модели - клуб хранит только id, подтягиваем
-    # их батчем из iam/genres (после распила - вызовы соседних сервисов), одним
-    # запросом на всю страницу вместо N+1. threads_count - денормализованный
-    # столбец, который ведёт домен клубов по событиям тредов (см. events.py).
+    # owner, genres и members_count не живут в модели клуба - подтягиваем их
+    # батчем (owner и genres из iam/genres, после распила - вызовы соседних
+    # сервисов), одним запросом на всю страницу вместо N+1. threads_count -
+    # денормализованный столбец, который ведёт домен клубов по событиям тредов
+    # (см. events.py).
     async def _to_responses(self, clubs: List[BookClub]) -> List[BookClubResponse]:
         owners = await self._owners_by_id(clubs)
         genres_by_club = await self._genres_by_club(clubs)
+        members_counts = await self.book_club_repository.get_members_counts([club.id for club in clubs])
 
         responses = []
         for club in clubs:
             response = BookClubResponse.model_validate(club)
             response.owner = owners.get(club.owner_id) if club.owner_id is not None else None
             response.genres = genres_by_club.get(club.id, [])
+            response.members_count = members_counts.get(club.id, 0)
             responses.append(response)
 
         return responses
@@ -93,6 +97,15 @@ class BookClubService:
         )
 
         return ResponseModel.ok(await self._to_response(db_book_club))
+
+    async def update_book_club(
+            self,
+            owner: Principal,
+            club_id: int,
+            model: UpdateBookClubRequest
+    ) -> ResponseModel[BookClubResponse]:
+        club = await self.book_club_repository.update_book_club(owner, club_id, model)
+        return ResponseModel.ok(await self._to_response(club))
 
     async def _resolve_genres(self, codes: List[str]) -> List[GenreResponse]:
         unique_codes = list(dict.fromkeys(codes))

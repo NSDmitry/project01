@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.bookclubs.models import BookClub, ClubMember, BookClubGenre
-from app.bookclubs.schemas import CreateBookClubRequest, BookClubRelation
+from app.bookclubs.schemas import CreateBookClubRequest, BookClubRelation, UpdateBookClubRequest
 from app.core.authorization import require_permission
 from app.core.contracts import Principal
 from app.core.errors.errors import NotFound, Conflict
@@ -164,6 +164,45 @@ class BookClubRepository:
         await self.db.flush()
 
         return await self.get_book_club(club_id=club_id)
+
+    async def update_book_club(self, owner: Principal, club_id: int, model: UpdateBookClubRequest) -> BookClub:
+        club = await self.get_book_club(club_id=club_id)
+
+        require_permission(
+            owner,
+            club.owner_id,
+            message="Пользователь не является владельцем книжного клуба"
+        )
+
+        if model.name is not None:
+            club.name = model.name
+
+        if model.description is not None:
+            club.description = model.description
+
+        try:
+            await self.db.flush()
+        except IntegrityError:
+            await self.db.rollback()
+
+            raise Conflict(
+                message="Клуб с таким названием уже существует",
+                errors=["field: name, message: Это имя уже используется"],
+            )
+
+        return await self.get_book_club(club_id=club_id)
+
+    async def get_members_counts(self, club_ids: List[int]) -> dict[int, int]:
+        if not club_ids:
+            return {}
+
+        result = await self.db.execute(
+            select(ClubMember.club_id, func.count())
+            .where(ClubMember.club_id.in_(club_ids))
+            .group_by(ClubMember.club_id)
+        )
+
+        return {club_id: count for club_id, count in result.all()}
 
     async def get_genre_ids(self, club_ids: List[int]) -> dict[int, List[int]]:
         if not club_ids:

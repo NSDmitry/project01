@@ -18,6 +18,10 @@ class CreateBookClubRequest(BaseModel):
     description: str = Field(min_length=3, max_length=500)
     genres: list[str] = Field(max_length=5)
 
+class UpdateBookClubRequest(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=3, max_length=100)
+    description: Optional[str] = Field(default=None, min_length=3, max_length=500)
+
 class UpdateBookClubGenresRequest(BaseModel):
     genres: list[str] = Field(max_length=5)
 
@@ -33,6 +37,6 @@ class BookClubResponse(ResponseSchema):
     description: str
     created_at: datetime
     owner: Optional[UserSummary] = None
-    members_count: int
+    members_count: int = 0
     threads_count: int = 0
     genres: list[GenreResponse] = []
