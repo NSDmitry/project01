@@ -82,7 +82,7 @@ class TestBookclubMemberships:
         assert_status_code(page, 200)
         assert data["total"] == 2
         assert len(data["items"]) == 1
-        assert set(data["items"][0].keys()) == {"id", "name"}
+        assert set(data["items"][0].keys()) == {"id", "name", "role"}
 
     def test_join_bookclub_requires_authorization(self, api):
         created = BookclubFlow.create(api)

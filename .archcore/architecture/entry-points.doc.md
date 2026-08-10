@@ -6,7 +6,7 @@ tags:
   - "entry-points"
 ---
 
-HTTP-сервер: `uvicorn app.main:app` (Dockerfile CMD, `./run.sh`). 36 роутов + /metrics.
+HTTP-сервер: `uvicorn app.main:app` (Dockerfile CMD, `./run.sh`). 52 роута + /metrics.
 
 ### domain:iam
 - @app/iam/router.py - HTTP. /api/auth (Telegram Login, сессии) + /api/users - 10 роутов.
@@ -15,7 +15,7 @@ HTTP-сервер: `uvicorn app.main:app` (Dockerfile CMD, `./run.sh`). 36 ро�
 - @app/threads/router.py - HTTP. /api/threads + роуты комментариев и лайков - 11 роутов.
 
 ### domain:bookclubs
-- @app/bookclubs/router.py - HTTP. /api/bookclubs (клубы, участие, жанры клуба) - 9 роутов.
+- @app/bookclubs/router.py - HTTP. /api/bookclubs (клубы, участие, приватность и роли, приглашения, заявки, жанры клуба, заходы) - 22 роута; /api/readings (прогресс и закрытие захода) - 3 роута.
 
 ### domain:genres
 - @app/genres/router.py - HTTP. /api/genres (каталог жанров) - 4 роута.

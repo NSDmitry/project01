@@ -68,3 +68,19 @@ class MemberFlow:
         api.join_bookclub(club_id, headers=member.headers)
 
         return member
+
+    @staticmethod
+    def join_by_invite(api: ApiClient, club_id: int, owner: AuthSession) -> AuthSession:
+        """Вступление по приглашению - работает при любом режиме приватности клуба."""
+        code = api.create_invite(club_id, headers=owner.headers).json()["data"]["code"]
+        member = AuthFlow.register(api)
+        api.join_by_invite(code, headers=member.headers)
+
+        return member
+
+    @staticmethod
+    def moderator(api: ApiClient, club_id: int, owner: AuthSession) -> AuthSession:
+        member = MemberFlow.join_by_invite(api, club_id, owner)
+        api.set_member_role(club_id, member.user_id, "moderator", headers=owner.headers)
+
+        return member

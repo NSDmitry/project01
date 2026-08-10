@@ -1,8 +1,9 @@
 import re
+import secrets
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
-from sqlalchemy import select, func, delete, literal_column, update
+from sqlalchemy import CursorResult, select, func, delete, literal_column, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,8 @@ from sqlalchemy.sql.elements import ColumnElement
 from app.bookclubs.models import (
     BookClub,
     BookClubGenre,
+    ClubInvite,
+    ClubJoinRequest,
     ClubMember,
     Reading,
     ReadingProgress,
@@ -20,11 +23,12 @@ from app.bookclubs.schemas import (
     CreateBookClubRequest,
     BookClubRelation,
     CreateReadingRequest,
+    JoinRequestStatus,
     UpdateBookClubRequest,
 )
 from app.core.authorization import require_permission
 from app.core.contracts import Principal
-from app.core.errors.errors import NotFound, Conflict
+from app.core.errors.errors import NotFound, Conflict, UnprocessableEntity
 
 # Слова поискового запроса. Всё, что не \w, отбрасывается - в том числе
 # спецсимволы tsquery (& | ! ( ) : *), поэтому собранная ниже строка не может
@@ -62,6 +66,7 @@ class BookClubRepository:
         new_book_club = BookClub()
         new_book_club.name = model.name
         new_book_club.description = model.description
+        new_book_club.privacy = model.privacy.value
         new_book_club.owner_id = owner.id
         new_book_club.members_count = 1
 
@@ -148,11 +153,63 @@ class BookClubRepository:
 
         return member is not None
 
+    async def get_role(self, club_id: int, user_id: int) -> Optional[str]:
+        """Роль участника в клубе, либо None - он не состоит в клубе.
+
+        Владельца в club_members.role нет: владение хранит book_clubs.owner_id.
+        """
+        role: Optional[str] = await self.db.scalar(
+            select(ClubMember.role).where(
+                ClubMember.club_id == club_id, ClubMember.user_id == user_id
+            )
+        )
+
+        return role
+
+    async def set_role(self, club_id: int, user_id: int, role: str) -> None:
+        result = await self.db.execute(
+            update(ClubMember)
+            .where(ClubMember.club_id == club_id, ClubMember.user_id == user_id)
+            .values(role=role)
+        )
+        if cast(CursorResult, result).rowcount == 0:
+            raise NotFound("Пользователь не состоит в клубе")
+
+        await self.db.flush()
+
+    async def transfer_ownership(self, club: BookClub, new_owner_id: int) -> BookClub:
+        if not await self.is_member(club.id, new_owner_id):
+            raise UnprocessableEntity(
+                message="Передать клуб можно только его участнику",
+                errors=["field: user_id, message: пользователь не состоит в клубе"],
+            )
+
+        previous_owner_id = club.owner_id
+        club.owner_id = new_owner_id
+        # Новый владелец больше не участник с ролью - его роль теперь выводится из
+        # owner_id, и оставленный moderator стал бы вторым источником правды.
+        await self.db.execute(
+            update(ClubMember)
+            .where(ClubMember.club_id == club.id, ClubMember.user_id == new_owner_id)
+            .values(role="member")
+        )
+        # Бывший владелец остаётся в клубе обычным участником - членство он не терял,
+        # а роль модератора ему никто не выдавал.
+        if previous_owner_id is not None:
+            await self.db.execute(
+                update(ClubMember)
+                .where(ClubMember.club_id == club.id, ClubMember.user_id == previous_owner_id)
+                .values(role="member")
+            )
+        await self.db.flush()
+
+        return await self.get_book_club(club_id=club.id)
+
     # Общее число участников не считаем: его держит BookClub.members_count,
     # а клуб сервис к этому моменту уже загрузил.
-    async def get_members(self, club_id: int, limit: int, offset: int) -> List[int]:
+    async def get_members(self, club_id: int, limit: int, offset: int) -> List[ClubMember]:
         result = await self.db.execute(
-            select(ClubMember.user_id)
+            select(ClubMember)
             .where(ClubMember.club_id == club_id)
             .order_by(ClubMember.user_id)
             .limit(limit)
@@ -207,6 +264,9 @@ class BookClubRepository:
         # Прогресс в заходах привязан к пользователю без FK - чистим явно. Заходы
         # удалённых клубов уносит каскад по club_id.
         await self.db.execute(delete(ReadingProgress).where(ReadingProgress.user_id == user_id))
+        # Заявки тоже без FK: иначе в очереди клуба остались бы заявки от
+        # несуществующих пользователей.
+        await self.db.execute(delete(ClubJoinRequest).where(ClubJoinRequest.user_id == user_id))
         await self.db.flush()
 
         return deleted_club_ids
@@ -245,6 +305,9 @@ class BookClubRepository:
 
         if model.description is not None:
             club.description = model.description
+
+        if model.privacy is not None:
+            club.privacy = model.privacy.value
 
         try:
             await self.db.flush()
@@ -288,10 +351,10 @@ class BookClubRepository:
         await self.db.execute(delete(BookClubGenre).where(BookClubGenre.genre_id.in_(genre_ids)))
         await self.db.flush()
 
-    async def join_book_club(self, user: Principal, club_id: int) -> BookClub:
+    async def add_member(self, club_id: int, user_id: int) -> BookClub:
         await self.get_book_club(club_id=club_id)
 
-        self.db.add(ClubMember(club_id=club_id, user_id=user.id))
+        self.db.add(ClubMember(club_id=club_id, user_id=user_id))
 
         try:
             await self.db.flush()
@@ -303,10 +366,10 @@ class BookClubRepository:
 
         return await self.get_book_club(club_id=club_id)
 
-    async def remove_member(self, user: Principal, club_id: int) -> BookClub:
+    async def remove_member(self, club_id: int, user_id: int) -> BookClub:
         await self.get_book_club(club_id=club_id)
 
-        member = await self.db.get(ClubMember, {"club_id": club_id, "user_id": user.id})
+        member = await self.db.get(ClubMember, {"club_id": club_id, "user_id": user_id})
 
         if member is None:
             raise Conflict(errors=["Пользователь не состоит в клубе"])
@@ -317,7 +380,7 @@ class BookClubRepository:
         # попадать в сводку захода, где доля считается от числа участников.
         await self.db.execute(
             delete(ReadingProgress).where(
-                ReadingProgress.user_id == user.id,
+                ReadingProgress.user_id == user_id,
                 ReadingProgress.reading_id.in_(
                     select(Reading.id).where(Reading.club_id == club_id)
                 ),
@@ -326,6 +389,91 @@ class BookClubRepository:
         await self.db.flush()
 
         return await self.get_book_club(club_id=club_id)
+
+    async def create_invite(self, club_id: int, created_by: int, expires_at: datetime | None) -> ClubInvite:
+        invite = ClubInvite(
+            club_id=club_id, code=secrets.token_urlsafe(16), created_by=created_by, expires_at=expires_at
+        )
+        self.db.add(invite)
+        await self.db.flush()
+
+        return invite
+
+    async def get_invite(self, code: str) -> ClubInvite:
+        result = await self.db.execute(select(ClubInvite).where(ClubInvite.code == code))
+        invite = result.scalar_one_or_none()
+
+        if invite is None:
+            raise NotFound("Приглашение не найдено")
+
+        return invite
+
+    async def upsert_join_request(self, club_id: int, user_id: int) -> ClubJoinRequest:
+        """Заявка на вступление; повторная подача возвращает её в ожидание.
+
+        Upsert, а не проверка с последующей вставкой: две параллельные заявки
+        одного пользователя иначе обе прошли бы SELECT и вторая упала бы 500-й.
+        """
+        statement = pg_insert(ClubJoinRequest).values(
+            club_id=club_id, user_id=user_id, status=JoinRequestStatus.pending.value
+        )
+        await self.db.execute(
+            statement.on_conflict_do_update(
+                constraint="uq_club_join_requests_club_id_user_id",
+                set_={"status": statement.excluded.status, "updated_at": func.now()},
+            )
+        )
+        await self.db.flush()
+
+        result = await self.db.execute(
+            select(ClubJoinRequest).where(
+                ClubJoinRequest.club_id == club_id, ClubJoinRequest.user_id == user_id
+            )
+        )
+
+        return result.scalar_one()
+
+    async def get_join_request(self, request_id: int) -> ClubJoinRequest:
+        result = await self.db.execute(
+            select(ClubJoinRequest).where(ClubJoinRequest.id == request_id)
+        )
+        join_request = result.scalar_one_or_none()
+
+        if join_request is None:
+            raise NotFound("Заявка с таким id не найдена")
+
+        return join_request
+
+    async def get_pending_join_requests(
+        self, club_id: int, limit: int, offset: int
+    ) -> Tuple[List[ClubJoinRequest], int]:
+        conditions = (
+            ClubJoinRequest.club_id == club_id,
+            ClubJoinRequest.status == JoinRequestStatus.pending.value,
+        )
+        total = await self.db.scalar(
+            select(func.count()).select_from(ClubJoinRequest).where(*conditions)
+        )
+        result = await self.db.execute(
+            select(ClubJoinRequest)
+            .where(*conditions)
+            .order_by(ClubJoinRequest.id)
+            .limit(limit)
+            .offset(offset)
+        )
+
+        return list(result.scalars().all()), total or 0
+
+    async def resolve_join_request(
+        self, join_request: ClubJoinRequest, status: JoinRequestStatus
+    ) -> ClubJoinRequest:
+        if join_request.status != JoinRequestStatus.pending.value:
+            raise Conflict(errors=["Заявка уже рассмотрена"])
+
+        join_request.status = status.value
+        await self.db.flush()
+
+        return join_request
 
 
 class ReadingRepository:
