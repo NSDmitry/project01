@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import String, BigInteger, UUID, DateTime, Boolean
+from sqlalchemy import String, BigInteger, UUID, DateTime, Boolean, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -20,6 +20,14 @@ class User(Base, DBLBase):
 
 class UserSession(Base, DBLBase):
     __tablename__ = "user_sessions"
+    __table_args__ = (
+        # Поиск сессии по sid_hash - на каждом авторизованном запросе.
+        Index("ix_user_sessions_sid_hash", "sid_hash", unique=True),
+        # Сессии одного пользователя, свежие сначала: подрезка лимита сессий
+        # и логаут со всех устройств. Порядок ASC обслуживает и ORDER BY DESC
+        # (Index Scan Backward), отдельный DESC-индекс не нужен.
+        Index("ix_user_sessions_user_id_last_used", "user_id", "last_used"),
+    )
 
     # Сессии адресуются UUID, а не автоинкрементом из DBLBase - осознанное переопределение.
     id: Mapped[uuid.UUID] = mapped_column(  # type: ignore[assignment]
