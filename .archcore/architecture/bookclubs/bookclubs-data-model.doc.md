@@ -7,23 +7,29 @@ tags:
   - "domain:bookclubs"
 ---
 
-SQLAlchemy schema · 6 entities.
+SQLAlchemy schema · 8 entities.
 
 | Entity | Key relations |
 |--------|---------------|
-| BookClub (book_clubs) | 1:N ClubMember; 1:N Reading; N:M Genre via book_club_genres; owner_id -> users (логическая, nullable) |
+| BookClub (book_clubs) | 1:N ClubMember; 1:N Reading; 1:N BookNomination; N:M Genre via book_club_genres; owner_id -> users (логическая, nullable) |
 | ClubMember (club_members) | N:1 BookClub (FK CASCADE); user_id -> users (логическая) |
 | BookClubGenre (book_club_genres) | N:1 BookClub (FK CASCADE); genre_id -> genres (логическая) |
 | Reading (readings) | N:1 BookClub (FK CASCADE); N:1 Book (FK SET NULL, nullable); 1:N ReadingStage; 1:N ReadingProgress |
 | ReadingStage (reading_stages) | N:1 Reading (FK CASCADE); обратная ссылка из тредов - логическая, по id |
 | ReadingProgress (reading_progress) | N:1 Reading (FK CASCADE); N:1 ReadingStage (FK SET NULL, nullable); user_id -> users (логическая) |
+| BookNomination (book_nominations) | N:1 BookClub (FK CASCADE); N:1 Book (FK SET NULL, nullable); 1:N NominationVote |
+| NominationVote (nomination_votes) | N:1 BookNomination (FK CASCADE); N:1 BookClub (FK CASCADE); user_id -> users (логическая) |
 
-Relations: связи на users и genres кросс-доменные, только по id, без FK. Связь readings на книгу - FK с SET NULL, как у тредов: удаление книги не должно уносить историю чтения клуба. Обратная связь тредов на этап захода (`threads.reading_stage_id`) сделана без FK: треды в чужом домене, а FK ещё и создавал бы пересечение блокировок с обработчиком CLUBS_DELETED, который чистит треды в своей сессии, пока удаление клуба ещё не зафиксировано.
+Relations: связи на users и genres кросс-доменные, только по id, без FK. Связь readings и book_nominations на книгу - FK с SET NULL, как у тредов: удаление книги не должно уносить ни историю чтения клуба, ни идущее голосование. Обратная связь тредов на этап захода (`threads.reading_stage_id`) сделана без FK: треды в чужом домене, а FK ещё и создавал бы пересечение блокировок с обработчиком CLUBS_DELETED, который чистит треды в своей сессии, пока удаление клуба ещё не зафиксировано.
+
+Голос ссылается и на номинацию, и на клуб: клуб в строке голоса - не дубль, а часть ключа, которым БД держит правило «один участник - один голос на клуб». Через номинацию это правило не выразить.
 
 Денормализованные счётчики book_clubs:
 
 - `threads_count` - ведётся по событиям THREAD_CREATED/THREAD_DELETED, треды в чужом домене.
 - `members_count` - ведётся репозиторием в одной транзакции с club_members. Событий нет: участники в своём домене, поэтому счётчик и строка членства меняются вместе и разъехаться могут только при правках в обход репозитория.
+
+Число голосов номинации счётчиком не хранится: голосование живёт до закрытия и целиком помещается в один агрегатный запрос по клубу, поэтому расходиться нечему.
 
 Генерируемые колонки book_clubs:
 
@@ -43,6 +49,9 @@ Relations: связи на users и genres кросс-доменные, толь
 | uq_reading_progress_reading_id_user_id | reading_id, user_id (unique) | одна отметка участника на заход; reading_id как префикс |
 | ix_reading_progress_user_id | user_id | удаление пользователя, выход из клуба |
 | ix_reading_progress_stage_id | stage_id | ON DELETE SET NULL при удалении этапа |
+| uq_book_nominations_club_id_book_id | club_id, book_id (unique) | одна книга - одна номинация в клубе; club_id как префикс для списка кандидатов |
+| PK nomination_votes | user_id, club_id | один голос участника на клуб; user_id как префикс для чистки при удалении пользователя |
+| ix_nomination_votes_nomination_id | nomination_id | подсчёт голосов номинации, каскад при её удалении |
 
 Инварианты:
 
@@ -61,5 +70,10 @@ Relations: связи на users и genres кросс-доменные, толь
   оба и вставили бы две строки.
 - Прогресс участника ссылается на этап, а не хранит его номер копией: сравнение
   «в графике» идёт по позиции этапа, а позиция живёт в одной строке этапа.
+- Голос участника - одна строка на клуб, и это держит первичный ключ, а не
+  проверка «уже голосовал» в коде: переставленный голос переписывает ту же строку,
+  поэтому удвоить счётчик нельзя даже параллельными запросами.
+- Одна книга номинируется в клубе один раз - иначе голоса за неё разошлись бы по
+  двум кандидатам и победителя определял бы способ раскладки, а не число голосов.
 - Расширение pg_trgm в схеме остаётся после удаления триграммных индексов: оно
   могло быть установлено не только этими миграциями.

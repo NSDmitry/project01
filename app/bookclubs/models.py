@@ -139,6 +139,49 @@ class ReadingStage(Base, DBLBase):
     end_page: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
 
+class BookNomination(Base, DBLBase):
+    """Книга, предложенная на следующий заход клуба."""
+    __tablename__ = "book_nominations"
+    __table_args__ = (
+        # Одна книга номинируется в клубе один раз - иначе голоса за неё
+        # разошлись бы по двум строкам. Ключ обслуживает и выборку номинаций
+        # клуба (club_id - префикс).
+        UniqueConstraint("club_id", "book_id", name="uq_book_nominations_club_id_book_id"),
+    )
+
+    club_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False
+    )
+    # Как у readings.book_id: удаление книги не должно уносить голосование.
+    book_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("books.id", ondelete="SET NULL"), nullable=True
+    )
+
+    book = relationship("Book", lazy="selectin")
+
+
+class NominationVote(Base):
+    """Голос участника в голосовании клуба - один на клуб, переставляется."""
+    __tablename__ = "nomination_votes"
+    __table_args__ = (
+        # Голоса номинации считаются по nomination_id, а PK начинается с user_id.
+        # Индекс нужен и каскаду: без него удаление номинации сканирует таблицу.
+        Index("ix_nomination_votes_nomination_id", "nomination_id"),
+    )
+
+    # PK (user_id, club_id) - это и есть правило «один участник, один голос»:
+    # держит его БД, а не проверка в коде. Голос за другую номинацию переписывает
+    # ту же строку, поэтому счётчик не удваивается. user_id первым: по нему идёт
+    # чистка при удалении пользователя, и префикс ключа её покрывает.
+    user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    club_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True
+    )
+    nomination_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("book_nominations.id", ondelete="CASCADE"), nullable=False
+    )
+
+
 class ReadingProgress(Base, DBLBase):
     """Прогресс одного участника в заходе - последний закрытый этап и страница."""
     __tablename__ = "reading_progress"

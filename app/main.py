@@ -14,7 +14,7 @@ from redis import asyncio as redis_asyncio
 # Через from-import, иначе имя `app` связывается с пакетом и конфликтует с `app = FastAPI()`.
 from app.bookclubs import events as _bookclubs_events  # noqa: F401
 from app.threads import events as _threads_events  # noqa: F401
-from app.bookclubs.router import router as bookclubs_router, readings_router
+from app.bookclubs.router import router as bookclubs_router, nominations_router, readings_router
 from app.books.router import router as books_router
 from app.core import events
 from app.core.errors.APIException import APIException
@@ -62,6 +62,7 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(bookclubs_router)
 app.include_router(readings_router)
+app.include_router(nominations_router)
 app.include_router(threads_router)
 app.include_router(comments_router)
 app.include_router(genres_router)
