@@ -1,5 +1,6 @@
 from sqlalchemy import text
 
+from app.bookclubs.service import MAX_NOMINATIONS_PER_CLUB
 from tests.support.assertions import assert_status_code
 from tests.support.flows import AuthFlow, BookclubFlow, MemberFlow, NominationFlow
 from tests.support.google_books import install_fake_google
@@ -72,6 +73,28 @@ class TestNominationCreate:
             "vol-1",
             "vol-2",
         ]
+
+    def test_club_cannot_exceed_the_nomination_cap(self, api, db):
+        owner = AuthFlow.register(api)
+        club_id = BookclubFlow.create(api, auth=owner).json()["data"]["id"]
+        # Список кандидатов заполняем напрямую: через API это полсотни походов
+        # в Google Books ради проверки одного потолка. Книга у номинации
+        # необязательна, для счёта кандидатов она и не нужна.
+        db.execute(
+            text(
+                "INSERT INTO book_nominations (club_id, book_id) "
+                "SELECT :club_id, NULL FROM generate_series(1, :count)"
+            ),
+            {"club_id": club_id, "count": MAX_NOMINATIONS_PER_CLUB},
+        )
+        db.commit()
+
+        response = NominationFlow.create(api, club_id, owner)
+
+        assert_status_code(response, 409)
+        assert db.execute(text("SELECT count(*) FROM book_nominations")).scalar() == (
+            MAX_NOMINATIONS_PER_CLUB
+        )
 
     def test_nominations_require_auth(self, api):
         owner = AuthFlow.register(api)

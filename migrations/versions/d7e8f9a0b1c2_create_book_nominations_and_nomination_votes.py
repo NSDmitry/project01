@@ -63,8 +63,11 @@ def upgrade() -> None:
             name='fk_nomination_votes_nomination_id_book_nominations', ondelete='CASCADE',
         ),
     )
-    # Голоса номинации считаются по nomination_id, а PK начинается с user_id.
-    # Индекс нужен и каскаду при удалении номинации.
+    # Голоса клуба считаются одним запросом по club_id, а PK начинается с user_id
+    # и как префикс его не покрывает. Индекс нужен и каскаду при удалении клуба.
+    op.create_index('ix_nomination_votes_club_id', 'nomination_votes', ['club_id'])
+    # FK не создаёт индекс на дочерней стороне - без него каскад при удалении
+    # номинации сканирует таблицу целиком.
     op.create_index('ix_nomination_votes_nomination_id', 'nomination_votes', ['nomination_id'])
 
 

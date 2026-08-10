@@ -457,6 +457,14 @@ class ReadingService:
         return ResponseModel.ok(Page(items=items, total=total, limit=limit, offset=offset))
 
 
+# Потолок кандидатов в клубе. Список номинаций отдаётся целиком, без страниц:
+# голосование живёт до закрытия, и потолок держит его в размере, который не жалко
+# получить одним ответом, а заодно не даёт одному участнику завалить экран клуба.
+# ponytail: общий потолок на клуб, персональной квоты нет - появится, если начнут
+# спамить в пределах полусотни.
+MAX_NOMINATIONS_PER_CLUB = 50
+
+
 class NominationService:
     """Голосование за следующую книгу клуба: номинации, голоса, закрытие."""
 
@@ -505,6 +513,16 @@ class NominationService:
     ) -> ResponseModel[NominationResponse]:
         await self.book_club_repository.get_book_club(club_id)
         await self._require_member(club_id, user, "Номинировать книги")
+
+        # Потолок - защита от заваленного списка, а не инвариант: две параллельные
+        # номинации на границе могут дать 51-ю, и это не страшно.
+        if await self.nomination_repository.count_nominations(club_id) >= MAX_NOMINATIONS_PER_CLUB:
+            raise Conflict(
+                errors=[
+                    f"В клубе уже {MAX_NOMINATIONS_PER_CLUB} книг-кандидатов - "
+                    f"закройте голосование, чтобы начать новое"
+                ]
+            )
 
         book = await self.book_service.get_or_create_book(model.book_volume_id)
         nomination = await self.nomination_repository.create_nomination(club_id, book.id)

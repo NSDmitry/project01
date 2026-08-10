@@ -569,6 +569,13 @@ class NominationRepository:
 
         return nomination
 
+    async def count_nominations(self, club_id: int) -> int:
+        total = await self.db.scalar(
+            select(func.count()).select_from(BookNomination).where(BookNomination.club_id == club_id)
+        )
+
+        return total or 0
+
     async def get_nominations(self, club_id: int) -> List[BookNomination]:
         result = await self.db.execute(
             select(BookNomination)
@@ -604,7 +611,15 @@ class NominationRepository:
                 set_={"nomination_id": statement.excluded.nomination_id},
             )
         )
-        await self.db.flush()
+
+        try:
+            await self.db.flush()
+        except IntegrityError:
+            # Номинацию (или клуб) снесли между её чтением и записью голоса -
+            # чаще всего владелец закрыл голосование. Для голосующего это то же
+            # самое, что несуществующая номинация, а не ошибка сервера.
+            await self.db.rollback()
+            raise NotFound("Номинация с таким id не найдена")
 
     async def delete_vote(self, club_id: int, user_id: int, nomination_id: int) -> bool:
         """Снять голос с номинации. False - голоса за неё не было."""

@@ -16,7 +16,7 @@ tags:
 - Жанры: `set_genres`, `get_genre_ids`, `handle_genres_deleted`.
 - События: `handle_user_deleted`, `change_threads_count`.
 - Заходы (`ReadingRepository`): `create_reading`, `get_reading`, `get_active_readings`, `get_readings`, `finish_reading`, `get_stages`, `get_stage_club_id`, `set_progress`, `get_progress`, `get_progress_page`, `get_expected_positions`, `count_on_track`.
-- Голосование (`NominationRepository`): `create_nomination`, `get_nomination`, `get_nominations`, `count_votes`, `get_vote`, `set_vote`, `delete_vote`, `clear_nominations`.
+- Голосование (`NominationRepository`): `create_nomination`, `get_nomination`, `get_nominations`, `count_nominations`, `count_votes`, `get_vote`, `set_vote`, `delete_vote`, `clear_nominations`.
 - Модели: `BookClub`, `ClubMember`, `BookClubGenre`, `Reading`, `ReadingStage`, `ReadingProgress`, `BookNomination`, `NominationVote` - @app/bookclubs/models.py.
 
 ## Normative Behavior
@@ -43,6 +43,7 @@ tags:
 21. `count_votes` MUST считать голоса всех номинаций клуба одним агрегатным запросом; номинация без голосов в результате MUST отсутствовать. Денормализованного счётчика голосов быть MUST NOT.
 22. `delete_vote` MUST снимать голос только с указанной номинации и MUST сообщать вызывающему, был ли голос снят - переставленный на другую номинацию голос снимать MUST NOT.
 23. `clear_nominations` MUST удалять все номинации клуба; голоса MUST уносить каскад по номинации, отдельного удаления в коде быть MUST NOT.
+24. `count_nominations` MUST считать кандидатов клуба, не загружая их: потолок кандидатов проверяется на каждой номинации, а грузить ради счёта список с книгами незачем.
 
 ## Constraints & Invariants
 - Инвариант: участник уникален на пару (club_id, user_id) - составной PK club_members; повторный join ловится IntegrityError.
@@ -69,6 +70,7 @@ tags:
 9. IF заход уже закрыт, THEN `finish_reading` MUST выбросить Conflict, а дата закрытия MUST остаться прежней.
 10. IF книга уже номинирована в этом клубе, THEN `create_nomination` MUST откатить и выбросить Conflict.
 11. IF номинация не найдена, THEN `get_nomination` MUST выбросить NotFound.
+12. IF номинации (или клуба) уже нет к моменту записи голоса - владелец закрыл голосование между чтением номинации и вставкой, - THEN `set_vote` MUST откатить и выбросить NotFound. Отдать голосующему ошибку сервера здесь недопустимо: для него это то же самое, что несуществующая номинация.
 
 ## Conformance
-Реализация конформна, когда выполняет поведения 1-23, держит инварианты уникальности, генерируемого столбца, счётчика участников, единственного незакрытого захода и единственного голоса участника и правила отказов 1-11. Проверяется тестами tests/bookclubs/, tests/readings/ и tests/nominations/.
+Реализация конформна, когда выполняет поведения 1-24, держит инварианты уникальности, генерируемого столбца, счётчика участников, единственного незакрытого захода и единственного голоса участника и правила отказов 1-12. Проверяется тестами tests/bookclubs/, tests/readings/ и tests/nominations/.
