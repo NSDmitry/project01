@@ -4,6 +4,7 @@ from app.bookclubs.deps import get_book_club_service
 from app.bookclubs.schemas import (
     CreateBookClubRequest,
     UpdateBookClubGenresRequest,
+    UpdateBookClubRequest,
     SearchBookClubsRequest,
     BookClubResponse,
 )
@@ -240,3 +241,33 @@ async def set_genres(
         service: BookClubService = Depends(get_book_club_service)
 ) -> ResponseModel[BookClubResponse]:
     return await service.set_genres(user, club_id, model)
+
+
+@router.patch(
+    "/{club_id}",
+    response_model=ResponseModel[BookClubResponse],
+    summary="Обновление информации о книжном клубе",
+    description=(
+            "Обновляет название и/или описание клуба: присланные поля заменяются, "
+            "отсутствующие остаются без изменений.\n\n"
+            "Доступно только владельцу клуба.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Модель книжного клуба с обновлёнными полями"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не является владельцем книжного клуба"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        409: {"description": "Книжный клуб с таким названием уже существует"},
+        422: {"description": "Некорректные данные для обновления"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+async def update_book_club(
+        club_id: PathId,
+        model: UpdateBookClubRequest,
+        user: Principal = Depends(get_current_user),
+        service: BookClubService = Depends(get_book_club_service)
+) -> ResponseModel[BookClubResponse]:
+    return await service.update_book_club(user, club_id, model)

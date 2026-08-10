@@ -6,6 +6,7 @@ from app.bookclubs.schemas import (
     CreateBookClubRequest,
     UpdateBookClubGenresRequest,
     SearchBookClubsRequest,
+    UpdateBookClubRequest,
     BookClubResponse,
 )
 from app.bookclubs.ports import GenresPort, UsersPort
@@ -96,6 +97,15 @@ class BookClubService:
         )
 
         return ResponseModel.ok(await self._to_response(db_book_club))
+
+    async def update_book_club(
+            self,
+            owner: Principal,
+            club_id: int,
+            model: UpdateBookClubRequest
+    ) -> ResponseModel[BookClubResponse]:
+        club = await self.book_club_repository.update_book_club(owner, club_id, model)
+        return ResponseModel.ok(await self._to_response(club))
 
     async def _resolve_genres(self, codes: List[str]) -> List[GenreResponse]:
         unique_codes = list(dict.fromkeys(codes))
