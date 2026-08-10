@@ -1,4 +1,5 @@
-from sqlalchemy import BigInteger, String, ForeignKey, Index
+from sqlalchemy import BigInteger, Computed, String, ForeignKey, Index
+from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -40,17 +41,8 @@ class BookClub(Base, DBLBase):
     __table_args__ = (
         # Фильтр «мои клубы» по владению и обнуление владельца при удалении пользователя.
         Index("ix_book_clubs_owner_id", "owner_id"),
-        # Поиск по подстроке: ILIKE '%...%' btree не использует, нужен триграммный
-        # GIN. Работает только вместе с UNION-формой запроса в репозитории - в
-        # одном OR с подзапросом по жанрам планировщик всё равно берёт Seq Scan.
-        Index(
-            "ix_book_clubs_name_trgm", "name",
-            postgresql_using="gin", postgresql_ops={"name": "gin_trgm_ops"},
-        ),
-        Index(
-            "ix_book_clubs_description_trgm", "description",
-            postgresql_using="gin", postgresql_ops={"description": "gin_trgm_ops"},
-        ),
+        # Полнотекстовый поиск по клубам идёт по search_vector.
+        Index("ix_book_clubs_search_vector", "search_vector", postgresql_using="gin"),
     )
 
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
@@ -65,3 +57,16 @@ class BookClub(Base, DBLBase):
     # живут в этом же домене, поэтому столбец правится в той же транзакции, что и
     # club_members - без событий и без риска разъехаться.
     members_count: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
+    # Генерируемая колонка - Postgres пересчитывает её сам при записи в
+    # name/description, поддержки в коде не требуется. Вес A у названия, B у
+    # описания: совпадение в названии весит больше при ранжировании.
+    # deferred - в Python значение не читается никогда, в SELECT его тянуть незачем.
+    search_vector: Mapped[str] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "setweight(to_tsvector('russian', name), 'A') || "
+            "setweight(to_tsvector('russian', description), 'B')",
+            persisted=True,
+        ),
+        deferred=True,
+    )

@@ -79,6 +79,7 @@ class ApiClient:
         self,
         headers: dict[str, str] | None = None,
         query: str | None = None,
+        genres: list[str] | None = None,
         relation: str | None = None,
         limit: int | None = None,
         offset: int | None = None,
@@ -86,6 +87,8 @@ class ApiClient:
         payload: dict[str, Any] = {}
         if query is not None:
             payload["query"] = query
+        if genres is not None:
+            payload["genres"] = genres
         if relation is not None:
             payload["relation"] = relation
         if limit is not None:

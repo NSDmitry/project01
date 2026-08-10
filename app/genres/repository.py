@@ -1,6 +1,6 @@
 from typing import List
 
-from sqlalchemy import select, or_
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,21 +41,6 @@ class GenreRepository:
         )
 
         return [GenreResponse.model_validate(genre) for genre in result.scalars().all()]
-
-    async def search_ids(self, term: str) -> List[int]:
-        # экранируем спецсимволы LIKE, чтобы искать их как обычный текст
-        escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-        pattern = f"%{escaped}%"
-        result = await self.db.execute(
-            select(Genre.id).where(
-                or_(
-                    Genre.name.ilike(pattern, escape="\\"),
-                    Genre.code.ilike(pattern, escape="\\"),
-                )
-            )
-        )
-
-        return list(result.scalars().all())
 
     async def get_by_id(self, genre_id: int) -> Genre:
         genre = await self.db.get(Genre, genre_id)

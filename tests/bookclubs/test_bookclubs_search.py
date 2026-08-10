@@ -45,25 +45,43 @@ class TestBookclubSearch:
         assert_status_code(response, 200)
         assert _ids(response) == {target}
 
-    def test_matches_genre_by_code(self, api):
+    def test_name_match_ranks_above_description_match(self, api):
         auth = AuthFlow.register(api)
-        target = _create(api, auth, "Тайный клуб", description="Без ключевых слов", genres=["fantasy"])
-        _create(api, auth, "Другой клуб", description="Ничего общего", genres=["poetry"])
+        # created первым, то есть с меньшим id: без ранжирования шёл бы первым
+        in_description = _create(api, auth, "Первый клуб", description="Обсуждаем фантастику")
+        in_name = _create(api, auth, "Клуб фантастики", description="Разное")
 
-        response = api.search_bookclubs(headers=auth.headers, query="fantasy")
+        response = api.search_bookclubs(headers=auth.headers, query="фантастика")
+
+        assert_status_code(response, 200)
+        assert [club["id"] for club in response.json()["data"]["items"]] == [in_name, in_description]
+
+    def test_filters_by_genre(self, api):
+        auth = AuthFlow.register(api)
+        target = _create(api, auth, "Тайный клуб", genres=["fantasy"])
+        _create(api, auth, "Другой клуб", genres=["poetry"])
+
+        response = api.search_bookclubs(headers=auth.headers, genres=["fantasy"])
 
         assert_status_code(response, 200)
         assert _ids(response) == {target}
 
-    def test_matches_genre_by_name(self, api):
+    def test_genre_filter_narrows_query(self, api):
         auth = AuthFlow.register(api)
-        target = _create(api, auth, "Тайный клуб", description="Без ключевых слов", genres=["fantasy"])
-        _create(api, auth, "Другой клуб", description="Ничего общего", genres=["poetry"])
+        target = _create(api, auth, "Клуб фантастики", genres=["fantasy"])
+        _create(api, auth, "Кружок фантастики", genres=["poetry"])
 
-        response = api.search_bookclubs(headers=auth.headers, query="Фэнтези")
+        response = api.search_bookclubs(headers=auth.headers, query="фантастики", genres=["fantasy"])
 
         assert_status_code(response, 200)
         assert _ids(response) == {target}
+
+    def test_rejects_unknown_genre(self, api):
+        auth = AuthFlow.register(api)
+
+        response = api.search_bookclubs(headers=auth.headers, genres=["несуществующий"])
+
+        assert_status_code(response, 422)
 
     def test_no_match_returns_empty(self, api):
         auth = AuthFlow.register(api)
@@ -75,13 +93,14 @@ class TestBookclubSearch:
         assert response.json()["data"]["items"] == []
         assert response.json()["data"]["total"] == 0
 
-    def test_wildcard_is_treated_literally(self, api):
+    def test_special_characters_do_not_break_query(self, api):
         auth = AuthFlow.register(api)
         literal = _create(api, auth, "Скидка 50% на книги")
         _create(api, auth, "Обычный клуб")
 
-        # '%' в запросе не должен превращаться в LIKE-джокер и матчить всё подряд
-        response = api.search_bookclubs(headers=auth.headers, query="50%")
+        # Операторы tsquery ('|', '!', ':*') не должны попасть в разбор запроса:
+        # иначе либо ошибка синтаксиса, либо '!книги' исключит нужный клуб
+        response = api.search_bookclubs(headers=auth.headers, query="50% | !книги:*")
 
         assert_status_code(response, 200)
         assert _ids(response) == {literal}

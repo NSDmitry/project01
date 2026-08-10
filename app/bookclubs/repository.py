@@ -1,6 +1,7 @@
-from typing import List, Tuple
+import re
+from typing import Any, List, Tuple
 
-from sqlalchemy import select, func, delete, union, update
+from sqlalchemy import select, func, delete, literal_column, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
@@ -10,6 +11,31 @@ from app.bookclubs.schemas import CreateBookClubRequest, BookClubRelation, Updat
 from app.core.authorization import require_permission
 from app.core.contracts import Principal
 from app.core.errors.errors import NotFound, Conflict
+
+# Слова поискового запроса. Всё, что не \w, отбрасывается - в том числе
+# спецсимволы tsquery (& | ! ( ) : *), поэтому собранная ниже строка не может
+# сломать разбор запроса или подмешать в него чужой оператор.
+_WORD = re.compile(r"\w+", re.UNICODE)
+
+
+def _tsquery(term: str | None) -> ColumnElement[Any] | None:
+    """Поисковый запрос пользователя как tsquery, либо None если искать нечего.
+
+    Каждое слово ищется по префиксу (`:*`): подстрочный ILIKE находил «фантаст»
+    внутри «фантастики», и без префикса FTS такой запрос бы потерял. Середину
+    слова FTS всё равно не найдёт - это осознанная плата за словоформы и
+    ранжирование.
+
+    Конфигурация 'russian' подставляется литералом, а не параметром: тип
+    regconfig драйвер передать не умеет. Сам текст запроса - обычный bind-параметр.
+    """
+    tokens = _WORD.findall(term or "")
+    if not tokens:
+        return None
+
+    # to_tsquery прогоняет каждое слово через словари конфигурации, поэтому
+    # запрос нормализуется той же морфологией, что и search_vector.
+    return func.to_tsquery(literal_column("'russian'"), " & ".join(f"{t}:*" for t in tokens))
 
 
 class BookClubRepository:
@@ -69,34 +95,27 @@ class BookClubRepository:
                     )
                 )
 
-        term = (query or "").strip()
-        if term:
-            # экранируем спецсимволы LIKE, чтобы искать их как обычный текст
-            escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-            pattern = f"%{escaped}%"
-            # ищем подстроку в названии, описании или по жанрам клуба:
-            # id подходящих жанров сервис берёт у genres (после распила - у сервиса жанров)
-            #
-            # Ветки объединяются UNION, а не OR. С OR ветка по жанрам не
-            # индексируется, и планировщик читает book_clubs целиком, не трогая
-            # триграммные индексы по name/description. С UNION каждая ветка идёт
-            # своим индексом.
-            branches = [
-                select(BookClub.id).where(BookClub.name.ilike(pattern, escape="\\")),
-                select(BookClub.id).where(BookClub.description.ilike(pattern, escape="\\")),
-            ]
-            if genre_ids:
-                branches.append(
+        if genre_ids:
+            conditions.append(
+                BookClub.id.in_(
                     select(BookClubGenre.club_id).where(BookClubGenre.genre_id.in_(genre_ids))
                 )
-            matching = union(*branches).subquery()
-            conditions.append(BookClub.id.in_(select(matching.c.id)))
+            )
+
+        # По умолчанию порядок по id: без поискового запроса ранжировать нечем.
+        order_by: Tuple[Any, ...] = (BookClub.id,)
+        tsquery = _tsquery(query)
+        if tsquery is not None:
+            conditions.append(BookClub.search_vector.bool_op("@@")(tsquery))
+            # id вторым ключом - тай-брейк при равном ранге, иначе соседние
+            # страницы могут вернуть одну и ту же строку дважды.
+            order_by = (func.ts_rank(BookClub.search_vector, tsquery).desc(), BookClub.id)
 
         total = await self.db.scalar(
             select(func.count()).select_from(BookClub).where(*conditions)
         )
         result = await self.db.execute(
-            select(BookClub).where(*conditions).order_by(BookClub.id).limit(limit).offset(offset)
+            select(BookClub).where(*conditions).order_by(*order_by).limit(limit).offset(offset)
         )
 
         return list(result.scalars().all()), total or 0

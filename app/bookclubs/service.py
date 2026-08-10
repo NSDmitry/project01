@@ -127,13 +127,17 @@ class BookClubService:
     async def search_book_clubs(
         self, user: Principal, model: SearchBookClubsRequest
     ) -> ResponseModel[Page[BookClubResponse]]:
-        # id жанров, подходящих под поисковый запрос, берём у genres -
-        # после распила это вызов сервиса жанров
-        term = (model.query or "").strip()
-        genre_ids = await self.genre_repository.search_ids(term) if term else []
+        # Коды жанров превращаем в id у genres (после распила - вызов сервиса
+        # жанров). Неизвестный код - ошибка валидации, а не молча пустая выдача.
+        genres = await self._resolve_genres(model.genres) if model.genres else []
 
         db_clubs, total = await self.book_club_repository.get_book_clubs(
-            model.limit, model.offset, user, model.relation, model.query, genre_ids
+            model.limit,
+            model.offset,
+            user,
+            model.relation,
+            model.query,
+            [genre.id for genre in genres],
         )
 
         return await self._page(db_clubs, total, model.limit, model.offset)

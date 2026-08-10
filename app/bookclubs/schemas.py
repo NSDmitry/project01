@@ -28,6 +28,9 @@ class UpdateBookClubGenresRequest(BaseModel):
 
 class SearchBookClubsRequest(BaseModel):
     query: Optional[str] = None
+    # Жанры - отдельный фильтр, а не слова в query: они сужают выдачу (AND),
+    # а не расширяют её, и не участвуют в ранжировании по тексту.
+    genres: list[str] = []
     relation: Optional[BookClubRelation] = None
     limit: int = Field(20, ge=1, le=100)
     offset: int = Field(0, ge=0, le=MAX_OFFSET)
