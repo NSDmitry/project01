@@ -75,22 +75,11 @@ class ThreadRepository:
 
         return await self.get_thread(new_thread.id)
 
-    async def handle_clubs_deleted(self, club_ids: List[int]) -> None:
-        # FK threads.club_id на book_clubs больше нет - CASCADE при удалении
-        # клуба выполняем явно. Комменты и лайки чистят каскады БД по
-        # thread_id/comment_id.
-        if not club_ids:
-            return
-
-        await self.db.execute(delete(Thread).where(Thread.club_id.in_(club_ids)))
-        await self.db.flush()
-
-    async def handle_user_deleted(self, user_id: int, delete_threads: bool, delete_comments: bool) -> Dict[int, int]:
-        # FK на users больше нет - SET NULL/CASCADE, которые раньше делала БД
-        # при удалении пользователя, выполняем явно. Вложенное (комменты, лайки)
-        # чистят каскады БД по thread_id/comment_id.
-        # Возвращаем {club_id: сколько тредов автора удалено} - домену клубов,
-        # чтобы он уменьшил свои счётчики тредов.
+    async def delete_user_content(self, user_id: int, delete_threads: bool, delete_comments: bool) -> Dict[int, int]:
+        # Удаление по флагам запроса - единственное, чего не знает БД: без них
+        # author_id обнуляет FK ON DELETE SET NULL, лайки уносит CASCADE.
+        # Возвращаем {club_id: сколько тредов автора удалено} - вызывающему,
+        # чтобы он уменьшил счётчики тредов в клубах.
         threads_removed_by_club: Dict[int, int] = {}
         if delete_threads:
             result = await self.db.execute(
@@ -99,11 +88,8 @@ class ThreadRepository:
                 .group_by(Thread.club_id)
             )
             threads_removed_by_club = dict(result.tuples().all())
+            # Комменты и лайки удалённых тредов уносят каскады по thread_id.
             await self.db.execute(delete(Thread).where(Thread.author_id == user_id))
-        else:
-            await self.db.execute(
-                update(Thread).values(author_id=None).where(Thread.author_id == user_id)
-            )
         if delete_comments:
             # Счётчик правим до удаления: после DELETE считать уже нечего.
             # Вычитаем ровно столько, сколько уходит из каждого треда.
@@ -120,11 +106,6 @@ class ThreadRepository:
                 .execution_options(synchronize_session=False)
             )
             await self.db.execute(delete(Comment).where(Comment.author_id == user_id))
-        else:
-            await self.db.execute(
-                update(Comment).values(author_id=None).where(Comment.author_id == user_id)
-            )
-        await self.db.execute(delete(CommentLike).where(CommentLike.user_id == user_id))
         await self.db.flush()
 
         return threads_removed_by_club

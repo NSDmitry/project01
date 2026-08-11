@@ -8,7 +8,7 @@ tags:
 ---
 
 ## Purpose & Scope
-Контракт слоя хранения bookclubs: `BookClubRepository`, `ReadingRepository` и `NominationRepository` (@app/bookclubs/repository.py). Потребители - @app/bookclubs/service.py, домен threads напрямую через deps.py (`get_book_club`, `is_member`, `get_stage_club_id`, `change_threads_count`) и обработчики событий. Вне scope: резолв жанров, владельцев и книг (спек сервиса).
+Контракт слоя хранения bookclubs: `BookClubRepository`, `ReadingRepository` и `NominationRepository` (@app/bookclubs/repository.py). Потребители - @app/bookclubs/service.py, домен threads напрямую через deps.py (`get_book_club`, `is_member`, `get_stage_club_id`, `change_threads_count`) и `AuthService.delete_current_user` (@app/iam/service.py) через @app/iam/deps.py. Вне scope: резолв жанров, владельцев и книг (спек сервиса).
 
 ## Surface
 - CRUD: `create_book_club`, `get_book_clubs`, `get_book_club`, `update_book_club`, `update_cover`, `delete_book_club`.
@@ -17,7 +17,7 @@ tags:
 - Приглашения: `create_invite`, `get_invite`.
 - Заявки: `upsert_join_request`, `get_join_request`, `get_pending_join_requests`, `resolve_join_request`.
 - Жанры: `set_genres`, `get_genre_ids` (связки удалённого жанра уносит каскад БД по FK `book_club_genres.genre_id`).
-- Кросс-доменное: `handle_user_deleted` (обработчик USER_DELETED), `change_threads_count` (прямой вызов домена threads в транзакции запроса).
+- Кросс-доменное (всё - прямые вызовы в транзакции запроса): `change_threads_count` из домена threads, `decrement_members_count_for_user` и `delete_clubs_owned_by` из каскада удаления аккаунта в iam.
 - Заходы (`ReadingRepository`): `create_reading`, `get_reading`, `get_active_readings`, `get_readings`, `finish_reading`, `get_stages`, `get_stage_club_id`, `set_progress`, `get_progress`, `get_progress_page`, `get_expected_positions`, `count_on_track`.
 - Голосование (`NominationRepository`): `create_nomination`, `get_nomination`, `get_nominations`, `count_nominations`, `count_votes`, `get_vote`, `set_vote`, `delete_vote`, `clear_nominations`.
 - Модели: `BookClub`, `ClubMember`, `ClubInvite`, `ClubJoinRequest`, `BookClubGenre`, `Reading`, `ReadingStage`, `ReadingProgress`, `BookNomination`, `NominationVote` - @app/bookclubs/models.py.
@@ -33,7 +33,7 @@ tags:
 8. `update_book_club` MUST применять только переданные поля (название, описание, режим приватности) и оставлять непереданные без изменений; жанры, обложка и состав участников MUST оставаться нетронутыми.
 9. `get_members` MUST отдавать только страницу участников клуба вместе с их ролью. Общее число участников репозиторий не считает - его держит `BookClub.members_count`.
 10. WHEN меняется состав участников (создание клуба, вступление, выход, исключение, удаление пользователя), репозиторий MUST в той же транзакции обновить `members_count` атомарным UPDATE с `GREATEST(members_count + delta, 0)`. Приращение MUST считать БД, а не Python: чтение-изменение-запись теряет параллельные изменения состава одного клуба.
-11. WHEN приходит USER_DELETED с `delete_clubs=true`, `handle_user_deleted` MUST удалить клубы владельца и вернуть их id (для CLUBS_DELETED); при `false` - занулить `owner_id`; членство, заявки и голоса пользователя MUST удаляться всегда, а счётчики затронутых клубов - уменьшаться до удаления строк членства. Чистка идемпотентна: те же строки уносит FK-каскад при удалении строки пользователя, повторный DELETE - no-op.
+11. `decrement_members_count_for_user(user_id)` MUST уменьшить `members_count` каждого клуба, где пользователь состоит, ровно на единицу; вызывающий MUST вызвать его до удаления строки пользователя - иначе членства уже унесёт каскад и считать будет нечего. `delete_clubs_owned_by(user_id)` MUST удалять клубы владельца только по флагу `delete_clubs=true`; при его отсутствии `owner_id` зануляет FK ON DELETE SET NULL, зануления в коде быть MUST NOT. Членство, заявки, голоса и прогресс удаляемого пользователя MUST NOT чиститься кодом - их уносит FK CASCADE.
 12. `change_threads_count` MUST менять счётчик атомарным UPDATE с `GREATEST(threads_count + delta, 0)`: приращение считает БД (параллельные изменения не теряются), GREATEST страхует от ухода счётчика в минус при разъехавшемся ранее значении.
 13. Репозиторий MUST завершать записи `flush`, а не `commit` - транзакцию держит session dependency.
 14. `get_role` MUST отдавать роль из строки членства либо пустое значение, если пользователь не состоит в клубе. Владельца эта роль не описывает: владение читается из `owner_id` клуба.
@@ -47,7 +47,7 @@ tags:
 22. `set_progress` MUST быть upsert-ом по паре (заход, участник): повторная отметка MUST переписывать строку, а не падать об уникальный ключ и не заводить вторую. `updated_at` MUST выставляться явно - ORM-хук onupdate на пути INSERT ... ON CONFLICT не срабатывает.
 23. `get_expected_positions` MUST отдавать максимальную позицию этапа, чья дата уже наступила, по каждому заходу; заход без наступивших этапов в результате MUST отсутствовать - сверять прогресс ещё не с чем.
 24. `count_on_track` MUST считать участников, чей закрытый этап не ниже ожидаемого, одним запросом на все заходы страницы (группировка по заходу и позиции), а не запросом на заход.
-25. WHEN участник выходит из клуба, исключается или удаляется пользователь, репозиторий MUST удалить его строки прогресса и его голос: иначе доля участников в графике считается от числа участников, а числитель включает ушедших, и книгу клубу выбирают те, кто в нём уже не состоит.
+25. WHEN участник выходит из клуба или исключается, репозиторий MUST удалить его строки прогресса и его голос: иначе доля участников в графике считается от числа участников, а числитель включает ушедших, и книгу клубу выбирают те, кто в нём уже не состоит. WHEN удаляется сам пользователь, те же строки уносит FK ON DELETE CASCADE - удаления в коде быть MUST NOT.
 26. `set_vote` MUST быть upsert-ом по паре (участник, клуб): голос за другую номинацию MUST переписывать ту же строку, повторный голос за ту же номинацию MUST оставлять её без изменений. Предварительной проверки «уже голосовал» быть MUST NOT - два параллельных голоса прошли бы её оба.
 27. `count_votes` MUST считать голоса всех номинаций клуба одним агрегатным запросом; номинация без голосов в результате MUST отсутствовать. Денормализованного счётчика голосов быть MUST NOT.
 28. `delete_vote` MUST снимать голос только с указанной номинации и MUST сообщать вызывающему, был ли голос снят - переставленный на другую номинацию голос снимать MUST NOT.
