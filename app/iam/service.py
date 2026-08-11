@@ -5,8 +5,9 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
+from fastapi import UploadFile
 
-from app.core import events
+from app.core import events, media
 from app.core.errors.errors import Conflict, Unauthorized, BadRequest
 from app.core.models.response_model import ResponseModel
 from app.core.rate_limit import check_registrations_limit, count_registration
@@ -65,6 +66,17 @@ class UserService:
     async def update_user_info(self, user: User, model: UpdateUserRequest) -> ResponseModel[OwnUserResponse]:
         await self.validate_phone_number(model.phone_number, exclude_user_id=user.id)
         updated_user: User = await self.user_repository.update_user_info(user.id, model.name, model.phone_number)
+
+        return ResponseModel.ok(OwnUserResponse.model_validate(updated_user))
+
+    async def update_avatar(self, user: User, file: UploadFile) -> ResponseModel[OwnUserResponse]:
+        previous_key = user.avatar_key
+        avatar_key = await media.store_image(media.AVATARS, file)
+        updated_user: User = await self.user_repository.update_avatar(user, avatar_key)
+        # ponytail: старый файл удаляем до коммита - если коммит упадёт, ссылка в
+        # БД останется на удалённый файл. Станет важно - удалять по событию после
+        # коммита; не удалять вовсе нельзя, хранилище растёт с каждой загрузкой.
+        await media.delete_image(previous_key)
 
         return ResponseModel.ok(OwnUserResponse.model_validate(updated_user))
 
@@ -311,6 +323,8 @@ class AuthService:
         await self.user_repository.delete_user(user_id=user.id)
         # user_sessions без FK на users - осиротевшие сессии удаляем вручную.
         await self.user_session_service.logout_all_user_sessions(user.id)
+        # Аватар - контент пользователя, вместе с аккаунтом уходит и он.
+        await media.delete_image(user.avatar_key)
 
         return ResponseModel.ok(None, message="Аккаунт удалён")
 

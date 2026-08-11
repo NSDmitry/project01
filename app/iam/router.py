@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, Request
+from fastapi import APIRouter, Body, Depends, File, Request, UploadFile
 from fastapi.params import Security
 
 from app.core.models.response_model import ResponseModel
@@ -175,6 +175,37 @@ async def change_user_info(
     user_service: UserService = Depends(get_user_service)
 ) -> ResponseModel[OwnUserResponse]:
     return await user_service.update_user_info(user=user, model=model)
+
+
+@users_router.put(
+    "/avatar",
+    response_model=ResponseModel[OwnUserResponse],
+    summary="Загрузить аватар пользователя",
+    description=
+    """
+    **Требуется авторизация** с заголовком:
+    `X-Session-Id: <session_id>`
+
+    Файл передаётся как `multipart/form-data`, поле `file`. Принимаются JPEG, PNG
+    и WebP до 5 МБ; картинка уменьшается и сохраняется в WebP. Прежний аватар
+    заменяется, ссылка на новый приходит в `avatar_url`.
+    """,
+    dependencies=[rate_limiter(times=10, seconds=60)],
+    responses={
+        200: {"description": "Аватар загружен, в ответе ссылка на него"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        413: {"description": "Файл больше 5 МБ"},
+        415: {"description": "Файл не изображение или формат не поддерживается"},
+        429: {"description": "Слишком много загрузок"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service)
+) -> ResponseModel[OwnUserResponse]:
+    return await user_service.update_avatar(user=user, file=file)
 
 
 @users_router.put(

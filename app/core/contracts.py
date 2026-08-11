@@ -24,6 +24,8 @@ class Principal(Protocol):
 class UserSummary(ResponseSchema):
     id: int
     name: str
+    # None - аватар не загружен.
+    avatar_url: str | None = None
 
 
 class GenreResponse(ResponseSchema):

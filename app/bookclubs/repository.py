@@ -274,13 +274,17 @@ class BookClubRepository:
 
         return deleted_club_ids
 
-    async def delete_book_club(self, owner: Principal, club_id: int) -> None:
+    async def delete_book_club(self, owner: Principal, club_id: int) -> str | None:
+        """Удаляет клуб и отдаёт ключ его обложки - файл лежит вне БД."""
         club = await self.get_book_club(club_id=club_id)
 
         require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
 
+        cover_key = club.cover_key
         await self.db.delete(club)
         await self.db.flush()
+
+        return cover_key
 
     async def set_genres(self, owner: Principal, club_id: int, genre_ids: List[int]) -> BookClub:
         club = await self.get_book_club(club_id=club_id)
@@ -323,6 +327,12 @@ class BookClubRepository:
             )
 
         return await self.get_book_club(club_id=club_id)
+
+    async def update_cover(self, club: BookClub, cover_key: str) -> BookClub:
+        club.cover_key = cover_key
+        await self.db.flush()
+
+        return club
 
     async def get_genre_ids(self, club_ids: List[int]) -> dict[int, List[int]]:
         if not club_ids:

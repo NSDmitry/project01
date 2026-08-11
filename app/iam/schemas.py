@@ -46,6 +46,8 @@ class OwnUserResponse(ResponseSchema):
     name: str
     phone_number: Optional[str]
     created_at: datetime
+    # None - аватар не загружен.
+    avatar_url: Optional[str] = None
 
 class AuthUserResponse(ResponseSchema):
     session_id: str

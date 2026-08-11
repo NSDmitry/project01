@@ -163,6 +163,34 @@ class ApiClient:
     def update_bookclub(self, club_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.patch(f"/api/bookclubs/{club_id}", json=payload, headers=headers)
 
+    def upload_avatar(
+        self,
+        content: bytes,
+        headers: dict[str, str] | None = None,
+        filename: str = "avatar.png",
+        content_type: str = "image/png",
+    ):
+        return self._client.put(
+            "/api/users/avatar", files={"file": (filename, content, content_type)}, headers=headers
+        )
+
+    def upload_bookclub_cover(
+        self,
+        club_id: int,
+        content: bytes,
+        headers: dict[str, str] | None = None,
+        filename: str = "cover.png",
+        content_type: str = "image/png",
+    ):
+        return self._client.put(
+            f"/api/bookclubs/{club_id}/cover",
+            files={"file": (filename, content, content_type)},
+            headers=headers,
+        )
+
+    def media(self, url: str):
+        return self._client.get(url)
+
     def create_reading(self, club_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.post(f"/api/bookclubs/{club_id}/readings", json=payload, headers=headers)
 

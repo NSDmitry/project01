@@ -21,6 +21,9 @@ pytest-asyncio = "*"
 redis = "*"
 fastapi-limiter = "*"
 aio-pika = "*"
+boto3 = "*"
+pillow = "*"
+python-multipart = "*"
 
 [dev-packages]
 

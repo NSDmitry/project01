@@ -18,6 +18,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.core.db_base_model import DBLBase
+from app.core.media import media_url
 
 
 class ClubMember(Base):
@@ -69,6 +70,8 @@ class BookClub(Base, DBLBase):
 
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     description: Mapped[str] = mapped_column(String, nullable=False)
+    # Ключ файла в хранилище картинок (club-covers/<uuid>.webp). NULL - обложки нет.
+    cover_key: Mapped[str | None] = mapped_column(String, nullable=True)
     # Как попасть в клуб: свободно, по одобренной заявке или по коду приглашения.
     # На видимость клуба в каталоге и поиске не влияет - иначе клуб «по заявке»
     # нельзя было бы найти, чтобы подать заявку.
@@ -96,6 +99,11 @@ class BookClub(Base, DBLBase):
         ),
         deferred=True,
     )
+
+    @property
+    def cover_url(self) -> str | None:
+        """Ссылка для ответов API - схемы собираются из модели по from_attributes."""
+        return media_url(self.cover_key)
 
 
 class ClubInvite(Base, DBLBase):

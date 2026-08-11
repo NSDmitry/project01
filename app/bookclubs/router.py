@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 
 from app.bookclubs.deps import get_book_club_service, get_nomination_service, get_reading_service
 from app.bookclubs.schemas import (
@@ -558,6 +558,37 @@ async def update_book_club(
         service: BookClubService = Depends(get_book_club_service)
 ) -> ResponseModel[BookClubResponse]:
     return await service.update_book_club(user, club_id, model)
+
+
+@router.put(
+    "/{club_id}/cover",
+    response_model=ResponseModel[BookClubResponse],
+    summary="Загрузить обложку книжного клуба",
+    description=(
+            "Файл передаётся как `multipart/form-data`, поле `file`. Принимаются "
+            "JPEG, PNG и WebP до 5 МБ; картинка уменьшается и сохраняется в WebP. "
+            "Прежняя обложка заменяется, ссылка на новую приходит в `cover_url`.\n\n"
+            "Доступно только владельцу клуба.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Модель книжного клуба со ссылкой на обложку"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не является владельцем книжного клуба"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        413: {"description": "Файл больше 5 МБ"},
+        415: {"description": "Файл не изображение или формат не поддерживается"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+async def upload_cover(
+        club_id: PathId,
+        file: UploadFile = File(...),
+        user: Principal = Depends(get_current_user),
+        service: BookClubService = Depends(get_book_club_service)
+) -> ResponseModel[BookClubResponse]:
+    return await service.update_cover(user, club_id, file)
 
 
 @router.post(

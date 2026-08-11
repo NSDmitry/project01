@@ -54,6 +54,40 @@ services:
       timeout: 10s
       retries: 5
 
+  minio:
+    image: minio/minio
+    container_name: project1_minio
+    restart: always
+    # Обложки клубов и аватары пользователей. Бакет приватный - наружу картинки
+    # раздаёт приложение (GET /media/<ключ>), поэтому порт только на loopback.
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?set MINIO_ROOT_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Одноразовый контейнер: создаёт бакет, если его ещё нет. Приложение бакет не
+  # создаёт - в проде ключ доступа такого права может и не иметь.
+  minio-init:
+    image: minio/mc
+    container_name: project1_minio_init
+    depends_on:
+      minio:
+        condition: service_healthy
+    env_file:
+      - .env
+    entrypoint: >
+      sh -c "mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD} &&
+             mc mb --ignore-existing local/$${S3_BUCKET}"
+
   migrate:
     image: nsdmitrij/project01:latest
     container_name: project1_migrate
@@ -77,6 +111,8 @@ services:
       rabbitmq:
         condition: service_healthy
       migrate:
+        condition: service_completed_successfully
+      minio-init:
         condition: service_completed_successfully
     # Только loopback - наружу приложение отдаёт reverse-proxy (nginx/caddy) с TLS,
     # uvicorn голым в интернет не торчит.
@@ -127,5 +163,6 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+  minio_data:
   caddy_data:
   caddy_config:

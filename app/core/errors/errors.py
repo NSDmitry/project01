@@ -32,6 +32,16 @@ class TooManyRequests(APIException):
         super().__init__(message, status.HTTP_429_TOO_MANY_REQUESTS, errors)
 
 
+class PayloadTooLarge(APIException):
+    def __init__(self, message: str = "Файл слишком большой", errors: list[str] | None = None) -> None:
+        super().__init__(message, status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, errors)
+
+
+class UnsupportedMediaType(APIException):
+    def __init__(self, message: str = "Неподдерживаемый тип файла", errors: list[str] | None = None) -> None:
+        super().__init__(message, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, errors)
+
+
 class UnprocessableEntity(APIException):
     def __init__(self, message: str = "Невозможно обработать запрос", errors: list[str] | None = None) -> None:
         super().__init__(message, status.HTTP_422_UNPROCESSABLE_ENTITY, errors)
