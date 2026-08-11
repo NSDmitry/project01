@@ -1,7 +1,6 @@
 from typing import List
 
 from app.genres.models import Genre
-from app.core import events
 from app.core.authorization import require_permission
 from app.core.models.response_model import ResponseModel
 from app.genres.repository import GenreRepository
@@ -39,7 +38,8 @@ class GenreService:
     async def delete_genre(self, user: Principal, genre_id: int) -> ResponseModel:
         require_permission(user, message="Управлять жанрами может только администратор")
 
+        # Связки клубов с жанром уносит каскад БД (book_club_genres.genre_id
+        # ON DELETE CASCADE) в той же транзакции - событие не нужно.
         await self.genre_repository.delete(genre_id)
-        await events.publish(events.GENRES_DELETED, {"genre_ids": [genre_id]})
 
         return ResponseModel.ok(message="Жанр успешно удален")

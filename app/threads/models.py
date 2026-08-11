@@ -20,19 +20,21 @@ class Thread(Base, DBLBase):
         Index("ix_threads_reading_stage_id", "reading_stage_id"),
     )
 
-    # id клуба из bookclubs - без FK, треды удаляются кодом при удалении клуба
-    club_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    # id пользователя из iam - без FK, обнуляется кодом при удалении автора
-    author_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    club_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False
+    )
+    # NULL - автор удалил аккаунт, тред остаётся анонимным (ON DELETE SET NULL).
+    author_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     book_id: Mapped[int | None] = mapped_column(
         BigInteger, ForeignKey("books.id", ondelete="SET NULL"), nullable=True
     )
     # Этап захода из bookclubs, к которому привязано обсуждение. NULL - тред про
-    # книгу в целом. Без FK, как и club_id: домены связаны только идентификатором.
-    # FK здесь ещё и вредил бы - удаление клуба каскадом уносит этапы и в той же
-    # транзакции блокировало бы треды, которые чистит обработчик CLUBS_DELETED в
-    # своей сессии.
-    reading_stage_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # книгу в целом либо этап удалён.
+    reading_stage_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("reading_stages.id", ondelete="SET NULL"), nullable=True
+    )
     title: Mapped[str] = mapped_column(String, nullable=False)
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Денормализованный счётчик комментариев треда. Комментарии в этом же домене,
@@ -54,8 +56,10 @@ class Comment(Base, DBLBase):
     thread_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("threads.id", ondelete="CASCADE"), nullable=False
     )
-    # id пользователя из iam - без FK, обнуляется кодом при удалении автора
-    author_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    # NULL - автор удалил аккаунт, комментарий остаётся анонимным (ON DELETE SET NULL).
+    author_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
 
@@ -71,5 +75,6 @@ class CommentLike(Base, DBLBase):
     comment_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("comments.id", ondelete="CASCADE"), nullable=False
     )
-    # id пользователя из iam - без FK, лайки удаляются кодом при удалении пользователя
-    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )

@@ -33,8 +33,9 @@ class ClubMember(Base):
     club_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True
     )
-    # id пользователя из iam - без FK, домены связаны только идентификатором
-    user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
     # Владельца здесь нет: он хранится в book_clubs.owner_id, и дублировать его
     # ролью значило бы завести второй источник правды, который может разъехаться.
     # Роль владельца в ответах выводится из owner_id.
@@ -52,8 +53,9 @@ class BookClubGenre(Base):
     club_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True
     )
-    # id жанра из genres - без FK, домены связаны только идентификатором
-    genre_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    genre_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("genres.id", ondelete="CASCADE"), primary_key=True
+    )
 
 
 class BookClub(Base, DBLBase):
@@ -76,9 +78,11 @@ class BookClub(Base, DBLBase):
     # На видимость клуба в каталоге и поиске не влияет - иначе клуб «по заявке»
     # нельзя было бы найти, чтобы подать заявку.
     privacy: Mapped[str] = mapped_column(String, nullable=False, server_default="public")
-    # id пользователя из iam - без FK, обнуляется кодом при удалении владельца
-    owner_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    # Денормализованный счётчик тредов клуба. Треды - в другом домене (без FK),
+    # NULL - владелец удалил аккаунт, не удаляя клуб. Обнуляет БД (ON DELETE SET NULL).
+    owner_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    # Денормализованный счётчик тредов клуба. Треды - в другом домене,
     # поэтому клуб не считает их подзапросом, а ведёт столбец по событиям
     # THREAD_CREATED/THREAD_DELETED (см. events.py).
     threads_count: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
@@ -113,15 +117,19 @@ class ClubInvite(Base, DBLBase):
         # FK не создаёт индекс на дочерней стороне: без него удаление клуба
         # сканирует таблицу приглашений целиком.
         Index("ix_club_invites_club_id", "club_id"),
+        # То же для удаления пользователя (ON DELETE SET NULL по created_by).
+        Index("ix_club_invites_created_by", "created_by"),
     )
 
     club_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False
     )
     code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
-    # id пользователя из iam - без FK, домены связаны только идентификатором.
     # Уход создателя приглашение не отзывает: код выдан от имени клуба.
-    created_by: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # NULL - создатель удалил аккаунт, ставит БД (ON DELETE SET NULL).
+    created_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     # NULL - код бессрочный. Иначе утёкшая ссылка живёт вечно, а закрытый клуб
     # перестаёт быть закрытым.
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -145,8 +153,9 @@ class ClubJoinRequest(Base, DBLBase):
     club_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False
     )
-    # id пользователя из iam - без FK, домены связаны только идентификатором
-    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     status: Mapped[str] = mapped_column(String, nullable=False, server_default="pending")
 
 
@@ -241,8 +250,10 @@ class NominationVote(Base):
     # PK (user_id, club_id) - это и есть правило «один участник, один голос»:
     # держит его БД, а не проверка в коде. Голос за другую номинацию переписывает
     # ту же строку, поэтому счётчик не удваивается. user_id первым: по нему идёт
-    # чистка при удалении пользователя, и префикс ключа её покрывает.
-    user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    # каскад при удалении пользователя, и префикс ключа его покрывает.
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
     club_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), primary_key=True
     )
@@ -268,8 +279,9 @@ class ReadingProgress(Base, DBLBase):
     reading_id: Mapped[int] = mapped_column(
         BigInteger, ForeignKey("readings.id", ondelete="CASCADE"), nullable=False
     )
-    # id пользователя из iam - без FK, домены связаны только идентификатором
-    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     # Последний закрытый этап. NULL - участник отметил только страницу, а сопоставить
     # её с этапом не вышло (у этапов не заданы страницы).
     stage_id: Mapped[int | None] = mapped_column(
