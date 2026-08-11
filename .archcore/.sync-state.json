@@ -104,11 +104,6 @@
     },
     {
       "source": "architecture/architecture-overview.doc.md",
-      "target": "architecture/core-events.spec.md",
-      "type": "related"
-    },
-    {
-      "source": "architecture/architecture-overview.doc.md",
       "target": "genres/genres-router.spec.md",
       "type": "related"
     },
@@ -223,11 +218,6 @@
       "type": "related"
     },
     {
-      "source": "architecture/core-events.spec.md",
-      "target": "architecture/top-level-map.doc.md",
-      "type": "related"
-    },
-    {
       "source": "genres/genres-router.spec.md",
       "target": "architecture/top-level-map.doc.md",
       "type": "related"
@@ -274,11 +264,6 @@
     },
     {
       "source": "bookclubs/bookclubs-repository.spec.md",
-      "target": "architecture/entry-points.doc.md",
-      "type": "related"
-    },
-    {
-      "source": "architecture/core-events.spec.md",
       "target": "architecture/entry-points.doc.md",
       "type": "related"
     },
@@ -434,11 +419,6 @@
     },
     {
       "source": "bookclubs/bookclubs-service.spec.md",
-      "target": "conventions/cross-domain-events.rule.md",
-      "type": "related"
-    },
-    {
-      "source": "architecture/core-events.spec.md",
       "target": "conventions/cross-domain-events.rule.md",
       "type": "related"
     },

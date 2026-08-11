@@ -28,7 +28,6 @@ from app.bookclubs.schemas import (
     ReadingScheduleRequest,
     UpdateBookClubRequest,
 )
-from app.core.authorization import require_permission
 from app.core.contracts import Principal
 from app.core.errors.errors import NotFound, Conflict, UnprocessableEntity
 
@@ -259,39 +258,23 @@ class BookClubRepository:
         await self.db.execute(delete(BookClub).where(BookClub.owner_id == user_id))
         await self.db.flush()
 
-    async def delete_book_club(self, owner: Principal, club_id: int) -> str | None:
+    async def delete_book_club(self, club: BookClub) -> str | None:
         """Удаляет клуб и отдаёт ключ его обложки - файл лежит вне БД."""
-        club = await self.get_book_club(club_id=club_id)
-
-        require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
-
         cover_key = club.cover_key
         await self.db.delete(club)
         await self.db.flush()
 
         return cover_key
 
-    async def set_genres(self, owner: Principal, club_id: int, genre_ids: List[int]) -> BookClub:
-        club = await self.get_book_club(club_id=club_id)
-
-        require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
-
-        await self.db.execute(delete(BookClubGenre).where(BookClubGenre.club_id == club_id))
+    async def set_genres(self, club: BookClub, genre_ids: List[int]) -> BookClub:
+        await self.db.execute(delete(BookClubGenre).where(BookClubGenre.club_id == club.id))
         for genre_id in genre_ids:
-            self.db.add(BookClubGenre(club_id=club_id, genre_id=genre_id))
+            self.db.add(BookClubGenre(club_id=club.id, genre_id=genre_id))
         await self.db.flush()
 
-        return await self.get_book_club(club_id=club_id)
+        return await self.get_book_club(club_id=club.id)
 
-    async def update_book_club(self, owner: Principal, club_id: int, model: UpdateBookClubRequest) -> BookClub:
-        club = await self.get_book_club(club_id=club_id)
-
-        require_permission(
-            owner,
-            club.owner_id,
-            message="Пользователь не является владельцем книжного клуба"
-        )
-
+    async def update_book_club(self, club: BookClub, model: UpdateBookClubRequest) -> BookClub:
         if model.name is not None:
             club.name = model.name
 
@@ -311,7 +294,7 @@ class BookClubRepository:
                 errors=["field: name, message: Это имя уже используется"],
             )
 
-        return await self.get_book_club(club_id=club_id)
+        return await self.get_book_club(club_id=club.id)
 
     async def update_cover(self, club: BookClub, cover_key: str) -> BookClub:
         club.cover_key = cover_key

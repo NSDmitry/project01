@@ -18,8 +18,6 @@ Source: `.env.example`.
 
 ## External services
 - REDIS_URL - Redis для rate limiting и блокировок подбора пароля; недоступный Redis ломает вход (500)
-- RABBITMQ_URL - RabbitMQ для кросс-доменных событий; пусто = синхронная доставка in-process (secret)
-- RABBITMQ_USER / RABBITMQ_PASSWORD - учётка RabbitMQ для docker-compose (secret)
 
 ## Media storage
 - S3_ENDPOINT_URL - адрес S3-совместимого хранилища картинок (MinIO в compose, Object Storage в проде); пусто = файлы пишутся в локальный каталог MEDIA_ROOT

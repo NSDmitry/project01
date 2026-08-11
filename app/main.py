@@ -13,7 +13,7 @@ from redis import asyncio as redis_asyncio
 # Через from-import, иначе имя `app` связывается с пакетом и конфликтует с `app = FastAPI()`.
 from app.bookclubs.router import router as bookclubs_router, nominations_router, readings_router
 from app.books.router import router as books_router
-from app.core import events, media
+from app.core import media
 from app.core.errors.APIException import APIException
 from app.core.models.response_model import ResponseModel
 from app.genres.router import router as genres_router
@@ -37,11 +37,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         )
     redis_conn = redis_asyncio.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
     await FastAPILimiter.init(redis_conn)
-    await events.startup()
     try:
         yield
     finally:
-        await events.shutdown()
         await FastAPILimiter.close()
 
 

@@ -11,9 +11,6 @@ class Settings(BaseSettings):
     # Пустой ключ = запросы к Google Books без ключа (меньшие квоты).
     google_books_api_key: str = ""
     redis_url: str = "redis://localhost:6379/0"
-    # Пусто = кросс-доменные события доставляются синхронно в том же процессе
-    # (тесты, локальный запуск без брокера). Иначе - RabbitMQ.
-    rabbitmq_url: str = ""
     # Пустой токен = эндпоинт /metrics отключён (404). Непустой = требуется Bearer-токен.
     metrics_token: str = ""
     # Хранилище картинок. Пустой endpoint = файлы пишутся в локальный каталог
