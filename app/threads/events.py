@@ -1,3 +1,4 @@
+from app.bookclubs.repository import BookClubRepository
 from app.core import events
 from app.threads.repository import ThreadRepository
 
@@ -10,11 +11,11 @@ async def on_user_deleted(payload: dict) -> None:
             delete_threads=payload["delete_threads"],
             delete_comments=payload["delete_comments"],
         )
+        # Счётчики тредов клубов правим той же транзакцией, что и удаление тредов.
+        # Клубы удалённых владельцев bookclubs удаляет своим обработчиком.
+        for club_id, count in threads_removed_by_club.items():
+            await BookClubRepository(db).change_threads_count(club_id, -count)
         await db.commit()
-    # Счётчики тредов ведёт домен клубов - сообщаем, сколько тредов автора ушло из
-    # каждого клуба. Клубы удалённых владельцев чистит своим событием bookclubs.
-    for club_id, count in threads_removed_by_club.items():
-        await events.publish(events.THREAD_DELETED, {"club_id": club_id, "count": count})
 
 
 @events.subscribe(events.CLUBS_DELETED, queue="threads")

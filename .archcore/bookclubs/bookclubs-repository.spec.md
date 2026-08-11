@@ -8,7 +8,7 @@ tags:
 ---
 
 ## Purpose & Scope
-Контракт слоя хранения bookclubs: `BookClubRepository`, `ReadingRepository` и `NominationRepository` (@app/bookclubs/repository.py). Потребители - @app/bookclubs/service.py, порт `ClubsPort` домена threads (`get_book_club`, `is_member`), порт `ReadingsPort` домена threads (`get_stage_club_id`) и обработчики событий. Вне scope: резолв жанров, владельцев и книг (спек сервиса).
+Контракт слоя хранения bookclubs: `BookClubRepository`, `ReadingRepository` и `NominationRepository` (@app/bookclubs/repository.py). Потребители - @app/bookclubs/service.py, домен threads напрямую через deps.py (`get_book_club`, `is_member`, `get_stage_club_id`, `change_threads_count`) и обработчики событий. Вне scope: резолв жанров, владельцев и книг (спек сервиса).
 
 ## Surface
 - CRUD: `create_book_club`, `get_book_clubs`, `get_book_club`, `update_book_club`, `update_cover`, `delete_book_club`.
@@ -17,7 +17,7 @@ tags:
 - Приглашения: `create_invite`, `get_invite`.
 - Заявки: `upsert_join_request`, `get_join_request`, `get_pending_join_requests`, `resolve_join_request`.
 - Жанры: `set_genres`, `get_genre_ids` (связки удалённого жанра уносит каскад БД по FK `book_club_genres.genre_id`).
-- События: `handle_user_deleted`, `change_threads_count`.
+- Кросс-доменное: `handle_user_deleted` (обработчик USER_DELETED), `change_threads_count` (прямой вызов домена threads в транзакции запроса).
 - Заходы (`ReadingRepository`): `create_reading`, `get_reading`, `get_active_readings`, `get_readings`, `finish_reading`, `get_stages`, `get_stage_club_id`, `set_progress`, `get_progress`, `get_progress_page`, `get_expected_positions`, `count_on_track`.
 - Голосование (`NominationRepository`): `create_nomination`, `get_nomination`, `get_nominations`, `count_nominations`, `count_votes`, `get_vote`, `set_vote`, `delete_vote`, `clear_nominations`.
 - Модели: `BookClub`, `ClubMember`, `ClubInvite`, `ClubJoinRequest`, `BookClubGenre`, `Reading`, `ReadingStage`, `ReadingProgress`, `BookNomination`, `NominationVote` - @app/bookclubs/models.py.
@@ -34,7 +34,7 @@ tags:
 9. `get_members` MUST отдавать только страницу участников клуба вместе с их ролью. Общее число участников репозиторий не считает - его держит `BookClub.members_count`.
 10. WHEN меняется состав участников (создание клуба, вступление, выход, исключение, удаление пользователя), репозиторий MUST в той же транзакции обновить `members_count` атомарным UPDATE с `GREATEST(members_count + delta, 0)`. Приращение MUST считать БД, а не Python: чтение-изменение-запись теряет параллельные изменения состава одного клуба.
 11. WHEN приходит USER_DELETED с `delete_clubs=true`, `handle_user_deleted` MUST удалить клубы владельца и вернуть их id (для CLUBS_DELETED); при `false` - занулить `owner_id`; членство, заявки и голоса пользователя MUST удаляться всегда, а счётчики затронутых клубов - уменьшаться до удаления строк членства. Чистка идемпотентна: те же строки уносит FK-каскад при удалении строки пользователя, повторный DELETE - no-op.
-12. `change_threads_count` MUST менять счётчик атомарным UPDATE с `GREATEST(threads_count + delta, 0)` - защита от ухода в минус при дублях событий (at-least-once доставка).
+12. `change_threads_count` MUST менять счётчик атомарным UPDATE с `GREATEST(threads_count + delta, 0)`: приращение считает БД (параллельные изменения не теряются), GREATEST страхует от ухода счётчика в минус при разъехавшемся ранее значении.
 13. Репозиторий MUST завершать записи `flush`, а не `commit` - транзакцию держит session dependency.
 14. `get_role` MUST отдавать роль из строки членства либо пустое значение, если пользователь не состоит в клубе. Владельца эта роль не описывает: владение читается из `owner_id` клуба.
 15. `transfer_ownership` MUST в одной транзакции сменить владельца и сбросить роль нового владельца в `member` - иначе оставленная роль модератора стала бы вторым источником правды о его правах. Прежний владелец MUST остаться участником клуба с ролью `member`: членства он не терял, а модератором его никто не назначал.
@@ -65,7 +65,7 @@ tags:
 - Инвариант: имя клуба уникально (unique constraint на name).
 - Инвариант: `search_vector` - генерируемый столбец: его считает СУБД при записи в название и описание. Код MUST NOT писать в него и MUST NOT поддерживать его событиями или триггерами; рассинхрон текста и индекса поиска поэтому невозможен по построению.
 - Инвариант: конфигурация текстового поиска подставляется в запрос литералом, а не bind-параметром - тип regconfig драйвер не передаёт. Сам текст запроса пользователя MUST оставаться bind-параметром.
-- Инвариант: `members_count` равен числу строк club_members этого клуба. В отличие от `threads_count` счётчик ведётся не событиями, а в одной транзакции с самим членством, поэтому разъехаться может только при правках в обход репозитория.
+- Инвариант: `members_count` равен числу строк club_members этого клуба: счётчик ведётся в одной транзакции с самим членством, поэтому разъехаться может только при правках в обход репозитория.
 - Инвариант: UPDATE счётчика MUST помечать уже загруженный объект клуба просроченным (`synchronize_session="fetch"`) - иначе следующий `get_book_club` в той же сессии отдаст его из identity map со старым значением.
 - Инвариант: фильтр по `relation` осмыслен только вместе с пользователем - оба параметра опциональны по отдельности, но `relation` без пользователя недопустим.
 - Инвариант: изменения атрибутов загруженной модели фиксируются `flush`, а не `refresh` - сессия создаётся с `autoflush=False`, поэтому `refresh` перечитал бы строку и молча затёр несохранённые правки.

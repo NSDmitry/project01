@@ -24,8 +24,6 @@ EXCHANGE = "domain_events"
 # дала бы молча неработающего подписчика.
 USER_DELETED = "user_deleted"
 CLUBS_DELETED = "clubs_deleted"
-THREAD_CREATED = "thread_created"
-THREAD_DELETED = "thread_deleted"
 
 # Хендлер получает распакованный payload события и ничего не возвращает.
 Handler = Callable[[dict], Awaitable[None]]
