@@ -13,7 +13,7 @@ tags:
 ## Surface
 - `ThreadService`: `get_threads`, `create_thread`, `update_thread`, `delete_thread`.
 - `CommentService`: `get_comments`, `get_comment_likers`, `create_comment`, `update_comment`, `delete_comment`, `like_comment`, `unlike_comment`.
-- Кросс-доменные зависимости - конкретные классы соседних доменов через deps.py (`BookClubRepository`, `ReadingRepository`, `BookService`, `UserRepository`); авторство - `Principal` из @app/core/contracts.py.
+- Кросс-доменные зависимости - конкретные классы соседних доменов через deps.py (`BookClubRepository`, `ReadingRepository`, `BookService`, `UserRepository`, `NotificationRepository`); авторство - `Principal` из @app/core/contracts.py.
 
 ## Normative Behavior
 1. WHEN создаётся тред или комментарий, сервис MUST проверить членство автора в клубе через `BookClubRepository.is_member`; лайк - аналогично по клубу треда.
@@ -27,6 +27,7 @@ tags:
 9. `total` страницы тредов MUST браться из `threads_count` уже загруженного клуба, `total` страницы комментариев - из `comments_count` уже загруженного треда. Сервис MUST NOT запрашивать агрегат: он растёт с размером ленты, а не страницы, и на горячих тредах стоил дороже самой выборки.
 10. WHEN тред создаётся с этапом захода, сервис MUST через `ReadingRepository.get_stage_club_id` убедиться, что этап принадлежит тому же клубу, и только тогда привязывать его. Проверка MUST идти до создания книги и треда.
 11. WHEN лента тредов запрошена с фильтром по этапу, `total` MUST считаться запросом, а не браться из `threads_count` клуба: денормализованный счётчик считает все треды клуба и с фильтром неверен.
+12. WHEN комментарий создан, сервис MUST в той же транзакции положить автору треда уведомление `comment_in_thread` через `NotificationRepository.add` (outbox, см. @.archcore/notifications/notifications.spec.md). Уведомление MUST NOT создаваться, если комментатор сам автор треда или `author_id` треда NULL (автор удалён).
 
 ## Constraints & Invariants
 - Инвариант: сервис получает соседние домены только через deps.py - конкретными классами, без портов и без публикации событий (санкционированное исключение - identity-провайдер в роутере).
@@ -42,4 +43,4 @@ tags:
 5. IF этап не найден или принадлежит другому клубу, THEN `create_thread` MUST выбросить NotFound, а тред MUST NOT быть создан.
 
 ## Conformance
-Реализация конформна, когда выполняет поведения 1-11, держит инварианты зависимостей и пагинации и правила отказов 1-5. Проверяется тестами tests/threads/ и tests/comments/.
+Реализация конформна, когда выполняет поведения 1-12, держит инварианты зависимостей и пагинации и правила отказов 1-5. Проверяется тестами tests/threads/, tests/comments/ и tests/notifications/test_notification_outbox.py.

@@ -12,7 +12,7 @@ HTTP-контракт IAM: роуты `/api/auth/*` и `/api/users/*` (@app/iam/
 
 ## Surface
 - `/api/auth`: POST `/register` (201), POST `/login`, POST `/login-available`, POST `/telegram`, POST `/logout`.
-- `/api/users`: GET `/current`, GET `/public?user_id=`, PUT `` (имя и номер), PUT `/avatar` (multipart), PUT `/password`, DELETE `/current`.
+- `/api/users`: GET `/current`, GET `/public?user_id=`, PUT `` (имя и номер), PUT `/avatar` (multipart), PUT `/password`, GET `/notification-settings`, PUT `/notification-settings`, DELETE `/current`.
 - Все ответы - конверт `ResponseModel` (@app/core/models/response_model.py): `data`, `message`, `errors`.
 - Авторизация - заголовок `X-Session-Id` через `Depends(get_current_user)` (@app/iam/deps.py).
 
@@ -26,6 +26,7 @@ HTTP-контракт IAM: роуты `/api/auth/*` и `/api/users/*` (@app/iam/
 7. WHEN клиент вызывает PUT /avatar с `multipart/form-data` и полем `file`, роутер MUST вернуть профиль текущего пользователя со ссылкой `avatar_url`; ограничения по типу и размеру задаёт @app/core/media.py.
 8. Профиль в ответах MUST содержать `avatar_url` - относительный путь `/media/<ключ>` либо null, если аватар не загружен. Это касается и `GET /current`, и `GET /public` (контракт `UserSummary` в @app/core/contracts.py).
 9. WHEN операция успешна, роутер MUST вернуть данные в конверте `ResponseModel` с `errors = []`.
+10. GET /notification-settings MUST возвращать `disabled` - список отключённых пользователем типов уведомлений (значения `NotificationType` домена notifications). PUT /notification-settings MUST принимать полный список отключённых типов (replace-set, как жанры клуба): пустой список включает все уведомления; дубли в запросе MUST схлопываться.
 
 ## Constraints & Invariants
 - Инвариант: ни один хендлер не ходит в репозитории напрямую - только через сервисы (`get_auth_service`, `get_user_service`).
@@ -39,8 +40,8 @@ HTTP-контракт IAM: роуты `/api/auth/*` и `/api/users/*` (@app/iam/
 3. IF номер занят, THEN /register и PUT /api/users MUST вернуть 409.
 4. IF превышен rate limit роута либо сработала блокировка подбора по номеру телефона или по IP, THEN роутер MUST вернуть 429, не различая в теле ответа причину блокировки.
 5. IF `X-Session-Id` отсутствует, невалиден или сессия истекла, THEN защищённый роут MUST вернуть 401.
-6. IF тело запроса не проходит pydantic-валидацию, THEN роутер MUST вернуть 422 (глобальный хендлер @app/main.py, поля с ошибками в `errors`).
+6. IF тело запроса не проходит pydantic-валидацию, THEN роутер MUST вернуть 422 (глобальный хендлер @app/main.py, поля с ошибками в `errors`). Неизвестный тип уведомления в PUT /notification-settings отклоняется этим же путём.
 7. IF файл в PUT /avatar больше лимита, THEN роутер MUST вернуть 413; IF содержимое не изображение или формат не поддерживается, THEN 415.
 
 ## Conformance
-Реализация конформна, когда выполняет поведения 1-9 и правила отказов 1-7; фактические коды задекларированы в `responses` каждого роута и проверяются тестами tests/sso_tests/, tests/users/ и tests/media/test_image_uploads.py.
+Реализация конформна, когда выполняет поведения 1-10 и правила отказов 1-7; фактические коды задекларированы в `responses` каждого роута и проверяются тестами tests/sso_tests/, tests/users/, tests/media/test_image_uploads.py и tests/notifications/test_notification_settings.py.

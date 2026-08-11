@@ -8,6 +8,8 @@ from app.books.service import BookService
 from app.core.database import get_db
 from app.iam.deps import get_user_repository
 from app.iam.repository import UserRepository
+from app.notifications.deps import get_notification_repository
+from app.notifications.repository import NotificationRepository
 from app.threads.repository import ThreadRepository, CommentRepository
 from app.threads.service import ThreadService, CommentService
 
@@ -41,10 +43,12 @@ def get_comment_service(
         thread_repository: ThreadRepository = Depends(get_thread_repository),
         book_club_repository: BookClubRepository = Depends(get_club_repository),
         user_repository: UserRepository = Depends(get_user_repository),
+        notification_repository: NotificationRepository = Depends(get_notification_repository),
 ) -> CommentService:
     return CommentService(
         comment_repository=comment_repository,
         thread_repository=thread_repository,
         book_club_repository=book_club_repository,
         user_repository=user_repository,
+        notification_repository=notification_repository,
     )

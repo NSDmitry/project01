@@ -8,6 +8,7 @@ from pydantic import BaseModel, field_validator
 from app.core.contracts import UserSummary  # noqa: F401 - контракт живёт в core, ре-экспорт для домена
 from app.core.schemas import ResponseSchema
 from app.core.validators import validate_e164
+from app.notifications.models import NotificationType
 
 
 def validate_name(name: str) -> str:
@@ -51,6 +52,14 @@ class OwnUserResponse(ResponseSchema):
 
 class AuthUserResponse(ResponseSchema):
     session_id: str
+
+class NotificationSettingsRequest(BaseModel):
+    # Полный набор отключённых типов (replace-set, как жанры клуба):
+    # PUT с пустым списком включает всё обратно.
+    disabled: list[NotificationType]
+
+class NotificationSettingsResponse(ResponseSchema):
+    disabled: list[NotificationType]
 
 class LoginAvailableResponse(ResponseSchema):
     is_registered: bool

@@ -14,7 +14,7 @@ tags:
 - `BookClubService`: `create_book_club`, `get_book_clubs`, `search_book_clubs`, `get_book_club`, `get_members`, `update_book_club`, `update_cover`, `delete_book_club`, `join`, `leave`, `set_genres`, `create_invite`, `join_by_invite`, `request_join`, `get_join_requests`, `resolve_join_request`, `set_member_role`, `remove_member`, `transfer_ownership`.
 - `ReadingService`: `create_reading`, `get_current_reading`, `get_readings`, `finish_reading`, `set_progress`, `get_progress`.
 - `NominationService`: `nominate`, `get_nominations`, `vote`, `unvote`, `close_voting`.
-- Кросс-доменные зависимости - конкретные классы соседних доменов, инстансы подставляет @app/bookclubs/deps.py: `GenreRepository` (жанры), `UserRepository` (владельцы и участники), `BookService` (книги заходов и номинаций). Хранилище картинок - @app/core/media.py (core, не домен).
+- Кросс-доменные зависимости - конкретные классы соседних доменов, инстансы подставляет @app/bookclubs/deps.py: `GenreRepository` (жанры), `UserRepository` (владельцы и участники), `BookService` (книги заходов и номинаций), `NotificationRepository` (уведомления о старте захода). Хранилище картинок - @app/core/media.py (core, не домен).
 
 ## Normative Behavior
 1. WHEN создаётся клуб или заменяются жанры, сервис MUST проверить каждый код жанра через `GenreRepository.get_by_codes`; дубли кодов MUST схлопываться до уникальных.
@@ -52,6 +52,7 @@ tags:
 33. WHEN голосование закрыто, номинации и голоса клуба MUST очищаться: следующее голосование начинается с чистого листа, а выбранная книга живёт дальше как заход.
 34. Заход MUST создаваться до очистки номинаций: если у клуба уже есть незакрытый заход, закрытие голосования MUST оставить номинации и голоса нетронутыми.
 35. Число кандидатов в клубе MUST быть ограничено потолком: список номинаций отдаётся клиенту целиком, без страниц, и без потолка один участник мог бы завалить экран клуба тысячей книг. Потолок MUST проверяться счётом кандидатов, а не загрузкой списка.
+36. WHEN заход создан - вручную (`create_reading`) или закрытием голосования (`close_voting`), - сервис MUST в той же транзакции положить уведомление `reading_started` каждому участнику клуба, кроме инициатора, одним вызовом `NotificationRepository.add_for_club_members` (outbox, см. @.archcore/notifications/notifications.spec.md).
 
 ## Constraints & Invariants
 - Инвариант: сервис не импортирует внутренности соседних доменов в обход deps.py - кросс-доменные зависимости приходят готовыми инстансами конкретных классов, SQL чужих таблиц в домене нет.
@@ -87,4 +88,4 @@ tags:
 18. IF список кандидатов клуба полон, THEN номинация MUST вернуть Conflict с указанием, что голосование нужно закрыть.
 
 ## Conformance
-Реализация конформна, когда выполняет поведения 1-35, держит инварианты кросс-доменных зависимостей через deps.py, единственного владельца в составе клуба, обоих счётчиков, единого пути изменения состава, единственного текущего захода и единственного голоса участника и правила отказов 1-18. Проверяется тестами tests/bookclubs/, tests/readings/, tests/nominations/ и tests/media/test_image_uploads.py.
+Реализация конформна, когда выполняет поведения 1-36, держит инварианты кросс-доменных зависимостей через deps.py, единственного владельца в составе клуба, обоих счётчиков, единого пути изменения состава, единственного текущего захода и единственного голоса участника и правила отказов 1-18. Проверяется тестами tests/bookclubs/, tests/readings/, tests/nominations/, tests/media/test_image_uploads.py и tests/notifications/test_notification_outbox.py.

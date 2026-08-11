@@ -23,6 +23,7 @@ import app.bookclubs.models  # noqa: F401
 import app.genres.models  # noqa: F401
 import app.threads.models  # noqa: F401
 import app.books.models  # noqa: F401
+import app.notifications.models  # noqa: F401
 
 # Alembic config
 config = context.config

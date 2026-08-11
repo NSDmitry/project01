@@ -10,6 +10,8 @@ from app.genres.deps import get_genre_repository
 from app.genres.repository import GenreRepository
 from app.iam.deps import get_user_repository
 from app.iam.repository import UserRepository
+from app.notifications.deps import get_notification_repository
+from app.notifications.repository import NotificationRepository
 
 
 def get_club_repository(db: AsyncSession = Depends(get_db)) -> BookClubRepository:
@@ -46,12 +48,14 @@ def get_nomination_service(
         reading_repository: ReadingRepository = Depends(get_reading_repository),
         book_club_repository: BookClubRepository = Depends(get_club_repository),
         book_service: BookService = Depends(get_book_service),
+        notification_repository: NotificationRepository = Depends(get_notification_repository),
 ) -> NominationService:
     return NominationService(
         nomination_repository=nomination_repository,
         reading_repository=reading_repository,
         book_club_repository=book_club_repository,
         book_service=book_service,
+        notification_repository=notification_repository,
     )
 
 
@@ -60,10 +64,12 @@ def get_reading_service(
         book_club_repository: BookClubRepository = Depends(get_club_repository),
         book_service: BookService = Depends(get_book_service),
         user_repository: UserRepository = Depends(get_user_repository),
+        notification_repository: NotificationRepository = Depends(get_notification_repository),
 ) -> ReadingService:
     return ReadingService(
         reading_repository=reading_repository,
         book_club_repository=book_club_repository,
         book_service=book_service,
         user_repository=user_repository,
+        notification_repository=notification_repository,
     )

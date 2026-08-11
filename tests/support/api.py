@@ -36,6 +36,12 @@ class ApiClient:
     def change_password(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.put("/api/users/password", json=payload, headers=headers)
 
+    def notification_settings(self, headers: dict[str, str] | None = None):
+        return self._client.get("/api/users/notification-settings", headers=headers)
+
+    def update_notification_settings(self, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.put("/api/users/notification-settings", json=payload, headers=headers)
+
     def delete_current_user(
         self,
         headers: dict[str, str] | None = None,

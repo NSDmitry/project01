@@ -15,9 +15,9 @@ tags:
 - `login` принимает IP клиента (как и `register`) - без него невозможна блокировка перебора по случайным номерам.
 - `UserSessionService`: `create_user_session`, `get_user_session`, `logout_user_session`, `logout_all_user_sessions`, `cleanup_idle_sessions`.
 - `get_user_session` возвращает сессию либо отказывает; пустого результата в контракте нет.
-- `UserService`: `get_user_by_id`, `update_user_info`, `update_avatar`, `validate_phone_number`.
+- `UserService`: `get_user_by_id`, `update_user_info`, `update_avatar`, `validate_phone_number`, `get_notification_settings`, `update_notification_settings`.
 - Константы: `MAX_SESSIONS_PER_USER = 5`, `SESSION_MAX_IDLE = 30 дней`, `LAST_USED_THRESHOLD = 5 минут`.
-- Зависимости: эскалирующая блокировка @app/iam/brute_force.py с двумя политиками (по номеру телефона и по IP), подпись Telegram @app/iam/security/telegram.py, репозитории соседних доменов `BookClubRepository` и `ThreadRepository` через @app/iam/deps.py (каскад удаления аккаунта), хранилище картинок @app/core/media.py.
+- Зависимости: эскалирующая блокировка @app/iam/brute_force.py с двумя политиками (по номеру телефона и по IP), подпись Telegram @app/iam/security/telegram.py, репозитории соседних доменов `BookClubRepository` и `ThreadRepository` через @app/iam/deps.py (каскад удаления аккаунта), хранилище картинок @app/core/media.py. Типы уведомлений (`NotificationType`) - из домена notifications (@app/notifications/models.py).
 
 ## Normative Behavior
 1. WHEN вызывается `register`, сервис MUST проверить лимит регистраций с IP до создания пользователя (@app/core/rate_limit.py).
@@ -34,6 +34,7 @@ tags:
 12. WHEN вызывается `change_password`, сервис MUST подтвердить текущий пароль и завершить все активные сессии пользователя после смены.
 13. WHEN вызывается `delete_current_user`, сервис MUST выполнить каскад прямыми вызовами в одной транзакции запроса, в порядке: `ThreadRepository.delete_user_content` по флагам `delete_threads`/`delete_comments`, затем коррекция `threads_count` через `BookClubRepository.change_threads_count` по возвращённым {club_id: количество}, затем `BookClubRepository.decrement_members_count_for_user`, затем при `delete_clubs=true` - `BookClubRepository.delete_clubs_owned_by`, затем удаление строки пользователя, затем удаление файла аватара (аватар это контент пользователя, и вместе с аккаунтом уходит и он). Сессии пользователя отдельным вызовом не удаляются - их уносит FK `user_sessions.user_id` ON DELETE CASCADE.
 14. WHEN вызывается `update_avatar`, сервис MUST сохранить картинку в хранилище (проверка типа и размера - @app/core/media.py), записать ключ файла пользователю и удалить прежний файл: без удаления хранилище растёт с каждой загрузкой. Ссылка на аватар в ответе MUST собираться из ключа - в БД URL не хранится.
+15. WHEN вызывается `update_notification_settings`, сервис MUST заменить `users.disabled_notifications` целиком присланным списком (replace-set), схлопнув дубли; допустимые значения - типы `NotificationType`, чужие значения отсекает валидация схемы. `get_notification_settings` MUST возвращать текущий список отключённых типов. Сам фильтр применяет воркер уведомлений в момент доставки (см. @.archcore/notifications/notifications.spec.md), не IAM.
 
 ## Constraints & Invariants
 - Инвариант: сырой `sid` нигде не сохраняется - в БД только SHA-256-хеш.
@@ -60,4 +61,4 @@ tags:
 10. IF загруженный файл аватара больше лимита или его содержимое не поддерживаемое изображение, THEN `update_avatar` MUST отказать до записи в БД и хранилище (PayloadTooLarge / UnsupportedMediaType).
 
 ## Conformance
-Реализация конформна, когда выполняет поведения 1-14, держит инварианты (хеш-only sid, лимит сессий, каскад удаления одной транзакцией, единственный аватар, живучесть уровня эскалации, срабатывание порога ровно один раз, ключевание подтверждения пароля номером) и правила отказов 1-10. Проверяется тестами tests/sso_tests/, tests/users/ и tests/media/test_image_uploads.py.
+Реализация конформна, когда выполняет поведения 1-15, держит инварианты (хеш-only sid, лимит сессий, каскад удаления одной транзакцией, единственный аватар, живучесть уровня эскалации, срабатывание порога ровно один раз, ключевание подтверждения пароля номером) и правила отказов 1-10. Проверяется тестами tests/sso_tests/, tests/users/, tests/media/test_image_uploads.py и tests/notifications/test_notification_settings.py.
