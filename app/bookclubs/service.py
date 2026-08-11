@@ -33,13 +33,15 @@ from app.bookclubs.schemas import (
     UpdateReadingProgressRequest,
     BookClubResponse,
 )
-from app.bookclubs.ports import BooksPort, GenresPort, UsersPort
+from app.books.service import BookService
 from app.core import events, media
 from app.core.authorization import require_permission
 from app.core.contracts import BookResponse, GenreResponse, Principal, UserSummary
 from app.core.errors.errors import Conflict, Forbidden, NotFound, UnprocessableEntity
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
+from app.genres.repository import GenreRepository
+from app.iam.repository import UserRepository
 
 _CLOSED_CLUB_MESSAGES = {
     ClubPrivacy.by_request.value: "В этот клуб можно вступить только по заявке",
@@ -104,15 +106,15 @@ async def _reading_responses(
 class BookClubService:
     book_club_repository: BookClubRepository
     reading_repository: ReadingRepository
-    genre_repository: GenresPort
-    user_repository: UsersPort
+    genre_repository: GenreRepository
+    user_repository: UserRepository
 
     def __init__(
         self,
         book_club_repository: BookClubRepository,
         reading_repository: ReadingRepository,
-        genre_repository: GenresPort,
-        user_repository: UsersPort,
+        genre_repository: GenreRepository,
+        user_repository: UserRepository,
     ) -> None:
         self.book_club_repository = book_club_repository
         self.reading_repository = reading_repository
@@ -515,15 +517,15 @@ class BookClubService:
 class ReadingService:
     reading_repository: ReadingRepository
     book_club_repository: BookClubRepository
-    book_service: BooksPort
-    user_repository: UsersPort
+    book_service: BookService
+    user_repository: UserRepository
 
     def __init__(
         self,
         reading_repository: ReadingRepository,
         book_club_repository: BookClubRepository,
-        book_service: BooksPort,
-        user_repository: UsersPort,
+        book_service: BookService,
+        user_repository: UserRepository,
     ) -> None:
         self.reading_repository = reading_repository
         self.book_club_repository = book_club_repository
@@ -699,14 +701,14 @@ class NominationService:
     nomination_repository: NominationRepository
     reading_repository: ReadingRepository
     book_club_repository: BookClubRepository
-    book_service: BooksPort
+    book_service: BookService
 
     def __init__(
         self,
         nomination_repository: NominationRepository,
         reading_repository: ReadingRepository,
         book_club_repository: BookClubRepository,
-        book_service: BooksPort,
+        book_service: BookService,
     ) -> None:
         self.nomination_repository = nomination_repository
         self.reading_repository = reading_repository
