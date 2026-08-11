@@ -244,6 +244,9 @@ class BookClubRepository:
             )
             deleted_club_ids = list(result.scalars().all())
             # участников чистит каскад БД по club_id
+            # ponytail: обложки этих клубов остаются в хранилище - ключи уходят
+            # вместе со строками. Понадобится уборка - DELETE ... RETURNING
+            # cover_key и удаление файлов в обработчике события.
             await self.db.execute(delete(BookClub).where(BookClub.owner_id == user_id))
         else:
             await self.db.execute(

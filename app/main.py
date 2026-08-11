@@ -31,6 +31,13 @@ class UTF8JSONResponse(JSONResponse):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    if not settings.s3_endpoint_url:
+        # Молча писать картинки в каталог контейнера - худший из вариантов: загрузки
+        # проходят, а файлы исчезают с рестартом. Для тестов это норма, для прода -
+        # незаданный S3_ENDPOINT_URL, и он должен быть виден в логах.
+        logging.getLogger("app").warning(
+            "S3_ENDPOINT_URL не задан: картинки пишутся в локальный каталог %s", settings.media_root
+        )
     redis_conn = redis_asyncio.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
     await FastAPILimiter.init(redis_conn)
     await events.startup()

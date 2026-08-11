@@ -30,6 +30,7 @@ from app.core.contracts import Principal
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.core.params import PageOffset, PathId
+from app.core.rate_limit import rate_limiter
 from app.iam.deps import get_current_user  # identity-провайдер: единственная санкционированная кросс-доменная зависимость
 
 router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
@@ -572,13 +573,15 @@ async def update_book_club(
             "**Требуется авторизация** с заголовком:\n"
             "`X-Session-Id: <session_id>`\n\n"
     ),
+    dependencies=[rate_limiter(times=10, seconds=60)],
     responses={
         200: {"description": "Модель книжного клуба со ссылкой на обложку"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
         403: {"description": "Пользователь не является владельцем книжного клуба"},
         404: {"description": "Книжный клуб с таким id не найден"},
-        413: {"description": "Файл больше 5 МБ"},
+        413: {"description": "Файл больше 5 МБ или изображение слишком большое"},
         415: {"description": "Файл не изображение или формат не поддерживается"},
+        429: {"description": "Слишком много загрузок"},
         500: {"description": "Внутренняя ошибка сервера"},
     }
 )

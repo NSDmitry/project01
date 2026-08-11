@@ -320,11 +320,13 @@ class AuthService:
                 "delete_comments": delete_comments,
             },
         )
+        # Аватар - контент пользователя, вместе с аккаунтом уходит и он. Ключ читаем
+        # до удаления строки: после него обращение к атрибуту пошло бы за строкой в БД.
+        avatar_key = user.avatar_key
         await self.user_repository.delete_user(user_id=user.id)
         # user_sessions без FK на users - осиротевшие сессии удаляем вручную.
         await self.user_session_service.logout_all_user_sessions(user.id)
-        # Аватар - контент пользователя, вместе с аккаунтом уходит и он.
-        await media.delete_image(user.avatar_key)
+        await media.delete_image(avatar_key)
 
         return ResponseModel.ok(None, message="Аккаунт удалён")
 
