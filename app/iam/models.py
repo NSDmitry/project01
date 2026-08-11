@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import String, BigInteger, UUID, DateTime, Boolean, ForeignKey, Index
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -19,6 +20,11 @@ class User(Base, DBLBase):
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     # Ключ файла в хранилище картинок (avatars/<uuid>.webp). NULL - аватара нет.
     avatar_key: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Отключённые пользователем типы уведомлений (значения NotificationType из
+    # app.notifications). По умолчанию включены все.
+    disabled_notifications: Mapped[list[str]] = mapped_column(
+        ARRAY(String), nullable=False, server_default="{}"
+    )
 
     @property
     def avatar_url(self) -> str | None:

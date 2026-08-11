@@ -456,6 +456,31 @@
       "source": "architecture/core-media.spec.md",
       "target": "architecture/configuration.doc.md",
       "type": "related"
+    },
+    {
+      "source": "notifications/notifications.spec.md",
+      "target": "threads/threads-service.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "notifications/notifications.spec.md",
+      "target": "bookclubs/bookclubs-service.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "notifications/notifications.spec.md",
+      "target": "iam/iam-service.spec.md",
+      "type": "related"
+    },
+    {
+      "source": "notifications/notifications.spec.md",
+      "target": "architecture/top-level-map.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/architecture-overview.doc.md",
+      "target": "notifications/notifications.spec.md",
+      "type": "related"
     }
   ]
 }

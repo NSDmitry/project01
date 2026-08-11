@@ -11,6 +11,8 @@ from app.iam.schemas import (
     ChangePasswordRequest,
     LoginAvailableRequest,
     LoginAvailableResponse,
+    NotificationSettingsRequest,
+    NotificationSettingsResponse,
     OwnUserResponse,
     SignInRequest,
     SignUpRequest,
@@ -206,6 +208,56 @@ async def upload_avatar(
     user_service: UserService = Depends(get_user_service)
 ) -> ResponseModel[OwnUserResponse]:
     return await user_service.update_avatar(user=user, file=file)
+
+
+@users_router.get(
+    "/notification-settings",
+    response_model=ResponseModel[NotificationSettingsResponse],
+    summary="Получить настройки уведомлений текущего пользователя",
+    description=
+    """
+    **Требуется авторизация** с заголовком:
+    `X-Session-Id: <session_id>`
+
+    `disabled` - типы уведомлений, которые пользователь отключил. Остальные включены.
+    """,
+    responses={
+        200: {"description": "Список отключённых типов уведомлений"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+async def get_notification_settings(
+    user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service)
+) -> ResponseModel[NotificationSettingsResponse]:
+    return await user_service.get_notification_settings(user=user)
+
+
+@users_router.put(
+    "/notification-settings",
+    response_model=ResponseModel[NotificationSettingsResponse],
+    summary="Изменить настройки уведомлений (полный список отключённых типов)",
+    description=
+    """
+    **Требуется авторизация** с заголовком:
+    `X-Session-Id: <session_id>`
+
+    Передаётся полный список отключённых типов: пустой список включает все уведомления.
+    """,
+    responses={
+        200: {"description": "Настройки сохранены"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        422: {"description": "Неизвестный тип уведомления"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    }
+)
+async def update_notification_settings(
+    model: NotificationSettingsRequest = Body(...),
+    user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service)
+) -> ResponseModel[NotificationSettingsResponse]:
+    return await user_service.update_notification_settings(user=user, model=model)
 
 
 @users_router.put(

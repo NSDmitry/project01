@@ -6,6 +6,8 @@ from app.core.authorization import require_permission
 from app.core.contracts import Principal, UserSummary
 from app.iam.repository import UserRepository
 from app.core.errors.errors import Forbidden, NotFound
+from app.notifications.models import NotificationType
+from app.notifications.repository import NotificationRepository
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.threads.models import Comment, Thread
@@ -174,6 +176,7 @@ class CommentService:
     thread_repository: ThreadRepository
     book_club_repository: BookClubRepository
     user_repository: UserRepository
+    notification_repository: NotificationRepository
 
     def __init__(
             self,
@@ -181,12 +184,14 @@ class CommentService:
             thread_repository: ThreadRepository,
             book_club_repository: BookClubRepository,
             user_repository: UserRepository,
+            notification_repository: NotificationRepository,
     ) -> None:
 
         self.comment_repository = comment_repository
         self.thread_repository = thread_repository
         self.book_club_repository = book_club_repository
         self.user_repository = user_repository
+        self.notification_repository = notification_repository
 
     # author больше не relationship - см. комментарий в ThreadService._to_responses.
     async def _authors_by_id(self, comments: Sequence[Comment]) -> dict[int, UserSummary]:
@@ -299,6 +304,15 @@ class CommentService:
             raise Forbidden(errors=["Оставлять комментарии могут только участники клуба"])
 
         db_comment = await self.comment_repository.create_comment(thread.id, user.id, model)
+
+        # Outbox: уведомление автору треда в той же транзакции, что и комментарий.
+        # Свои комментарии не анонсируем, автор мог быть удалён (author_id NULL).
+        if thread.author_id is not None and thread.author_id != user.id:
+            await self.notification_repository.add(
+                thread.author_id,
+                NotificationType.COMMENT_IN_THREAD,
+                f'Новый комментарий в вашем треде "{thread.title}"',
+            )
 
         return ResponseModel.ok(await self._to_response(db_comment))
 

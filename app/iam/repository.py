@@ -37,6 +37,20 @@ class UserRepository:
 
         return [UserSummary.model_validate(user) for user in result.scalars().all()]
 
+    async def get_users_by_ids(self, user_ids: list[int]) -> list[User]:
+        if not user_ids:
+            return []
+
+        result = await self.db.execute(select(User).where(User.id.in_(user_ids)))
+
+        return list(result.scalars().all())
+
+    async def set_disabled_notifications(self, user: User, disabled: list[str]) -> User:
+        user.disabled_notifications = disabled
+        await self.db.flush()
+
+        return user
+
     async def get_user_by_phone_number(self, phone_number: str) -> User | None:
         result = await self.db.execute(select(User).where(User.phone_number == phone_number))
 

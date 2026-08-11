@@ -19,6 +19,8 @@ from app.iam.schemas import (
     AuthUserResponse,
     LoginAvailableRequest,
     LoginAvailableResponse,
+    NotificationSettingsRequest,
+    NotificationSettingsResponse,
     OwnUserResponse,
     SignInRequest,
     SignUpRequest,
@@ -27,6 +29,7 @@ from app.iam.schemas import (
     UserSummary,
 )
 from app.iam.security.telegram import verify_init_data
+from app.notifications.models import NotificationType
 from app.threads.repository import ThreadRepository
 
 LAST_USED_THRESHOLD = timedelta(minutes=5)
@@ -81,6 +84,25 @@ class UserService:
         await media.delete_image(previous_key)
 
         return ResponseModel.ok(OwnUserResponse.model_validate(updated_user))
+
+    @staticmethod
+    def _settings_response(user: User) -> NotificationSettingsResponse:
+        return NotificationSettingsResponse(
+            disabled=[NotificationType(value) for value in user.disabled_notifications]
+        )
+
+    async def get_notification_settings(self, user: User) -> ResponseModel[NotificationSettingsResponse]:
+        return ResponseModel.ok(self._settings_response(user))
+
+    async def update_notification_settings(
+        self, user: User, model: NotificationSettingsRequest
+    ) -> ResponseModel[NotificationSettingsResponse]:
+        # sorted(set(...)): дубликаты в запросе не раздувают массив в БД.
+        updated_user = await self.user_repository.set_disabled_notifications(
+            user, sorted({notification_type.value for notification_type in model.disabled})
+        )
+
+        return ResponseModel.ok(self._settings_response(updated_user))
 
     async def validate_phone_number(self, phone_number: str, exclude_user_id: int | None = None) -> None:
         if not await self.__is_unique_phone_number(phone_number, exclude_user_id=exclude_user_id):

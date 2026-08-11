@@ -137,6 +137,23 @@ services:
                python -m app.iam.tasks;
              done"
 
+  notifier:
+    image: nsdmitrij/project01:latest
+    container_name: project1_notifier
+    restart: always
+    depends_on:
+      - db
+    env_file:
+      - .env
+    working_dir: /app
+    # Доставка уведомлений раз в минуту: генерирует напоминания о дедлайнах
+    # и шлёт накопившееся из notifications (см. app/notifications/tasks.py).
+    command: >
+      sh -c "while true; do
+               python -m app.notifications.tasks;
+               sleep 60;
+             done"
+
 volumes:
   postgres_data:
   minio_data:

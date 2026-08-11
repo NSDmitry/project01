@@ -42,6 +42,8 @@ from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.genres.repository import GenreRepository
 from app.iam.repository import UserRepository
+from app.notifications.models import NotificationType
+from app.notifications.repository import NotificationRepository
 
 _CLOSED_CLUB_MESSAGES = {
     ClubPrivacy.by_request.value: "В этот клуб можно вступить только по заявке",
@@ -526,6 +528,7 @@ class ReadingService:
     book_club_repository: BookClubRepository
     book_service: BookService
     user_repository: UserRepository
+    notification_repository: NotificationRepository
 
     def __init__(
         self,
@@ -533,11 +536,13 @@ class ReadingService:
         book_club_repository: BookClubRepository,
         book_service: BookService,
         user_repository: UserRepository,
+        notification_repository: NotificationRepository,
     ) -> None:
         self.reading_repository = reading_repository
         self.book_club_repository = book_club_repository
         self.book_service = book_service
         self.user_repository = user_repository
+        self.notification_repository = notification_repository
 
     async def _to_responses(self, readings: List[Reading]) -> List[ReadingResponse]:
         return await _reading_responses(self.reading_repository, readings)
@@ -554,6 +559,12 @@ class ReadingService:
 
         book = await self.book_service.get_or_create_book(model.book_volume_id)
         reading = await self.reading_repository.create_reading(club_id, book.id, model)
+
+        # Outbox: уведомление участникам в той же транзакции, что и заход.
+        await self.notification_repository.add_for_club_members(
+            club_id, owner.id, NotificationType.READING_STARTED,
+            f'В клубе "{club.name}" начался новый заход',
+        )
 
         return ResponseModel.ok(await self._to_response(reading))
 
@@ -709,6 +720,7 @@ class NominationService:
     reading_repository: ReadingRepository
     book_club_repository: BookClubRepository
     book_service: BookService
+    notification_repository: NotificationRepository
 
     def __init__(
         self,
@@ -716,11 +728,13 @@ class NominationService:
         reading_repository: ReadingRepository,
         book_club_repository: BookClubRepository,
         book_service: BookService,
+        notification_repository: NotificationRepository,
     ) -> None:
         self.nomination_repository = nomination_repository
         self.reading_repository = reading_repository
         self.book_club_repository = book_club_repository
         self.book_service = book_service
+        self.notification_repository = notification_repository
 
     async def _require_member(self, club_id: int, user: Principal, action: str) -> None:
         if not await self.book_club_repository.is_member(club_id, user.id):
@@ -814,5 +828,11 @@ class NominationService:
         # Conflict-ом и номинации останутся на месте вместе с голосами.
         reading = await self.reading_repository.create_reading(club_id, winner.book_id, model)
         await self.nomination_repository.clear_nominations(club_id)
+
+        # Outbox: заход стартовал и здесь - участники узнают тем же уведомлением.
+        await self.notification_repository.add_for_club_members(
+            club_id, owner.id, NotificationType.READING_STARTED,
+            f'В клубе "{club.name}" начался новый заход',
+        )
 
         return ResponseModel.ok((await _reading_responses(self.reading_repository, [reading]))[0])
