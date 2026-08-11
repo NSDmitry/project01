@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 from app.core.db_base_model import DBLBase
+from app.core.media import media_url
 
 
 class User(Base, DBLBase):
@@ -16,6 +17,13 @@ class User(Base, DBLBase):
     telegram_id: Mapped[int | None] = mapped_column(BigInteger, unique=True, nullable=True)
     password: Mapped[str | None] = mapped_column(String, nullable=True)
     is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    # Ключ файла в хранилище картинок (avatars/<uuid>.webp). NULL - аватара нет.
+    avatar_key: Mapped[str | None] = mapped_column(String, nullable=True)
+
+    @property
+    def avatar_url(self) -> str | None:
+        """Ссылка для ответов API - схемы собираются из модели по from_attributes."""
+        return media_url(self.avatar_key)
 
 
 class UserSession(Base, DBLBase):

@@ -195,6 +195,8 @@ class BookClubResponse(ResponseSchema):
     description: str
     privacy: ClubPrivacy = ClubPrivacy.public
     created_at: datetime
+    # None - обложка не загружена.
+    cover_url: Optional[str] = None
     owner: Optional[UserSummary] = None
     members_count: int = 0
     threads_count: int = 0

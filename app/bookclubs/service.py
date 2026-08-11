@@ -1,6 +1,8 @@
 from datetime import date, datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
+from fastapi import UploadFile
+
 from app.bookclubs.models import BookClub, BookNomination, ClubJoinRequest, Reading, ReadingStage
 from app.bookclubs.repository import BookClubRepository, NominationRepository, ReadingRepository
 from app.bookclubs.schemas import (
@@ -32,7 +34,7 @@ from app.bookclubs.schemas import (
     BookClubResponse,
 )
 from app.bookclubs.ports import BooksPort, GenresPort, UsersPort
-from app.core import events
+from app.core import events, media
 from app.core.authorization import require_permission
 from app.core.contracts import BookResponse, GenreResponse, Principal, UserSummary
 from app.core.errors.errors import Conflict, Forbidden, NotFound, UnprocessableEntity
@@ -213,6 +215,26 @@ class BookClubService:
         club = await self.book_club_repository.update_book_club(owner, club_id, model)
         return ResponseModel.ok(await self._to_response(club))
 
+    async def update_cover(
+            self,
+            owner: Principal,
+            club_id: int,
+            file: UploadFile
+    ) -> ResponseModel[BookClubResponse]:
+        club = await self.book_club_repository.get_book_club(club_id)
+        # Права проверяем до обработки файла: иначе чужая загрузка успевала бы
+        # занять место в хранилище и осиротеть там вместе с ответом 403.
+        require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
+
+        previous_key = club.cover_key
+        cover_key = await media.store_image(media.CLUB_COVERS, file)
+        db_club: BookClub = await self.book_club_repository.update_cover(club, cover_key)
+        # ponytail: как и с аватаром - старый файл удаляем до коммита. Упавший
+        # коммит оставит ссылку на удалённый файл; хранилище важнее.
+        await media.delete_image(previous_key)
+
+        return ResponseModel.ok(await self._to_response(db_club))
+
     async def _resolve_genres(self, codes: List[str]) -> List[GenreResponse]:
         unique_codes = list(dict.fromkeys(codes))
         genres: List[GenreResponse] = await self.genre_repository.get_by_codes(unique_codes)
@@ -290,10 +312,12 @@ class BookClubService:
         return ResponseModel.ok(page)
 
     async def delete_book_club(self, owner: Principal, book_club_id: int) -> ResponseModel:
-        await self.book_club_repository.delete_book_club(owner, book_club_id)
+        cover_key = await self.book_club_repository.delete_book_club(owner, book_club_id)
         # FK threads.club_id больше нет - треды удалённого клуба чистит
         # threads по событию
         await events.publish(events.CLUBS_DELETED, {"club_ids": [book_club_id]})
+        # Обложка живёт вне БД, каскад её не уносит.
+        await media.delete_image(cover_key)
 
         return ResponseModel.ok(message="Книжный клуб успешно удален")
 

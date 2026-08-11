@@ -456,6 +456,26 @@
       "source": "bookclubs/bookclubs-repository.spec.md",
       "target": "conventions/domain-errors.rule.md",
       "type": "related"
+    },
+    {
+      "source": "iam/iam-service.spec.md",
+      "target": "architecture/core-media.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "bookclubs/bookclubs-service.spec.md",
+      "target": "architecture/core-media.spec.md",
+      "type": "depends_on"
+    },
+    {
+      "source": "architecture/core-media.spec.md",
+      "target": "architecture/external-integrations.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "architecture/core-media.spec.md",
+      "target": "architecture/configuration.doc.md",
+      "type": "related"
     }
   ]
 }

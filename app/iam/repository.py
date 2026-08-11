@@ -106,6 +106,12 @@ class UserRepository:
 
         return db_user
 
+    async def update_avatar(self, user: User, avatar_key: str) -> User:
+        user.avatar_key = avatar_key
+        await self.db.flush()
+
+        return user
+
     async def update_user_password(self, user_id: int, password: str) -> User:
         db_user = await self.get_user_by_id(user_id)
         db_user.password = password

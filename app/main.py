@@ -16,7 +16,7 @@ from app.bookclubs import events as _bookclubs_events  # noqa: F401
 from app.threads import events as _threads_events  # noqa: F401
 from app.bookclubs.router import router as bookclubs_router, nominations_router, readings_router
 from app.books.router import router as books_router
-from app.core import events
+from app.core import events, media
 from app.core.errors.APIException import APIException
 from app.core.models.response_model import ResponseModel
 from app.genres.router import router as genres_router
@@ -31,6 +31,13 @@ class UTF8JSONResponse(JSONResponse):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    if not settings.s3_endpoint_url:
+        # Молча писать картинки в каталог контейнера - худший из вариантов: загрузки
+        # проходят, а файлы исчезают с рестартом. Для тестов это норма, для прода -
+        # незаданный S3_ENDPOINT_URL, и он должен быть виден в логах.
+        logging.getLogger("app").warning(
+            "S3_ENDPOINT_URL не задан: картинки пишутся в локальный каталог %s", settings.media_root
+        )
     redis_conn = redis_asyncio.from_url(settings.redis_url, encoding="utf-8", decode_responses=True)
     await FastAPILimiter.init(redis_conn)
     await events.startup()
@@ -93,6 +100,22 @@ def verify_metrics_token(authorization: str = Header(default="")) -> None:
 @app.get("/metrics", include_in_schema=False, dependencies=[Depends(verify_metrics_token)])
 def metrics() -> Response:
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+@app.get("/media/{key:path}", include_in_schema=False)
+async def get_media(key: str) -> Response:
+    """Раздача загруженных картинок - бакет приватный, ссылок наружу не выдаём."""
+    data = await media.read_image(key)
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+    # Ключ содержит uuid, файл по нему не меняется никогда - можно кэшировать
+    # навсегда, повторных запросов за картинкой не будет.
+    return Response(
+        data,
+        media_type=media.CONTENT_TYPE,
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 
 @app.exception_handler(APIException)

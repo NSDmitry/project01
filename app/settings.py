@@ -16,6 +16,16 @@ class Settings(BaseSettings):
     rabbitmq_url: str = ""
     # Пустой токен = эндпоинт /metrics отключён (404). Непустой = требуется Bearer-токен.
     metrics_token: str = ""
+    # Хранилище картинок. Пустой endpoint = файлы пишутся в локальный каталог
+    # media_root (тесты, локальный запуск без бакета), иначе - S3-совместимое
+    # хранилище: MinIO в docker-compose, Object Storage в проде.
+    s3_endpoint_url: str = ""
+    s3_bucket: str = "media"
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    # MinIO регион игнорирует, Object Storage требует свой (ru-central1).
+    s3_region: str = "us-east-1"
+    media_root: str = "/tmp/project01-media"
     # В проде выключить (DOCS_ENABLED=false), чтобы скрыть Swagger/ReDoc/OpenAPI.
     docs_enabled: bool = True
 

@@ -19,7 +19,7 @@ tags:
 | Data model: threads | doc | сущности и связи |
 | Data model: books | doc | сущности и связи |
 | Data model: genres | doc | сущности и связи |
-| Integrations | doc | Redis, RabbitMQ, Telegram, Google Books |
+| Integrations | doc | Redis, RabbitMQ, S3-хранилище, Telegram, Google Books |
 | Configuration | doc | имена env-переменных и назначение |
 | Hotspot: iam-service | spec | контракт аутентификации, сессий, пользователей |
 | Hotspot: threads-service | spec | контракт тредов, комментариев, лайков |
@@ -31,6 +31,7 @@ tags:
 | Hotspot: iam-repository | spec | контракт хранения IAM |
 | Hotspot: bookclubs-service | spec | контракт бизнес-логики bookclubs |
 | Hotspot: core-events | spec | контракт событийной шины |
+| Hotspot: core-media | spec | контракт загруженных картинок и файлового хранилища |
 | Hotspot specs: +1 more | spec | genres-router (HTTP-контракт справочника жанров) |
 | auth | rule | авторизация хендлеров через get_current_user |
 | errors | rule | ошибки через иерархию app/core/errors |
