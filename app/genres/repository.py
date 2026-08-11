@@ -22,8 +22,8 @@ class GenreRepository:
 
         return list(result.scalars().all())
 
-    # get_by_codes/get_by_ids - адаптер порта GenresPort для соседних доменов,
-    # поэтому отдают контракт из core, а не ORM-модель жанра.
+    # get_by_codes/get_by_ids зовут соседние домены - отдают контракт из core,
+    # а не ORM-модель жанра.
     async def get_by_codes(self, codes: List[str]) -> List[GenreResponse]:
         result = await self.db.execute(
             select(Genre).where(Genre.code.in_(codes))

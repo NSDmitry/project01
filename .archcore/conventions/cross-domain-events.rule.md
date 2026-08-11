@@ -1,5 +1,5 @@
 ---
-title: "Кросс-доменное взаимодействие: порты и события, не импорты"
+title: "Кросс-доменное взаимодействие: прямые вызовы через deps.py"
 status: accepted
 tags:
   - "architecture"
@@ -7,22 +7,28 @@ tags:
 ---
 
 ## Rule
-1. Домен (`app/iam`, `app/threads`, `app/bookclubs`, `app/books`, `app/genres`) MUST NOT импортировать модули другого домена. Кросс-доменное чтение MUST идти через порты домена-потребителя (`app/<domain>/ports.py`, типы из `app.core.contracts`), кросс-доменные изменения данных - через события `app.core.events`.
-2. Санкционированное исключение: роутеры MAY импортировать `app.iam.deps` (identity-провайдер `get_current_user`/`get_optional_user`) - помечено комментарием в месте импорта.
+1. Кросс-доменный вызов - прямой: сервис типизируется конкретным классом соседнего домена (репозиторий или сервис), инстанс подставляет `deps.py` домена-потребителя. Портов-протоколов (`ports.py`) больше нет и заводить их MUST NOT.
+2. Возвращаемые типы кросс-доменных методов - контракты из `app.core.contracts` (UserSummary, GenreResponse, BookResponse) или ORM-модель владельца данных; потребитель не лезет в чужие таблицы напрямую, SQL остаётся в репозитории домена-владельца.
+3. Роутеры MAY импортировать `app.iam.deps` (identity-провайдер `get_current_user`/`get_optional_user`).
+4. Переходное: кросс-доменные изменения данных (threads_count, каскады удаления) пока идут через события `app.core.events`; эпик #75 (задачи #77-#79) переводит их на прямые вызовы в транзакции запроса и сносит шину. Новых подписок на события MUST NOT появляться.
 
 ## Rationale
-Подготовка к распилу монолита (PR #48): у таблиц нет кросс-доменных FK, консистентность держат события (USER_DELETED, CLUBS_DELETED и другие). Прямой импорт чужого репозитория создаёт связь, которая при выносе домена в сервис превращается в сетевой вызов молча.
+Распил на микросервисы отменён (эпик #75): порты дублировали сигнатуры реальных репозиториев и оплачивали гибкость, которая не понадобится. Прямой вызов через deps.py проще, проходит mypy по реальным типам и не прячет зависимость за протоколом.
 
 ## Examples
 ### Good
 ```python
-from app.threads.ports import ClubsPort   # порт, реализация подставляется в deps
-await events.publish(events.THREAD_CREATED, {"club_id": model.club_id})
+# service.py
+from app.bookclubs.repository import BookClubRepository  # конкретный класс соседа
+
+class ThreadService:
+    book_club_repository: BookClubRepository  # инстанс подставляет deps.py
 ```
 ### Bad
 ```python
-from app.bookclubs.repository import BookClubRepository  # прямой импорт чужого домена
+class ClubsPort(Protocol):  # порт-протокол - удалены в #76, не заводить заново
+    async def get_book_club(self, club_id: int) -> Any: ...
 ```
 
 ## Enforcement
-Manual review; grep кросс-доменных импортов по `app/*/`, допустим только `app.iam.deps` в роутерах.
+Manual review; grep `ports.py` и `Protocol` в `app/*/` должен быть пуст.

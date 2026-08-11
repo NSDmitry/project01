@@ -1,13 +1,15 @@
 from typing import Optional, Sequence
 
+from app.bookclubs.repository import BookClubRepository, ReadingRepository
+from app.books.service import BookService
 from app.core import events
 from app.core.authorization import require_permission
 from app.core.contracts import Principal, UserSummary
+from app.iam.repository import UserRepository
 from app.core.errors.errors import Forbidden, NotFound
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.threads.models import Comment, Thread
-from app.threads.ports import BooksPort, ClubsPort, ReadingsPort, UsersPort
 from app.threads.repository import ThreadRepository, CommentRepository
 from app.threads.schemas import (
     ThreadResponse,
@@ -21,18 +23,18 @@ from app.threads.schemas import (
 
 class ThreadService:
     thread_repository: ThreadRepository
-    book_club_repository: ClubsPort
-    book_service: BooksPort
-    reading_repository: ReadingsPort
-    user_repository: UsersPort
+    book_club_repository: BookClubRepository
+    book_service: BookService
+    reading_repository: ReadingRepository
+    user_repository: UserRepository
 
     def __init__(
             self,
             thread_repository: ThreadRepository,
-            book_club_repository: ClubsPort,
-            book_service: BooksPort,
-            reading_repository: ReadingsPort,
-            user_repository: UsersPort,
+            book_club_repository: BookClubRepository,
+            book_service: BookService,
+            reading_repository: ReadingRepository,
+            user_repository: UserRepository,
     ) -> None:
 
         self.thread_repository = thread_repository
@@ -171,15 +173,15 @@ class ThreadService:
 class CommentService:
     comment_repository: CommentRepository
     thread_repository: ThreadRepository
-    book_club_repository: ClubsPort
-    user_repository: UsersPort
+    book_club_repository: BookClubRepository
+    user_repository: UserRepository
 
     def __init__(
             self,
             comment_repository: CommentRepository,
             thread_repository: ThreadRepository,
-            book_club_repository: ClubsPort,
-            user_repository: UsersPort,
+            book_club_repository: BookClubRepository,
+            user_repository: UserRepository,
     ) -> None:
 
         self.comment_repository = comment_repository
