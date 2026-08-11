@@ -2,12 +2,14 @@ from fastapi import Depends, Security
 from fastapi.security import APIKeyHeader
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.bookclubs.repository import BookClubRepository
 from app.core.database import get_db
 from app.core.errors.errors import NotFound, Unauthorized
 from app.iam.models import User
 from app.iam.repository import UserRepository, UserSessionRepository
 from app.iam.service import AuthService, UserService, UserSessionService
 from app.settings import settings
+from app.threads.repository import ThreadRepository
 
 
 def get_user_repository(db: AsyncSession = Depends(get_db)) -> UserRepository:
@@ -26,15 +28,21 @@ def get_user_session_service(
 ) -> UserSessionService:
     return UserSessionService(user_session_repository=user_session_repository)
 
+# Репозитории соседних доменов собираем здесь, а не берём из их deps.py: те
+# импортируют get_current_user отсюда, вышел бы цикл. Сессия одна на запрос -
+# каскад удаления аккаунта идёт одной транзакцией.
 def get_auth_service(
     user_service: UserService = Depends(get_user_service),
     user_repository: UserRepository = Depends(get_user_repository),
     user_session_service: UserSessionService = Depends(get_user_session_service),
+    db: AsyncSession = Depends(get_db),
 ) -> AuthService:
     return AuthService(
         user_service=user_service,
         user_repository=user_repository,
         user_session_service=user_session_service,
+        book_club_repository=BookClubRepository(db),
+        thread_repository=ThreadRepository(db),
         telegram_bot_token=settings.telegram_bot_token,
     )
 

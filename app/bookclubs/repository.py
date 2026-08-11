@@ -233,29 +233,11 @@ class BookClubRepository:
             .execution_options(synchronize_session="fetch")
         )
 
-    async def handle_user_deleted(self, user_id: int, delete_owned_clubs: bool) -> List[int]:
-        # FK на users больше нет - SET NULL/CASCADE, которые раньше делала БД
-        # при удалении пользователя, выполняем явно. Возвращаем id удалённых
-        # клубов, чтобы threads почистил их треды (FK у тредов тоже нет).
-        deleted_club_ids: List[int] = []
-        if delete_owned_clubs:
-            result = await self.db.execute(
-                select(BookClub.id).where(BookClub.owner_id == user_id)
-            )
-            deleted_club_ids = list(result.scalars().all())
-            # участников чистит каскад БД по club_id
-            # ponytail: обложки этих клубов остаются в хранилище - ключи уходят
-            # вместе со строками. Понадобится уборка - DELETE ... RETURNING
-            # cover_key и удаление файлов в обработчике события.
-            await self.db.execute(delete(BookClub).where(BookClub.owner_id == user_id))
-        else:
-            await self.db.execute(
-                update(BookClub).values(owner_id=None).where(BookClub.owner_id == user_id)
-            )
-        # Счётчик уменьшаем до удаления строк: после DELETE подзапрос уже не найдёт,
-        # в каких клубах пользователь состоял. В клубе он максимум один раз (PK),
-        # поэтому ровно -1 на затронутый клуб. Удалённые выше клубы под UPDATE не
-        # попадут - их строк уже нет.
+    async def decrement_members_count_for_user(self, user_id: int) -> None:
+        # Строки club_members уносит каскад БД, денормализованный счётчик - нет.
+        # Вызывать до удаления пользователя: после него подзапрос уже не найдёт,
+        # в каких клубах он состоял. В клубе он максимум один раз (PK), поэтому
+        # ровно -1 на затронутый клуб.
         await self.db.execute(
             update(BookClub)
             .where(
@@ -265,17 +247,17 @@ class BookClubRepository:
             )
             .values(members_count=func.greatest(BookClub.members_count - 1, 0))
         )
-        await self.db.execute(delete(ClubMember).where(ClubMember.user_id == user_id))
-        # Прогресс в заходах и голоса привязаны к пользователю без FK - чистим
-        # явно. Заходы и номинации удалённых клубов уносит каскад по club_id.
-        await self.db.execute(delete(ReadingProgress).where(ReadingProgress.user_id == user_id))
-        await self.db.execute(delete(NominationVote).where(NominationVote.user_id == user_id))
-        # Заявки тоже без FK: иначе в очереди клуба остались бы заявки от
-        # несуществующих пользователей.
-        await self.db.execute(delete(ClubJoinRequest).where(ClubJoinRequest.user_id == user_id))
         await self.db.flush()
 
-        return deleted_club_ids
+    async def delete_clubs_owned_by(self, user_id: int) -> None:
+        # Только по флагу запроса: сам по себе owner_id обнуляет FK ON DELETE
+        # SET NULL. Участников, треды, заходы и номинации клуба уносят каскады
+        # БД по club_id.
+        # ponytail: обложки этих клубов остаются в хранилище - ключи уходят
+        # вместе со строками. Понадобится уборка - DELETE ... RETURNING
+        # cover_key и удаление файлов после коммита.
+        await self.db.execute(delete(BookClub).where(BookClub.owner_id == user_id))
+        await self.db.flush()
 
     async def delete_book_club(self, owner: Principal, club_id: int) -> str | None:
         """Удаляет клуб и отдаёт ключ его обложки - файл лежит вне БД."""

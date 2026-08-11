@@ -122,8 +122,9 @@ class UserRepository:
         return db_user
 
     async def delete_user(self, user_id: int) -> None:
-        # Клубы/треды/комменты чистят свои домены сами (handle_user_deleted
-        # в bookclubs и threads) - FK на users у них больше нет.
+        # Всё, что ссылается на пользователя, чистят FK ON DELETE: сессии,
+        # членства, заявки, голоса, прогресс и лайки уходят каскадом, авторство
+        # клубов, тредов и комментов обнуляется SET NULL.
         await self.db.execute(delete(User).where(User.id == user_id))
         await self.db.flush()
 

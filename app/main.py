@@ -10,10 +10,7 @@ from fastapi.responses import JSONResponse
 from fastapi_limiter import FastAPILimiter
 from redis import asyncio as redis_asyncio
 
-# Импорт ради side-effect: регистрация доменных подписчиков на события.
 # Через from-import, иначе имя `app` связывается с пакетом и конфликтует с `app = FastAPI()`.
-from app.bookclubs import events as _bookclubs_events  # noqa: F401
-from app.threads import events as _threads_events  # noqa: F401
 from app.bookclubs.router import router as bookclubs_router, nominations_router, readings_router
 from app.books.router import router as books_router
 from app.core import events, media

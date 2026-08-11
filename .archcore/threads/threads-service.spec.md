@@ -8,12 +8,12 @@ tags:
 ---
 
 ## Purpose & Scope
-Контракт бизнес-логики домена threads: `ThreadService`, `CommentService` (@app/threads/service.py). Потребители - @app/threads/router.py и обработчики событий. Вне scope: HTTP-коды (спек роутера), SQL (спек репозитория).
+Контракт бизнес-логики домена threads: `ThreadService`, `CommentService` (@app/threads/service.py). Потребители - @app/threads/router.py. Вне scope: HTTP-коды (спек роутера), SQL (спек репозитория).
 
 ## Surface
 - `ThreadService`: `get_threads`, `create_thread`, `update_thread`, `delete_thread`.
 - `CommentService`: `get_comments`, `get_comment_likers`, `create_comment`, `update_comment`, `delete_comment`, `like_comment`, `unlike_comment`.
-- Кросс-доменные зависимости - конкретные классы соседних доменов через deps.py (`BookClubRepository`, `ReadingRepository`, `BookService`, `UserRepository`); авторство - `Principal` из @app/core/contracts.py. Подписка на USER_DELETED/CLUBS_DELETED живёт в @app/threads/events.py (переходно, до задач #78/#79 эпика #75).
+- Кросс-доменные зависимости - конкретные классы соседних доменов через deps.py (`BookClubRepository`, `ReadingRepository`, `BookService`, `UserRepository`); авторство - `Principal` из @app/core/contracts.py.
 
 ## Normative Behavior
 1. WHEN создаётся тред или комментарий, сервис MUST проверить членство автора в клубе через `BookClubRepository.is_member`; лайк - аналогично по клубу треда.

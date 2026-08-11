@@ -122,10 +122,9 @@ class BookClubService:
         self.user_repository = user_repository
 
     # owner, genres и members_count не живут в модели клуба - подтягиваем их
-    # батчем (owner и genres из iam/genres, после распила - вызовы соседних
-    # сервисов), одним запросом на всю страницу вместо N+1. threads_count -
-    # денормализованный столбец, который ведёт домен клубов по событиям тредов
-    # (см. events.py).
+    # батчем (owner и genres из iam/genres), одним запросом на всю страницу
+    # вместо N+1. threads_count - денормализованный столбец, который домены
+    # тредов и аккаунтов правят прямым вызовом change_threads_count.
     async def _to_responses(self, clubs: List[BookClub]) -> List[BookClubResponse]:
         owners = await self._owners_by_id(clubs)
         genres_by_club = await self._genres_by_club(clubs)
@@ -315,8 +314,7 @@ class BookClubService:
 
     async def delete_book_club(self, owner: Principal, book_club_id: int) -> ResponseModel:
         # Треды клуба уносит каскад БД (threads.club_id ON DELETE CASCADE) в той же
-        # транзакции. Публиковать CLUBS_DELETED отсюда нельзя: sync-обработчик удалял
-        # бы те же строки в своей сессии и ждал незафиксированную транзакцию запроса.
+        # транзакции.
         cover_key = await self.book_club_repository.delete_book_club(owner, book_club_id)
         # Обложка живёт вне БД, каскад её не уносит.
         await media.delete_image(cover_key)

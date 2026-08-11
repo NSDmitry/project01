@@ -8,10 +8,10 @@ tags:
 ---
 
 ## Purpose & Scope
-Контракт слоя хранения threads: `ThreadRepository`, `CommentRepository` (@app/threads/repository.py). Потребители - @app/threads/service.py и обработчики событий CLUBS_DELETED / USER_DELETED. Вне scope: проверки прав и членства (спек сервиса).
+Контракт слоя хранения threads: `ThreadRepository`, `CommentRepository` (@app/threads/repository.py). Потребители - @app/threads/service.py и `AuthService.delete_current_user` (@app/iam/service.py) через @app/iam/deps.py. Вне scope: проверки прав и членства (спек сервиса).
 
 ## Surface
-- `ThreadRepository`: `get_threads`, `count_threads`, `get_thread`, `create_thread`, `update_thread`, `delete_thread`, `handle_clubs_deleted`, `handle_user_deleted`.
+- `ThreadRepository`: `get_threads`, `count_threads`, `get_thread`, `create_thread`, `update_thread`, `delete_thread`, `delete_user_content`.
 - `CommentRepository`: `get_comments`, `get_comment`, `create_comment`, `update_comment`, `delete_comment`, `add_like`, `remove_like`, `get_likers`, `get_likes_counts`, `get_liked_comment_ids`.
 - Модели: `Thread`, `Comment`, `CommentLike` - @app/threads/models.py.
 
@@ -21,23 +21,22 @@ tags:
 3. WHEN `get_thread`/`get_comment` не находит строку, репозиторий MUST выбросить NotFound.
 4. WHEN создаётся или удаляется комментарий, репозиторий MUST в той же транзакции обновить `comments_count` треда атомарным UPDATE с `GREATEST(comments_count + delta, 0)`. Приращение MUST считать БД, а не Python: чтение-изменение-запись теряет параллельные комментарии в один тред.
 5. `add_like` MUST использовать `INSERT ... ON CONFLICT DO NOTHING` по ключу (comment_id, user_id) - конкурентный повторный лайк не ошибка.
-6. Треды удалённого клуба уносит каскад БД (FK `threads.club_id` ON DELETE CASCADE) в транзакции, удалившей клуб; комменты и лайки - каскады по thread_id/comment_id. `handle_clubs_deleted` остаётся подписчиком CLUBS_DELETED (публикуется только из каскада удаления пользователя) и MUST быть идемпотентным: его чистка по уже удалённым строкам - no-op (до завершения эпика #75).
-7. WHEN приходит USER_DELETED с `delete_threads=false`, `handle_user_deleted` MUST занулить `author_id` тредов автора; при `true` - удалить их и вернуть {club_id: удалено} для коррекции счётчиков клубов; аналогично `delete_comments` для комментариев. При `delete_comments=true` счётчики затронутых тредов MUST уменьшаться до удаления строк, одним UPDATE с группировкой по `thread_id`.
-8. `handle_user_deleted` MUST всегда удалять лайки пользователя (CommentLike.user_id).
+6. Треды удалённого клуба уносит каскад БД (FK `threads.club_id` ON DELETE CASCADE) в транзакции, удалившей клуб; комменты и лайки - каскады по thread_id/comment_id. Кода для этого случая нет: обработчик `handle_clubs_deleted` удалён вместе с событиями (#78).
+7. `delete_user_content(user_id, delete_threads, delete_comments)` MUST делать только то, чего не знает БД - удаление по флагам запроса. WHEN `delete_threads=true`, метод MUST посчитать треды автора по клубам, удалить их и вернуть {club_id: удалено} для коррекции счётчиков клубов вызывающим; WHEN `false` - тредов не трогать, `author_id` зануляет FK ON DELETE SET NULL. Аналогично `delete_comments` для комментариев; при `delete_comments=true` счётчики затронутых тредов MUST уменьшаться до удаления строк, одним UPDATE с группировкой по `thread_id`.
+8. Лайки пользователя MUST NOT удаляться кодом - `comment_likes.user_id` уносит FK ON DELETE CASCADE.
 9. Батч-методы (`get_likes_counts`, `get_liked_comment_ids`) MUST возвращать пустой результат на пустой вход без запроса к БД.
 10. Репозиторий MUST завершать записи `flush`, а не `commit` - транзакцию держит session dependency.
 11. `get_threads` MUST принимать необязательный фильтр по этапу захода; при нём общее число MUST считаться отдельным `count_threads` с тем же набором условий - денормализованный счётчик клуба считает все треды и с фильтром неверен. Условия выборки и подсчёта MUST собираться в одном месте, чтобы они не могли разойтись.
 
 ## Constraints & Invariants
 - Инвариант: лайк уникален на пару (comment_id, user_id) - констрейнт `uq_comment_likes_comment_id_user_id`.
-- Инвариант: `author_id` и `user_id` - настоящие FK на users (SET NULL у авторства, CASCADE у лайков): целостность держит БД. Обработчики USER_DELETED остаются для развилок по флагам удаления и счётчиков (до завершения эпика #75).
+- Инвариант: `author_id` и `user_id` - настоящие FK на users (SET NULL у авторства, CASCADE у лайков): целостность держит БД. За `delete_user_content` остаётся только то, чего FK не делают, - удаление по флагам запроса и данные для коррекции счётчиков.
 - Инвариант: `reading_stage_id` - FK на reading_stages (SET NULL): репозиторий фильтрует по ней, но никогда не читает сам этап.
 - Инвариант: `comments_count` равен числу комментариев треда. Счётчик своего домена: ведётся в одной транзакции с самим комментарием, событий для него нет. Комментарии, уходящие каскадом вместе с тредом, счётчика не касаются - строки треда уже нет.
 - Инвариант: UPDATE счётчика MUST помечать загруженный объект треда просроченным (`synchronize_session="fetch"`) - иначе повторное чтение в той же сессии придёт из identity map со старым значением.
 
 ## Failure Behavior
 1. IF `delete_thread`/`delete_comment`/`remove_like` не находит строку, THEN метод MUST завершиться без ошибки (идемпотентное удаление), счётчик комментариев MUST остаться прежним.
-2. IF `handle_clubs_deleted` получает пустой список, THEN метод MUST выйти без запроса к БД.
 
 ## Conformance
-Реализация конформна, когда выполняет поведения 1-11, держит инварианты уникальности лайка, FK-ссылок и счётчика комментариев и правила отказов 1-2. Проверяется тестами tests/threads/, tests/comments/ и tests/bookclubs/test_denormalized_counters.py.
+Реализация конформна, когда выполняет поведения 1-11, держит инварианты уникальности лайка, FK-ссылок и счётчика комментариев и правило отказа 1. Проверяется тестами tests/threads/, tests/comments/ и tests/bookclubs/test_denormalized_counters.py.

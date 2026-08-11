@@ -7,7 +7,8 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 from fastapi import UploadFile
 
-from app.core import events, media
+from app.bookclubs.repository import BookClubRepository
+from app.core import media
 from app.core.errors.errors import Conflict, Unauthorized, BadRequest
 from app.core.models.response_model import ResponseModel
 from app.core.rate_limit import check_registrations_limit, count_registration
@@ -26,6 +27,7 @@ from app.iam.schemas import (
     UserSummary,
 )
 from app.iam.security.telegram import verify_init_data
+from app.threads.repository import ThreadRepository
 
 LAST_USED_THRESHOLD = timedelta(minutes=5)
 SESSION_MAX_IDLE = timedelta(days=30)
@@ -160,6 +162,8 @@ class AuthService:
     user_service: UserService
     user_session_service: UserSessionService
     user_repository: UserRepository
+    book_club_repository: BookClubRepository
+    thread_repository: ThreadRepository
     telegram_bot_token: str
 
     def __init__(
@@ -167,11 +171,17 @@ class AuthService:
             user_service: UserService,
             user_repository: UserRepository,
             user_session_service: UserSessionService,
+            book_club_repository: BookClubRepository,
+            thread_repository: ThreadRepository,
             telegram_bot_token: str = ""
     ) -> None:
         self.user_service = user_service
         self.user_repository = user_repository
         self.user_session_service = user_session_service
+        # Соседние домены при удалении аккаунта: их счётчики и удаление по флагам
+        # запроса делаются в транзакции запроса, а не отдельным обработчиком.
+        self.book_club_repository = book_club_repository
+        self.thread_repository = thread_repository
         self.telegram_bot_token = telegram_bot_token
 
     async def register(self, model: SignUpRequest, client_ip: str) -> ResponseModel[AuthUserResponse]:
@@ -308,24 +318,22 @@ class AuthService:
                 raise BadRequest(errors=["Для удаления аккаунта укажите пароль"])
             await confirm_password(user, password)
 
-        # У bookclubs и threads нет FK на users - домены чистят свои данные
-        # сами по событию user_deleted (bookclubs дальше публикует clubs_deleted
-        # для тредов удалённых клубов). iam про эти домены не знает.
-        await events.publish(
-            events.USER_DELETED,
-            {
-                "user_id": user.id,
-                "delete_clubs": delete_clubs,
-                "delete_threads": delete_threads,
-                "delete_comments": delete_comments,
-            },
+        # Каскад целиком в транзакции запроса. За кодом только то, чего не знает
+        # БД: развилки по флагам запроса и денормализованные счётчики. Строки
+        # соседних доменов (членства, заявки, голоса, прогресс, лайки, сессии)
+        # уносят FK ON DELETE, авторство и владение обнуляет SET NULL.
+        threads_removed_by_club = await self.thread_repository.delete_user_content(
+            user.id, delete_threads=delete_threads, delete_comments=delete_comments
         )
+        for club_id, count in threads_removed_by_club.items():
+            await self.book_club_repository.change_threads_count(club_id, -count)
+        await self.book_club_repository.decrement_members_count_for_user(user.id)
+        if delete_clubs:
+            await self.book_club_repository.delete_clubs_owned_by(user.id)
         # Аватар - контент пользователя, вместе с аккаунтом уходит и он. Ключ читаем
         # до удаления строки: после него обращение к атрибуту пошло бы за строкой в БД.
         avatar_key = user.avatar_key
         await self.user_repository.delete_user(user_id=user.id)
-        # user_sessions без FK на users - осиротевшие сессии удаляем вручную.
-        await self.user_session_service.logout_all_user_sessions(user.id)
         await media.delete_image(avatar_key)
 
         return ResponseModel.ok(None, message="Аккаунт удалён")

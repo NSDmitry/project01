@@ -8,7 +8,7 @@ tags:
 ---
 
 ## Purpose & Scope
-Контракт бизнес-логики bookclubs: `BookClubService`, `ReadingService` и `NominationService` (@app/bookclubs/service.py). Потребители - @app/bookclubs/router.py и обработчики событий. Вне scope: HTTP-коды (спек роутера), SQL (спек репозитория).
+Контракт бизнес-логики bookclubs: `BookClubService`, `ReadingService` и `NominationService` (@app/bookclubs/service.py). Потребители - @app/bookclubs/router.py. Вне scope: HTTP-коды (спек роутера), SQL (спек репозитория).
 
 ## Surface
 - `BookClubService`: `create_book_club`, `get_book_clubs`, `search_book_clubs`, `get_book_club`, `get_members`, `update_book_club`, `update_cover`, `delete_book_club`, `join`, `leave`, `set_genres`, `create_invite`, `join_by_invite`, `request_join`, `get_join_requests`, `resolve_join_request`, `set_member_role`, `remove_member`, `transfer_ownership`.
@@ -18,7 +18,7 @@ tags:
 
 ## Normative Behavior
 1. WHEN создаётся клуб или заменяются жанры, сервис MUST проверить каждый код жанра через `GenresPort.get_by_codes`; дубли кодов MUST схлопываться до уникальных.
-2. WHEN клуб удалён, треды клуба уносит каскад БД (FK `threads.club_id` ON DELETE CASCADE) в транзакции запроса; сервис MUST NOT публиковать CLUBS_DELETED из этой операции - синхронный обработчик удалял бы те же строки в отдельной сессии и ждал незафиксированную транзакцию запроса. Сервис MUST удалить файл обложки: он лежит вне БД, каскад его не уносит.
+2. WHEN клуб удалён, треды клуба уносит каскад БД (FK `threads.club_id` ON DELETE CASCADE) в транзакции запроса. Сервис MUST удалить файл обложки: он лежит вне БД, каскад его не уносит.
 3. WHEN собирается ответ, сервис MUST подтягивать владельца через `UsersPort.get_summaries_by_ids` и жанры через `GenresPort.get_by_ids` батчем на всю страницу (не N+1); owner и genres в модели не живут, клуб хранит только id. Заявители в очереди заявок MUST подтягиваться тем же батчем.
 4. Жанры клуба в ответе MUST идти в порядке `sort_order` каталога жанров.
 5. WHEN в запросе поиска переданы коды жанров, сервис MUST превратить их в id тем же путём, что и при создании клуба (`GenresPort.get_by_codes`), и передать id в репозиторий как фильтр. Свободный текст запроса по жанрам MUST NOT искаться: жанр сужает выдачу, а не расширяет её.
@@ -55,7 +55,7 @@ tags:
 
 ## Constraints & Invariants
 - Инвариант: сервис не импортирует модули iam/genres/threads напрямую - только порты и события.
-- Инвариант: `threads_count` клуба - денормализованный столбец, изменяется только доменом тредов прямым вызовом `change_threads_count` в транзакции создания/удаления треда - не пользовательскими операциями bookclubs и не событиями.
+- Инвариант: `threads_count` клуба - денормализованный столбец, изменяется только доменами тредов и аккаунтов прямым вызовом `change_threads_count` в транзакции создания/удаления треда или каскада удаления пользователя - не пользовательскими операциями bookclubs.
 - Инвариант: `members_count` - тоже денормализованный столбец, но своего домена: его ведёт репозиторий в одной транзакции с club_members.
 - Инвариант: у клуба ровно один владелец, он же всегда участник, и роль владельца - производная от владения, а не отдельная запись.
 - Инвариант: название, описание и режим приватности клуба редактируются только владельцем и только через `update_book_club`; жанры - отдельной операцией `set_genres`, обложка - отдельной `update_cover`.

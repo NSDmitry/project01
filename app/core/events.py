@@ -20,11 +20,6 @@ logger = logging.getLogger(__name__)
 
 EXCHANGE = "domain_events"
 
-# Имена событий - единственное место, где они объявлены. Опечатка в строке-литерале
-# дала бы молча неработающего подписчика.
-USER_DELETED = "user_deleted"
-CLUBS_DELETED = "clubs_deleted"
-
 # Хендлер получает распакованный payload события и ничего не возвращает.
 Handler = Callable[[dict], Awaitable[None]]
 

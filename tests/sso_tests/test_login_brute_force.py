@@ -189,6 +189,8 @@ def _auth_service(db_user=None):
         user_service=AsyncMock(),
         user_repository=user_repository,
         user_session_service=user_session_service,
+        book_club_repository=AsyncMock(),
+        thread_repository=AsyncMock(),
     )
 
 
