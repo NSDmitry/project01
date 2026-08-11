@@ -4,8 +4,8 @@ from tests.support.flows import AuthFlow, BookclubFlow
 
 
 class TestBookclubThreadsCount:
-    """threads_count клуба ведётся доменом клубов по событиям тредов - у клуба нет
-    прямой зависимости на домен тредов (распил на сервисы)."""
+    """threads_count клуба правит домен тредов прямым вызовом change_threads_count
+    в транзакции создания/удаления треда."""
 
     def test_threads_count_tracks_create_and_delete(self, api):
         owner = AuthFlow.register(api)

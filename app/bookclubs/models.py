@@ -83,8 +83,8 @@ class BookClub(Base, DBLBase):
         BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     # Денормализованный счётчик тредов клуба. Треды - в другом домене,
-    # поэтому клуб не считает их подзапросом, а ведёт столбец по событиям
-    # THREAD_CREATED/THREAD_DELETED (см. events.py).
+    # поэтому клуб не считает их подзапросом; столбец правит домен тредов
+    # прямым вызовом change_threads_count в транзакции создания/удаления треда.
     threads_count: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default="0")
     # Денормализованный счётчик участников. В отличие от threads_count участники
     # живут в этом же домене, поэтому столбец правится в той же транзакции, что и

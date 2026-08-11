@@ -2,7 +2,6 @@ from typing import Optional, Sequence
 
 from app.bookclubs.repository import BookClubRepository, ReadingRepository
 from app.books.service import BookService
-from app.core import events
 from app.core.authorization import require_permission
 from app.core.contracts import Principal, UserSummary
 from app.iam.repository import UserRepository
@@ -122,8 +121,8 @@ class ThreadService:
             book_id = book.id
 
         db_thread = await self.thread_repository.create_thread(user.id, model, book_id=book_id)
-        # Счётчик тредов клуба ведёт домен клубов - уведомляем событием.
-        await events.publish(events.THREAD_CREATED, {"club_id": model.club_id})
+        # Счётчик тредов клуба правим в той же транзакции, что и создание треда.
+        await self.book_club_repository.change_threads_count(model.club_id, +1)
 
         return ResponseModel.ok(await self._to_response(db_thread))
 
@@ -140,7 +139,7 @@ class ThreadService:
         require_permission(user, db_thread.author_id, message="Удалять треды может только автор треда")
 
         await self.thread_repository.delete_thread(thread_id)
-        await events.publish(events.THREAD_DELETED, {"club_id": db_thread.club_id, "count": 1})
+        await self.book_club_repository.change_threads_count(db_thread.club_id, -1)
 
         return ResponseModel.ok(message="Тред успешно удалён")
 

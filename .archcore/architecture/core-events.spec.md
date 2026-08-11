@@ -12,7 +12,7 @@ tags:
 
 ## Surface
 - `publish(event, payload)`, декоратор `subscribe(event, queue)`, `startup()`, `shutdown()`.
-- События (объявлены только здесь): `USER_DELETED`, `CLUBS_DELETED`, `GENRES_DELETED`, `THREAD_CREATED`, `THREAD_DELETED`.
+- События (объявлены только здесь): `USER_DELETED`, `CLUBS_DELETED`. Счётчик тредов клуба (`threads_count`) с задачи #77 ведётся прямым вызовом в транзакции запроса, событий для него нет.
 - Exchange `domain_events` (topic, durable) + dead-letter `domain_events.dlx` / очередь `domain_events.dead`.
 - `session_factory` - фабрика сессий БД для хендлеров (тесты подменяют).
 
@@ -25,7 +25,7 @@ tags:
 6. Хендлер MUST открывать собственную сессию БД через `session_factory` и коммитить сам - он работает вне HTTP-запроса.
 
 ## Constraints & Invariants
-- Инвариант: доставка at-least-once - обработчики MUST быть идемпотентны или защищены (пример: `GREATEST(threads_count + delta, 0)` в bookclubs).
+- Инвариант: доставка at-least-once - обработчики MUST быть идемпотентны или защищены (пример: повторная чистка в `handle_user_deleted` - no-op).
 - Инвариант: очередь принадлежит домену-подписчику; при распиле монолита очередь уезжает вместе с доменом, топология не меняется.
 
 ## Failure Behavior
