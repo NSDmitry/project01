@@ -11,11 +11,11 @@ SQLAlchemy schema · 3 entities.
 
 | Entity | Key relations |
 |--------|---------------|
-| Thread (threads) | N:1 Book via book_id (FK SET NULL); reading_stage_id -> reading_stages (логическая, nullable); 1:N Comment |
-| Comment (comments) | N:1 Thread (FK CASCADE); 1:N CommentLike |
-| CommentLike (comment_likes) | N:1 Comment (FK CASCADE); user_id -> users (логическая); UNIQUE (comment_id, user_id) |
+| Thread (threads) | N:1 BookClub via club_id (FK CASCADE); N:1 User via author_id (FK SET NULL, nullable); N:1 Book via book_id (FK SET NULL); N:1 ReadingStage via reading_stage_id (FK SET NULL, nullable); 1:N Comment |
+| Comment (comments) | N:1 Thread (FK CASCADE); N:1 User via author_id (FK SET NULL, nullable); 1:N CommentLike |
+| CommentLike (comment_likes) | N:1 Comment (FK CASCADE); N:1 User via user_id (FK CASCADE); UNIQUE (comment_id, user_id) |
 
-Relations: лайк уникален на пару (comment_id, user_id); ссылка на пользователя кросс-доменная, без FK. Ссылка треда на этап захода клуба - тоже кросс-доменная и тоже без FK: этапы принадлежат домену bookclubs.
+Relations: лайк уникален на пару (comment_id, user_id). Кросс-доменные ссылки - настоящие FK (эпик #75): удаление клуба уносит треды каскадом БД в транзакции запроса, удаление пользователя обнуляет авторство (тред и комментарий остаются анонимными) и уносит его лайки, удаление этапа захода превращает тред этапа в тред «про книгу в целом» (SET NULL).
 
 Денормализованный счётчик: `threads.comments_count` ведётся репозиторием в одной транзакции с самим комментарием - комментарии в своём домене, событий для счётчика нет. Комментарии, уходящие каскадом вместе с тредом, счётчика не касаются: строки треда уже нет.
 
@@ -23,13 +23,13 @@ Relations: лайк уникален на пару (comment_id, user_id); ссы
 
 | Индекс | Колонки | Обслуживает |
 |--------|---------|-------------|
-| ix_threads_club_id_created_at_id | club_id, created_at, id | лента тредов клуба: фильтр и сортировка без отдельного Sort |
-| ix_threads_author_id | author_id | удаление или анонимизация автора |
+| ix_threads_club_id_created_at_id | club_id, created_at, id | лента тредов клуба: фильтр и сортировка без отдельного Sort; club_id как префикс - каскад при удалении клуба |
+| ix_threads_author_id | author_id | ON DELETE SET NULL при удалении автора |
 | ix_threads_book_id | book_id | ON DELETE SET NULL при удалении книги |
-| ix_threads_reading_stage_id | reading_stage_id | лента обсуждений одного этапа захода |
+| ix_threads_reading_stage_id | reading_stage_id | лента обсуждений одного этапа захода; ON DELETE SET NULL при удалении этапа |
 | ix_comments_thread_id_created_at_id | thread_id, created_at, id | комментарии треда: фильтр и сортировка без отдельного Sort |
-| ix_comments_author_id | author_id | удаление или анонимизация автора |
-| ix_comment_likes_user_id | user_id | удаление лайков при удалении пользователя |
+| ix_comments_author_id | author_id | ON DELETE SET NULL при удалении автора |
+| ix_comment_likes_user_id | user_id | каскад при удалении пользователя |
 
 Инварианты:
 
@@ -46,12 +46,12 @@ Relations: лайк уникален на пару (comment_id, user_id); ссы
   обычных UPDATE по таблице тот же план вырождается в heap fetch на каждую строку
   и становится на порядок дороже. Счётчик снимает эту зависимость от состояния
   autovacuum.
-- Ссылка на этап захода сознательно оставлена без FK. Помимо правила «домены
-  связаны только идентификатором», FK здесь создавал бы пересечение блокировок:
-  удаление клуба каскадом уносит этапы в незафиксированной транзакции запроса, а
-  треды того же клуба чистит обработчик CLUBS_DELETED в отдельной сессии, и он
-  ждал бы эту транзакцию вечно.
+- Каскад удаления клуба (треды, их комментарии и лайки, этапы) выполняется БД в
+  транзакции HTTP-запроса целиком - один запрос, одна транзакция (эпик #75).
+  Событие CLUBS_DELETED из удаления клуба больше не публикуется: синхронный
+  обработчик в отдельной сессии ждал бы незафиксированную транзакцию запроса.
 - Удаление клуба каскадом стоит секунды не из-за самих строк, а из-за
   построчных FK-триггеров на дочерних таблицах. Удаление детей явными
   множественными DELETE не дешевле (проверено замером - вдвое дороже), поэтому
-  операция остаётся каскадной и уносится из HTTP-запроса в брокер.
+  операция остаётся каскадной; её цена в транзакции запроса - осознанная плата
+  за атомарность.

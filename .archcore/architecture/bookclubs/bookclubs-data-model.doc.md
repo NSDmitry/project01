@@ -11,18 +11,18 @@ SQLAlchemy schema · 10 entities.
 
 | Entity | Key relations |
 |--------|---------------|
-| BookClub (book_clubs) | 1:N ClubMember; 1:N Reading; 1:N ClubInvite; 1:N ClubJoinRequest; 1:N BookNomination; N:M Genre via book_club_genres; owner_id -> users (логическая, nullable) |
-| ClubMember (club_members) | N:1 BookClub (FK CASCADE); user_id -> users (логическая) |
-| BookClubGenre (book_club_genres) | N:1 BookClub (FK CASCADE); genre_id -> genres (логическая) |
-| ClubInvite (club_invites) | N:1 BookClub (FK CASCADE); created_by -> users (логическая) |
-| ClubJoinRequest (club_join_requests) | N:1 BookClub (FK CASCADE); user_id -> users (логическая) |
+| BookClub (book_clubs) | 1:N ClubMember; 1:N Reading; 1:N ClubInvite; 1:N ClubJoinRequest; 1:N BookNomination; N:M Genre via book_club_genres; owner_id -> users (FK SET NULL, nullable) |
+| ClubMember (club_members) | N:1 BookClub (FK CASCADE); user_id -> users (FK CASCADE) |
+| BookClubGenre (book_club_genres) | N:1 BookClub (FK CASCADE); genre_id -> genres (FK CASCADE) |
+| ClubInvite (club_invites) | N:1 BookClub (FK CASCADE); created_by -> users (FK SET NULL, nullable) |
+| ClubJoinRequest (club_join_requests) | N:1 BookClub (FK CASCADE); user_id -> users (FK CASCADE) |
 | Reading (readings) | N:1 BookClub (FK CASCADE); N:1 Book (FK SET NULL, nullable); 1:N ReadingStage; 1:N ReadingProgress |
-| ReadingStage (reading_stages) | N:1 Reading (FK CASCADE); обратная ссылка из тредов - логическая, по id |
-| ReadingProgress (reading_progress) | N:1 Reading (FK CASCADE); N:1 ReadingStage (FK SET NULL, nullable); user_id -> users (логическая) |
+| ReadingStage (reading_stages) | N:1 Reading (FK CASCADE); на этап ссылается threads.reading_stage_id (FK SET NULL) |
+| ReadingProgress (reading_progress) | N:1 Reading (FK CASCADE); N:1 ReadingStage (FK SET NULL, nullable); user_id -> users (FK CASCADE) |
 | BookNomination (book_nominations) | N:1 BookClub (FK CASCADE); N:1 Book (FK SET NULL, nullable); 1:N NominationVote |
-| NominationVote (nomination_votes) | N:1 BookNomination (FK CASCADE); N:1 BookClub (FK CASCADE); user_id -> users (логическая) |
+| NominationVote (nomination_votes) | N:1 BookNomination (FK CASCADE); N:1 BookClub (FK CASCADE); user_id -> users (FK CASCADE) |
 
-Relations: связи на users и genres кросс-доменные, только по id, без FK. Связь readings и book_nominations на книгу - FK с SET NULL, как у тредов: удаление книги не должно уносить ни историю чтения клуба, ни идущее голосование. Обратная связь тредов на этап захода (`threads.reading_stage_id`) сделана без FK: треды в чужом домене, а FK ещё и создавал бы пересечение блокировок с обработчиком CLUBS_DELETED, который чистит треды в своей сессии, пока удаление клуба ещё не зафиксировано.
+Relations: связи на users и genres - настоящие FK (эпик #75). Удаление пользователя каскадом уносит членство, заявки, голоса и прогресс и обнуляет `owner_id` (клуб без владельца) и `created_by` (код выдан от имени клуба, уход создателя его не отзывает). Связь readings и book_nominations на книгу - FK с SET NULL, как у тредов: удаление книги не должно уносить ни историю чтения клуба, ни идущее голосование. Обратная связь тредов на этап захода (`threads.reading_stage_id`) - FK SET NULL: каскад удаления клуба проходит в одной транзакции запроса вместе с тредами (`threads.club_id` ON DELETE CASCADE), пересечения блокировок с обработчиками событий больше нет.
 
 Голос ссылается и на номинацию, и на клуб: клуб в строке голоса - не дубль, а часть ключа, которым БД держит правило «один участник - один голос на клуб». Через номинацию это правило не выразить.
 
@@ -30,7 +30,7 @@ Relations: связи на users и genres кросс-доменные, толь
 
 - `book_clubs.privacy` - как попасть в клуб: `public`, `by_request` или `by_invite`. Значения держит CHECK, а не enum-тип Postgres: добавить значение потом дешевле. На видимость клуба в каталоге и поиске режим не влияет.
 - `club_members.role` - `member` или `moderator`. Роли владельца в этой колонке нет: владение хранит `book_clubs.owner_id`, и дублировать его ролью значило бы завести второй источник правды. Роль владельца в ответах выводится из `owner_id`.
-- `club_invites.code` уникален глобально - по коду вступают, не зная id клуба. `expires_at` NULL - код бессрочный. У клуба живёт не больше одной строки: новое приглашение удаляет прежние, и это единственный способ отозвать утёкший код.
+- `club_invites.code` уникален глобально - по коду вступают, не зная id клуба. `expires_at` NULL - код бессрочный. У клуба живёт не больше одной строки: новое приглашение удаляет прежние, и это единственный способ отозвать утёкший код. `created_by` NULL - создатель удалил аккаунт, приглашение продолжает действовать.
 - `club_join_requests` - одна строка на пару (клуб, пользователь): повторная подача переписывает статус и время подачи, а не плодит заявки. Очередь поэтому сортируется по `created_at`, а не по `id`: у повторной заявки id остаётся старым.
 
 Обложка клуба:
@@ -52,22 +52,23 @@ Relations: связи на users и genres кросс-доменные, толь
 
 | Индекс | Колонки | Обслуживает |
 |--------|---------|-------------|
-| ix_book_clubs_owner_id | owner_id | фильтр списка клубов по владению, обнуление владельца при удалении пользователя |
-| ix_club_members_user_id | user_id | фильтр списка клубов по участию, удаление пользователя |
-| ix_book_club_genres_genre_id | genre_id | фильтр клубов по жанру |
+| ix_book_clubs_owner_id | owner_id | фильтр списка клубов по владению, ON DELETE SET NULL при удалении пользователя |
+| ix_club_members_user_id | user_id | фильтр списка клубов по участию, каскад при удалении пользователя |
+| ix_book_club_genres_genre_id | genre_id | фильтр клубов по жанру, каскад при удалении жанра |
 | ix_book_clubs_search_vector | search_vector (GIN) | полнотекстовый поиск клубов |
 | uq_club_invites_code | code (unique) | вступление по коду приглашения |
 | ix_club_invites_club_id | club_id | гашение прежних приглашений клуба, каскадное удаление вместе с клубом |
+| ix_club_invites_created_by | created_by | ON DELETE SET NULL при удалении создателя |
 | uq_club_join_requests_club_id_user_id | club_id, user_id (unique) | одна заявка на пару; club_id как префикс - очередь заявок клуба |
-| ix_club_join_requests_user_id | user_id | чистка заявок при удалении пользователя |
+| ix_club_join_requests_user_id | user_id | каскад при удалении пользователя |
 | ix_readings_club_id_id | club_id, id | архив заходов клуба со свежими сверху |
 | uq_readings_active_club_id | club_id (unique, WHERE finished_at IS NULL) | единственность незакрытого захода у клуба |
 | uq_reading_stages_reading_id_position | reading_id, position (unique) | этапы захода по порядку; reading_id как префикс |
 | uq_reading_progress_reading_id_user_id | reading_id, user_id (unique) | одна отметка участника на заход; reading_id как префикс |
-| ix_reading_progress_user_id | user_id | удаление пользователя, выход из клуба |
+| ix_reading_progress_user_id | user_id | каскад при удалении пользователя, выход из клуба |
 | ix_reading_progress_stage_id | stage_id | ON DELETE SET NULL при удалении этапа |
 | uq_book_nominations_club_id_book_id | club_id, book_id (unique) | одна книга - одна номинация в клубе; club_id как префикс для списка кандидатов и их счёта |
-| PK nomination_votes | user_id, club_id | один голос участника на клуб; user_id как префикс для чистки при удалении пользователя |
+| PK nomination_votes | user_id, club_id | один голос участника на клуб; user_id как префикс для каскада при удалении пользователя |
 | ix_nomination_votes_club_id | club_id | подсчёт голосов клуба одним запросом, каскад при удалении клуба |
 | ix_nomination_votes_nomination_id | nomination_id | каскад при удалении номинации |
 
@@ -84,9 +85,10 @@ Relations: связи на users и genres кросс-доменные, толь
   Он же всегда числится в club_members - выйти из клуба, оставаясь владельцем,
   нельзя, - а его строка несёт роль `member`: расхождение между колонкой владения
   и ролью поэтому невозможно.
-- Приглашения, заявки и номинации удалённого клуба уносит каскад БД по club_id -
-  кода для этого нет. Заявки и голоса удалённого пользователя чистит код: FK на
-  users нет. Файл обложки каскад не уносит - он вне базы.
+- Приглашения, заявки и номинации удалённого клуба уносит каскад БД по club_id,
+  членство, заявки, голоса и прогресс удалённого пользователя - каскад по user_id:
+  кода для этого нет. За кодом остаются денормализованные счётчики и файлы вне
+  базы (обложка).
 - Счётчики тредов и участников читаются из денормализованных колонок, а не
   считаются агрегатом: стоимость агрегата растёт с размером клуба, а не страницы,
   и на каталоге умножалась на число клубов страницы.

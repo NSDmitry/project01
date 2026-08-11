@@ -24,7 +24,6 @@ EXCHANGE = "domain_events"
 # дала бы молча неработающего подписчика.
 USER_DELETED = "user_deleted"
 CLUBS_DELETED = "clubs_deleted"
-GENRES_DELETED = "genres_deleted"
 THREAD_CREATED = "thread_created"
 THREAD_DELETED = "thread_deleted"
 

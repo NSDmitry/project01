@@ -34,7 +34,7 @@ from app.bookclubs.schemas import (
     BookClubResponse,
 )
 from app.books.service import BookService
-from app.core import events, media
+from app.core import media
 from app.core.authorization import require_permission
 from app.core.contracts import BookResponse, GenreResponse, Principal, UserSummary
 from app.core.errors.errors import Conflict, Forbidden, NotFound, UnprocessableEntity
@@ -314,10 +314,10 @@ class BookClubService:
         return ResponseModel.ok(page)
 
     async def delete_book_club(self, owner: Principal, book_club_id: int) -> ResponseModel:
+        # Треды клуба уносит каскад БД (threads.club_id ON DELETE CASCADE) в той же
+        # транзакции. Публиковать CLUBS_DELETED отсюда нельзя: sync-обработчик удалял
+        # бы те же строки в своей сессии и ждал незафиксированную транзакцию запроса.
         cover_key = await self.book_club_repository.delete_book_club(owner, book_club_id)
-        # FK threads.club_id больше нет - треды удалённого клуба чистит
-        # threads по событию
-        await events.publish(events.CLUBS_DELETED, {"club_ids": [book_club_id]})
         # Обложка живёт вне БД, каскад её не уносит.
         await media.delete_image(cover_key)
 

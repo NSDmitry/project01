@@ -363,10 +363,6 @@ class BookClubRepository:
         )
         await self.db.flush()
 
-    async def handle_genres_deleted(self, genre_ids: List[int]) -> None:
-        await self.db.execute(delete(BookClubGenre).where(BookClubGenre.genre_id.in_(genre_ids)))
-        await self.db.flush()
-
     async def add_member(self, club_id: int, user_id: int) -> BookClub:
         await self.get_book_club(club_id=club_id)
 
