@@ -191,6 +191,21 @@ class ApiClient:
     def finish_reading(self, reading_id: int, headers: dict[str, str] | None = None):
         return self._client.post(f"/api/readings/{reading_id}/finish", headers=headers)
 
+    def nominate_book(self, club_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.post(f"/api/bookclubs/{club_id}/nominations", json=payload, headers=headers)
+
+    def nominations(self, club_id: int, headers: dict[str, str] | None = None):
+        return self._client.get(f"/api/bookclubs/{club_id}/nominations", headers=headers)
+
+    def close_voting(self, club_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
+        return self._client.post(f"/api/bookclubs/{club_id}/nominations/close", json=payload, headers=headers)
+
+    def vote(self, nomination_id: int, headers: dict[str, str] | None = None):
+        return self._client.post(f"/api/nominations/{nomination_id}/vote", headers=headers)
+
+    def unvote(self, nomination_id: int, headers: dict[str, str] | None = None):
+        return self._client.delete(f"/api/nominations/{nomination_id}/vote", headers=headers)
+
     def search_books(self, q: str, headers: dict[str, str] | None = None):
         return self._client.get("/api/books/search", params={"q": q}, headers=headers)
 

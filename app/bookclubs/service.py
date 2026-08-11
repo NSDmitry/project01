@@ -1,14 +1,15 @@
 from datetime import date, datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
-from app.bookclubs.models import BookClub, ClubJoinRequest, Reading, ReadingStage
-from app.bookclubs.repository import BookClubRepository, ReadingRepository
+from app.bookclubs.models import BookClub, BookNomination, ClubJoinRequest, Reading, ReadingStage
+from app.bookclubs.repository import BookClubRepository, NominationRepository, ReadingRepository
 from app.bookclubs.schemas import (
     ClubMemberResponse,
     ClubPrivacy,
     ClubRole,
     CreateBookClubRequest,
     CreateInviteRequest,
+    CreateNominationRequest,
     CreateReadingRequest,
     CurrentReadingResponse,
     CurrentReadingSummary,
@@ -16,9 +17,11 @@ from app.bookclubs.schemas import (
     JoinByInviteRequest,
     JoinRequestResponse,
     JoinRequestStatus,
+    NominationResponse,
     ReadingProgressResponse,
     ReadingProgressSummary,
     ReadingResponse,
+    ReadingScheduleRequest,
     ReadingStageResponse,
     TransferOwnershipRequest,
     UpdateBookClubGenresRequest,
@@ -76,6 +79,24 @@ async def _progress_summaries(
         )
 
     return summaries, expected_positions
+
+
+async def _reading_responses(
+    reading_repository: ReadingRepository, readings: List[Reading]
+) -> List[ReadingResponse]:
+    """Заходы с этапами. Этапы - отдельная таблица, тянем их батчем на всю страницу."""
+    stages_by_reading = await reading_repository.get_stages([reading.id for reading in readings])
+
+    responses = []
+    for reading in readings:
+        response = ReadingResponse.model_validate(reading)
+        response.stages = [
+            ReadingStageResponse.model_validate(stage)
+            for stage in stages_by_reading.get(reading.id, [])
+        ]
+        responses.append(response)
+
+    return responses
 
 
 class BookClubService:
@@ -485,22 +506,8 @@ class ReadingService:
         self.book_service = book_service
         self.user_repository = user_repository
 
-    # Этапы - отдельная таблица, тянем их батчем на всю страницу заходов.
     async def _to_responses(self, readings: List[Reading]) -> List[ReadingResponse]:
-        stages_by_reading = await self.reading_repository.get_stages(
-            [reading.id for reading in readings]
-        )
-
-        responses = []
-        for reading in readings:
-            response = ReadingResponse.model_validate(reading)
-            response.stages = [
-                ReadingStageResponse.model_validate(stage)
-                for stage in stages_by_reading.get(reading.id, [])
-            ]
-            responses.append(response)
-
-        return responses
+        return await _reading_responses(self.reading_repository, readings)
 
     async def _to_response(self, reading: Reading) -> ReadingResponse:
         return (await self._to_responses([reading]))[0]
@@ -652,3 +659,127 @@ class ReadingService:
             )
 
         return ResponseModel.ok(Page(items=items, total=total, limit=limit, offset=offset))
+
+
+# Потолок кандидатов в клубе. Список номинаций отдаётся целиком, без страниц:
+# голосование живёт до закрытия, и потолок держит его в размере, который не жалко
+# получить одним ответом, а заодно не даёт одному участнику завалить экран клуба.
+# ponytail: общий потолок на клуб, персональной квоты нет - появится, если начнут
+# спамить в пределах полусотни.
+MAX_NOMINATIONS_PER_CLUB = 50
+
+
+class NominationService:
+    """Голосование за следующую книгу клуба: номинации, голоса, закрытие."""
+
+    nomination_repository: NominationRepository
+    reading_repository: ReadingRepository
+    book_club_repository: BookClubRepository
+    book_service: BooksPort
+
+    def __init__(
+        self,
+        nomination_repository: NominationRepository,
+        reading_repository: ReadingRepository,
+        book_club_repository: BookClubRepository,
+        book_service: BooksPort,
+    ) -> None:
+        self.nomination_repository = nomination_repository
+        self.reading_repository = reading_repository
+        self.book_club_repository = book_club_repository
+        self.book_service = book_service
+
+    async def _require_member(self, club_id: int, user: Principal, action: str) -> None:
+        if not await self.book_club_repository.is_member(club_id, user.id):
+            raise Forbidden(errors=[f"{action} могут только участники клуба"])
+
+    # Голоса не хранятся счётчиком в номинации: их считает один запрос на весь
+    # клуб, а голосование живёт до закрытия - расходиться нечему.
+    async def _to_responses(
+        self, club_id: int, nominations: List[BookNomination], user: Principal
+    ) -> List[NominationResponse]:
+        votes = await self.nomination_repository.count_votes(club_id)
+        my_vote = await self.nomination_repository.get_vote(club_id, user.id)
+
+        return [
+            NominationResponse(
+                id=nomination.id,
+                club_id=nomination.club_id,
+                book=BookResponse.model_validate(nomination.book) if nomination.book else None,
+                votes_count=votes.get(nomination.id, 0),
+                voted=my_vote is not None and my_vote.nomination_id == nomination.id,
+            )
+            for nomination in nominations
+        ]
+
+    async def nominate(
+        self, user: Principal, club_id: int, model: CreateNominationRequest
+    ) -> ResponseModel[NominationResponse]:
+        await self.book_club_repository.get_book_club(club_id)
+        await self._require_member(club_id, user, "Номинировать книги")
+
+        # Потолок - защита от заваленного списка, а не инвариант: две параллельные
+        # номинации на границе могут дать 51-ю, и это не страшно.
+        if await self.nomination_repository.count_nominations(club_id) >= MAX_NOMINATIONS_PER_CLUB:
+            raise Conflict(
+                errors=[
+                    f"В клубе уже {MAX_NOMINATIONS_PER_CLUB} книг-кандидатов - "
+                    f"закройте голосование, чтобы начать новое"
+                ]
+            )
+
+        book = await self.book_service.get_or_create_book(model.book_volume_id)
+        nomination = await self.nomination_repository.create_nomination(club_id, book.id)
+
+        return ResponseModel.ok((await self._to_responses(club_id, [nomination], user))[0])
+
+    async def get_nominations(
+        self, user: Principal, club_id: int
+    ) -> ResponseModel[List[NominationResponse]]:
+        await self.book_club_repository.get_book_club(club_id)
+        nominations = await self.nomination_repository.get_nominations(club_id)
+
+        return ResponseModel.ok(await self._to_responses(club_id, nominations, user))
+
+    async def vote(self, user: Principal, nomination_id: int) -> ResponseModel[NominationResponse]:
+        nomination = await self.nomination_repository.get_nomination(nomination_id)
+        await self._require_member(nomination.club_id, user, "Голосовать")
+
+        await self.nomination_repository.set_vote(nomination.club_id, user.id, nomination_id)
+
+        return ResponseModel.ok(
+            (await self._to_responses(nomination.club_id, [nomination], user))[0]
+        )
+
+    async def unvote(self, user: Principal, nomination_id: int) -> ResponseModel[NominationResponse]:
+        nomination = await self.nomination_repository.get_nomination(nomination_id)
+
+        if not await self.nomination_repository.delete_vote(
+            nomination.club_id, user.id, nomination_id
+        ):
+            raise Conflict(errors=["Вы не голосовали за эту номинацию"])
+
+        return ResponseModel.ok(
+            (await self._to_responses(nomination.club_id, [nomination], user))[0]
+        )
+
+    async def close_voting(
+        self, owner: Principal, club_id: int, model: ReadingScheduleRequest
+    ) -> ResponseModel[ReadingResponse]:
+        club = await self.book_club_repository.get_book_club(club_id)
+        require_permission(owner, club.owner_id, message="Закрывать голосование может только владелец клуба")
+
+        nominations = await self.nomination_repository.get_nominations(club_id)
+        if not nominations:
+            raise Conflict(errors=["В клубе нет ни одной номинации"])
+
+        votes = await self.nomination_repository.count_votes(club_id)
+        # Больше голосов, при равенстве - кто номинирован раньше (меньший id).
+        winner = max(nominations, key=lambda nomination: (votes.get(nomination.id, 0), -nomination.id))
+
+        # Сначала заход: если у клуба уже есть незакрытый, создание упадёт
+        # Conflict-ом и номинации останутся на месте вместе с голосами.
+        reading = await self.reading_repository.create_reading(club_id, winner.book_id, model)
+        await self.nomination_repository.clear_nominations(club_id)
+
+        return ResponseModel.ok((await _reading_responses(self.reading_repository, [reading]))[0])

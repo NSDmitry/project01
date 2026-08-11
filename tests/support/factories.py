@@ -141,6 +141,26 @@ class ReadingFactory:
         }
 
     @staticmethod
+    def schedule_payload(
+        *,
+        started_in_days: int = -10,
+        deadline_in_days: int = 10,
+        stages: list[dict] | None = None,
+    ) -> dict[str, object]:
+        # Сроки и этапы без книги - тело закрытия голосования, книгу там выбирают
+        # голоса. По умолчанию срок первого этапа уже прошёл, второго - ещё нет: с
+        # таким заходом проверяется и «в графике», и отставание.
+        default_stages = [
+            ReadingFactory.stage(title="Главы 1-5", due_in_days=-1, end_page=100),
+            ReadingFactory.stage(title="Главы 6-10", due_in_days=5, end_page=200),
+        ]
+        return {
+            "started_at": str(date.today() + timedelta(days=started_in_days)),
+            "deadline": str(date.today() + timedelta(days=deadline_in_days)),
+            "stages": stages if stages is not None else default_stages,
+        }
+
+    @staticmethod
     def payload(
         *,
         book_volume_id: str = "vol-1",
@@ -148,17 +168,13 @@ class ReadingFactory:
         deadline_in_days: int = 10,
         stages: list[dict] | None = None,
     ) -> dict[str, object]:
-        # По умолчанию срок первого этапа уже прошёл, второго - ещё нет: с таким
-        # заходом проверяется и «в графике», и отставание.
-        default_stages = [
-            ReadingFactory.stage(title="Главы 1-5", due_in_days=-1, end_page=100),
-            ReadingFactory.stage(title="Главы 6-10", due_in_days=5, end_page=200),
-        ]
         return {
             "book_volume_id": book_volume_id,
-            "started_at": str(date.today() + timedelta(days=started_in_days)),
-            "deadline": str(date.today() + timedelta(days=deadline_in_days)),
-            "stages": stages if stages is not None else default_stages,
+            **ReadingFactory.schedule_payload(
+                started_in_days=started_in_days,
+                deadline_in_days=deadline_in_days,
+                stages=stages,
+            ),
         }
 
 

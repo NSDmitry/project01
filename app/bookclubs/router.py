@@ -1,18 +1,21 @@
 from fastapi import APIRouter, Depends, Query
 
-from app.bookclubs.deps import get_book_club_service, get_reading_service
+from app.bookclubs.deps import get_book_club_service, get_nomination_service, get_reading_service
 from app.bookclubs.schemas import (
     ClubMemberResponse,
     CreateBookClubRequest,
     CreateInviteRequest,
+    CreateNominationRequest,
     CreateReadingRequest,
     CurrentReadingResponse,
     InviteResponse,
     JoinByInviteRequest,
     JoinRequestResponse,
     JoinRequestStatus,
+    NominationResponse,
     ReadingProgressResponse,
     ReadingResponse,
+    ReadingScheduleRequest,
     TransferOwnershipRequest,
     UpdateBookClubGenresRequest,
     UpdateBookClubRequest,
@@ -21,7 +24,8 @@ from app.bookclubs.schemas import (
     SearchBookClubsRequest,
     BookClubResponse,
 )
-from app.bookclubs.service import BookClubService, ReadingService
+from app.bookclubs.service import BookClubService, NominationService, ReadingService
+# UserSummary больше не нужен: список участников отдаёт ClubMemberResponse - с ролью.
 from app.core.contracts import Principal
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
@@ -32,6 +36,8 @@ router = APIRouter(prefix="/api/bookclubs", tags=["bookclubs"])
 # Заходы клуба адресуются и через клуб (создание, текущий, архив), и напрямую по
 # своему id (прогресс, закрытие) - отсюда второй роутер со своим префиксом.
 readings_router = APIRouter(prefix="/api/readings", tags=["readings"])
+# Голос отдаётся за номинацию - клуб в пути не нужен, он известен по ней самой.
+nominations_router = APIRouter(prefix="/api/nominations", tags=["nominations"])
 
 
 @router.post(
@@ -640,6 +646,150 @@ async def get_readings(
         service: ReadingService = Depends(get_reading_service)
 ) -> ResponseModel[Page[ReadingResponse]]:
     return await service.get_readings(club_id, limit=limit, offset=offset)
+
+
+@router.post(
+    "/{club_id}/nominations",
+    response_model=ResponseModel[NominationResponse],
+    summary="Номинировать книгу на следующий заход",
+    description=(
+            "Предлагает книгу (по `book_volume_id` из поиска книг) кандидатом на "
+            "следующее совместное чтение. Доступно участникам клуба.\n\n"
+            "Одна и та же книга номинируется в клубе один раз - повторная "
+            "номинация отклоняется, голоса за книгу не должны разойтись по двум "
+            "кандидатам. Число кандидатов в клубе ограничено: когда список полон, "
+            "новую книгу можно предложить только после закрытия голосования.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    status_code=201,
+    responses={
+        201: {"description": "Успешный ответ с данными номинации"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Номинировать книги могут только участники клуба"},
+        404: {"description": "Книжный клуб или книга с таким id не найдены"},
+        409: {"description": "Эта книга уже номинирована в клубе или список кандидатов полон"},
+        503: {"description": "Google Books временно недоступен"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def nominate_book(
+        club_id: PathId,
+        model: CreateNominationRequest,
+        user: Principal = Depends(get_current_user),
+        service: NominationService = Depends(get_nomination_service)
+) -> ResponseModel[NominationResponse]:
+    return await service.nominate(user, club_id, model)
+
+
+@router.get(
+    "/{club_id}/nominations",
+    response_model=ResponseModel[list[NominationResponse]],
+    summary="Номинации клуба с числом голосов",
+    description=(
+            "Книги-кандидаты на следующий заход, в порядке номинирования. Поле "
+            "`voted` отмечает номинацию, за которую отдан голос текущего "
+            "пользователя.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Номинации клуба"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def get_nominations(
+        club_id: PathId,
+        user: Principal = Depends(get_current_user),
+        service: NominationService = Depends(get_nomination_service)
+) -> ResponseModel[list[NominationResponse]]:
+    return await service.get_nominations(user, club_id)
+
+
+@router.post(
+    "/{club_id}/nominations/close",
+    response_model=ResponseModel[ReadingResponse],
+    summary="Закрыть голосование и завести заход с книгой-победителем",
+    description=(
+            "Победитель - номинация с наибольшим числом голосов, при равенстве - "
+            "номинированная раньше. Из неё заводится заход клуба: сроки и этапы "
+            "приходят в теле запроса, как при создании захода вручную. Номинации "
+            "и голоса после закрытия очищаются - следующее голосование начинается "
+            "с чистого листа.\n\n"
+            "Доступно только владельцу клуба.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    status_code=201,
+    responses={
+        201: {"description": "Заход, созданный из книги-победителя"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не является владельцем книжного клуба"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        409: {"description": "В клубе нет номинаций или уже есть текущий заход"},
+        422: {"description": "Ошибка валидации сроков или этапов"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def close_voting(
+        club_id: PathId,
+        model: ReadingScheduleRequest,
+        user: Principal = Depends(get_current_user),
+        service: NominationService = Depends(get_nomination_service)
+) -> ResponseModel[ReadingResponse]:
+    return await service.close_voting(user, club_id, model)
+
+
+@nominations_router.post(
+    "/{nomination_id}/vote",
+    response_model=ResponseModel[NominationResponse],
+    summary="Проголосовать за номинацию",
+    description=(
+            "У участника один голос на клуб: голос за другую номинацию "
+            "переставляет его, повторный за ту же - ничего не меняет.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Номинация с обновлённым числом голосов"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Голосовать могут только участники клуба"},
+        404: {"description": "Номинация с таким id не найдена"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def vote(
+        nomination_id: PathId,
+        user: Principal = Depends(get_current_user),
+        service: NominationService = Depends(get_nomination_service)
+) -> ResponseModel[NominationResponse]:
+    return await service.vote(user, nomination_id)
+
+
+@nominations_router.delete(
+    "/{nomination_id}/vote",
+    response_model=ResponseModel[NominationResponse],
+    summary="Снять свой голос с номинации",
+    description=(
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Номинация с обновлённым числом голосов"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        404: {"description": "Номинация с таким id не найдена"},
+        409: {"description": "Голос за эту номинацию не отдавался"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def unvote(
+        nomination_id: PathId,
+        user: Principal = Depends(get_current_user),
+        service: NominationService = Depends(get_nomination_service)
+) -> ResponseModel[NominationResponse]:
+    return await service.unvote(user, nomination_id)
 
 
 @readings_router.put(

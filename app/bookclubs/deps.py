@@ -1,8 +1,8 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.bookclubs.repository import BookClubRepository, ReadingRepository
-from app.bookclubs.service import BookClubService, ReadingService
+from app.bookclubs.repository import BookClubRepository, NominationRepository, ReadingRepository
+from app.bookclubs.service import BookClubService, NominationService, ReadingService
 from app.books.deps import get_book_service
 from app.books.service import BookService
 from app.core.database import get_db
@@ -34,6 +34,24 @@ def get_book_club_service(
         reading_repository=reading_repository,
         genre_repository=genre_repository,
         user_repository=user_repository,
+    )
+
+
+def get_nomination_repository(db: AsyncSession = Depends(get_db)) -> NominationRepository:
+    return NominationRepository(db)
+
+
+def get_nomination_service(
+        nomination_repository: NominationRepository = Depends(get_nomination_repository),
+        reading_repository: ReadingRepository = Depends(get_reading_repository),
+        book_club_repository: BookClubRepository = Depends(get_club_repository),
+        book_service: BookService = Depends(get_book_service),
+) -> NominationService:
+    return NominationService(
+        nomination_repository=nomination_repository,
+        reading_repository=reading_repository,
+        book_club_repository=book_club_repository,
+        book_service=book_service,
     )
 
 

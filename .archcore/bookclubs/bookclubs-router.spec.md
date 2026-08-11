@@ -1,5 +1,5 @@
 ---
-title: "Bookclubs HTTP API: /api/bookclubs, приватность и роли, /api/readings"
+title: "Bookclubs HTTP API: /api/bookclubs, приватность и роли, /api/readings и /api/nominations"
 status: accepted
 tags:
   - "bookclubs"
@@ -8,12 +8,13 @@ tags:
 ---
 
 ## Purpose & Scope
-HTTP-контракт домена bookclubs (@app/bookclubs/router.py): клубы, участие, приватность и роли, жанры клуба, поиск, совместное чтение. Потребители - клиенты API. Вне scope: бизнес-правила (спек сервиса).
+HTTP-контракт домена bookclubs (@app/bookclubs/router.py): клубы, участие, приватность и роли, жанры клуба, поиск, совместное чтение, выбор следующей книги голосованием. Потребители - клиенты API. Вне scope: бизнес-правила (спек сервиса).
 
 ## Surface
-- `/api/bookclubs`: POST `` (201, создание), GET `` (список постранично), POST `/search`, GET `/{club_id}`, PATCH `/{club_id}`, GET `/{club_id}/members`, DELETE `/{club_id}`, POST `/{club_id}/join`, DELETE `/{club_id}/leave`, PUT `/{club_id}/genres`, POST `/{club_id}/readings` (201), GET `/{club_id}/readings/current`, GET `/{club_id}/readings`.
+- `/api/bookclubs`: POST `` (201, создание), GET `` (список постранично), POST `/search`, GET `/{club_id}`, PATCH `/{club_id}`, GET `/{club_id}/members`, DELETE `/{club_id}`, POST `/{club_id}/join`, DELETE `/{club_id}/leave`, PUT `/{club_id}/genres`, POST `/{club_id}/readings` (201), GET `/{club_id}/readings/current`, GET `/{club_id}/readings`, POST `/{club_id}/nominations` (201), GET `/{club_id}/nominations`, POST `/{club_id}/nominations/close` (201).
 - Приватность и роли: POST `/{club_id}/invites` (201), POST `/join-by-invite`, POST `/{club_id}/requests` (201), GET `/{club_id}/requests`, POST `/{club_id}/requests/{request_id}/approve`, POST `/{club_id}/requests/{request_id}/reject`, PUT `/{club_id}/members/{user_id}/role`, DELETE `/{club_id}/members/{user_id}`, POST `/{club_id}/transfer`.
 - `/api/readings`: PUT `/{reading_id}/progress`, GET `/{reading_id}/progress`, POST `/{reading_id}/finish`.
+- `/api/nominations`: POST `/{nomination_id}/vote`, DELETE `/{nomination_id}/vote`.
 - Конверт `ResponseModel`, страницы `Page`; id - `PathId`, смещение - `PageOffset` (@app/core/params.py).
 
 ## Normative Behavior
@@ -42,6 +43,11 @@ HTTP-контракт домена bookclubs (@app/bookclubs/router.py): клу�
 23. PUT /readings/{reading_id}/progress MUST принимать этап и/или страницу и заменять прогресс участника целиком, а не дополнять его. Повторный вызов MUST быть идемпотентен по числу отметок участника.
 24. GET /readings/{reading_id}/progress MUST отдавать постранично отметки участников со свежими сверху, включая признак «в графике». Участники без отметок в выдаче не появляются.
 25. POST /readings/{reading_id}/finish MUST переводить заход в архив; после этого клуб MUST мочь завести следующий.
+26. POST /{club_id}/nominations MUST принимать идентификатор тома книги и возвращать 201 с номинацией; доступно участникам клуба.
+27. GET /{club_id}/nominations MUST возвращать кандидатов клуба в порядке номинирования, с числом голосов и признаком `voted` - отдан ли за номинацию голос текущего пользователя. Ручка не постраничная, и это допустимо только потому, что число кандидатов ограничено потолком: голосование живёт до закрытия и очищается вместе с ним.
+28. POST /nominations/{nomination_id}/vote MUST отдавать голос за номинацию и возвращать её с обновлённым числом голосов. Голос у участника один на клуб: голос за другую номинацию MUST переставлять его, повторный за ту же MUST NOT менять счётчик.
+29. DELETE /nominations/{nomination_id}/vote MUST снимать голос текущего пользователя с этой номинации.
+30. POST /{club_id}/nominations/close MUST принимать сроки и этапы захода (те же поля, что и создание захода, без книги), заводить из книги-победителя заход и возвращать 201 с ним; доступно только владельцу. Номинации и голоса клуба после закрытия MUST быть очищены.
 
 ## Constraints & Invariants
 - Инвариант: единственный кросс-доменный импорт - identity-провайдер `app.iam.deps` (санкционированный seam).
@@ -50,12 +56,13 @@ HTTP-контракт домена bookclubs (@app/bookclubs/router.py): клу�
 - Инвариант: режим приватности клуба не скрывает клуб от каталога, поиска и карточки - он управляет только вступлением.
 - Инвариант: вступление по коду - единственная ручка домена, адресующая клуб не идентификатором в пути, а секретом в теле.
 - Инвариант: выход и исключение - две ручки одного правила: владелец остаётся в составе клуба, пока он владелец.
-- Инвариант: заходы адресуются двумя способами - через клуб (создание, текущий, архив) и напрямую по своему id (прогресс, закрытие); клуб в этих ручках не дублируется в пути.
+- Инвариант: заходы адресуются двумя способами - через клуб (создание, текущий, архив) и напрямую по своему id (прогресс, закрытие); клуб в этих ручках не дублируется в пути. Голос адресуется номинацией по той же причине: клуб известен по самой номинации.
+- Инвариант: у каждой коллекции есть потолок размера ответа - либо страница (`limit`/`offset`), либо ограничение на число строк в источнике, как у номинаций. Списочной ручки без потолка в домене быть не должно.
 
 ## Failure Behavior
 1. IF имя клуба занято, THEN POST и PATCH /{club_id} MUST вернуть 409.
 2. IF пользователь уже участник (join, вступление по коду, одобрение заявки) или не участник (leave, исключение), THEN роутер MUST вернуть 409.
-3. IF пользователь не владелец (delete, genres, patch, назначение роли, передача клуба, создание и закрытие захода), THEN роутер MUST вернуть 403.
+3. IF пользователь не владелец (delete, genres, patch, назначение роли, передача клуба, создание и закрытие захода, закрытие голосования), THEN роутер MUST вернуть 403.
 4. IF клуб не найден, THEN роутер MUST вернуть 404.
 5. IF жанр из списка неизвестен, THEN PUT /genres и POST /search MUST вернуть 422 с перечнем неизвестных кодов в `errors`.
 6. IF присланное название или описание нарушает ограничения длины, THEN PATCH /{club_id} MUST вернуть 422; IF режим приватности неизвестен, THEN 422.
@@ -68,10 +75,14 @@ HTTP-контракт домена bookclubs (@app/bookclubs/router.py): клу�
 13. IF роль назначается владельцу клуба, THEN PUT /role MUST вернуть 422; IF присланная роль не `moderator` и не `member` - 422; IF адресат не состоит в клубе - 404.
 14. IF модератор исключает модератора, THEN DELETE /members/{user_id} MUST вернуть 403; IF исключается владелец или владелец выходит через DELETE /leave, THEN 403 с указанием передать клуб.
 15. IF новый владелец не состоит в клубе, THEN POST /transfer MUST вернуть 422.
-16. IF у клуба уже есть незакрытый заход, THEN POST /{club_id}/readings MUST вернуть 409; IF заход уже закрыт, THEN POST /finish MUST вернуть 409.
-17. IF дедлайн раньше старта, дата этапа выходит за интервал захода, даты или страницы этапов не растут строго, THEN POST /{club_id}/readings MUST вернуть 422.
+16. IF у клуба уже есть незакрытый заход, THEN POST /{club_id}/readings и POST /{club_id}/nominations/close MUST вернуть 409; IF заход уже закрыт, THEN POST /finish MUST вернуть 409.
+17. IF дедлайн раньше старта, дата этапа выходит за интервал захода, даты или страницы этапов не растут строго, THEN POST /{club_id}/readings и POST /{club_id}/nominations/close MUST вернуть 422.
 18. IF у клуба нет незакрытого захода, THEN GET /{club_id}/readings/current MUST вернуть 404.
 19. IF прогресс отмечает не участник клуба, THEN PUT /progress MUST вернуть 403; IF заход закрыт - 409; IF этап принадлежит другому заходу - 404; IF не передан ни этап, ни страница - 422.
+20. IF номинирует или голосует не участник клуба, THEN POST /{club_id}/nominations и POST /vote MUST вернуть 403.
+21. IF книга уже номинирована в клубе или список кандидатов полон, THEN POST /{club_id}/nominations MUST вернуть 409; IF тома с таким идентификатором нет - 404.
+22. IF в клубе нет ни одной номинации, THEN POST /{club_id}/nominations/close MUST вернуть 409.
+23. IF номинация не найдена - в том числе если голосование закрыли, пока клиент голосовал, - THEN ручки голоса MUST вернуть 404, а не ошибку сервера; IF голоса за неё не было, THEN DELETE /vote MUST вернуть 409.
 
 ## Conformance
-Реализация конформна, когда выполняет поведения 1-25 и правила отказов 1-19; коды задекларированы в `responses` роутов, проверяются тестами tests/bookclubs/ и tests/readings/.
+Реализация конформна, когда выполняет поведения 1-30 и правила отказов 1-23; коды задекларированы в `responses` роутов, проверяются тестами tests/bookclubs/, tests/readings/ и tests/nominations/.
