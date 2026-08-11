@@ -76,6 +76,23 @@ class TestClubJoinRequests:
         assert repeated.json()["data"]["status"] == "pending"
         assert api.join_requests(club_id, headers=owner.headers).json()["data"]["total"] == 1
 
+    def test_reapplied_request_goes_to_the_back_of_the_queue(self, api):
+        owner = AuthFlow.register(api)
+        club_id = _club_by_request(api, owner)
+        first = AuthFlow.register(api)
+        second = AuthFlow.register(api)
+        first_id = api.request_join(club_id, headers=first.headers).json()["data"]["id"]
+        api.reject_join_request(club_id, first_id, headers=owner.headers)
+        api.request_join(club_id, headers=second.headers)
+
+        # Повторная заявка отказника - новая заявка: она должна встать за тем,
+        # кто ждёт с прошлого раза, а не вперёд него по старому id.
+        reapplied = api.request_join(club_id, headers=first.headers).json()["data"]
+
+        queue = api.join_requests(club_id, headers=owner.headers).json()["data"]["items"]
+        assert [item["user"]["id"] for item in queue] == [second.user_id, first.user_id]
+        assert reapplied["created_at"] >= queue[0]["created_at"]
+
     def test_request_resolved_twice_conflicts(self, api):
         owner = AuthFlow.register(api)
         club_id = _club_by_request(api, owner)

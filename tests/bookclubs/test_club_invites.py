@@ -104,6 +104,29 @@ class TestClubInvites:
         assert_status_code(api.join_by_invite(code, headers=guest.headers), 200)
         assert_status_code(api.join_by_invite(code, headers=guest.headers), 409)
 
+    def test_new_invite_revokes_the_previous_one(self, api):
+        owner = AuthFlow.register(api)
+        club_id = _closed_club(api, owner)
+        leaked = api.create_invite(club_id, headers=owner.headers).json()["data"]["code"]
+
+        fresh = api.create_invite(club_id, headers=owner.headers).json()["data"]["code"]
+
+        guest = AuthFlow.register(api)
+        assert_status_code(api.join_by_invite(leaked, headers=guest.headers), 404)
+        assert_status_code(api.join_by_invite(fresh, headers=guest.headers), 200)
+
+    def test_removed_member_stays_out_after_invite_rotation(self, api):
+        owner = AuthFlow.register(api)
+        club_id = _closed_club(api, owner)
+        code = api.create_invite(club_id, headers=owner.headers).json()["data"]["code"]
+        member = AuthFlow.register(api)
+        assert_status_code(api.join_by_invite(code, headers=member.headers), 200)
+
+        assert_status_code(api.remove_member(club_id, member.user_id, headers=owner.headers), 200)
+        api.create_invite(club_id, headers=owner.headers)
+
+        assert_status_code(api.join_by_invite(code, headers=member.headers), 404)
+
     def test_invite_dies_with_its_club(self, api):
         owner = AuthFlow.register(api)
         club_id = _closed_club(api, owner)

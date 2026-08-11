@@ -40,6 +40,8 @@ _CLOSED_CLUB_MESSAGES = {
     ClubPrivacy.by_request.value: "В этот клуб можно вступить только по заявке",
     ClubPrivacy.by_invite.value: "В этот клуб можно вступить только по приглашению",
 }
+# Владелец всегда в составе клуба: и выход, и исключение упираются в один запрет.
+_OWNER_STAYS_MESSAGE = "Владелец не может покинуть клуб - сначала передайте клуб"
 
 
 async def _progress_summaries(
@@ -285,10 +287,16 @@ class BookClubService:
         return ResponseModel.ok(await self._to_response(db_club))
 
     async def leave(self, user: Principal, club_id: int) -> ResponseModel[BookClubResponse]:
-        db_club: BookClub = await self.book_club_repository.remove_member(club_id, user.id)
-        club = await self._to_response(db_club)
+        club = await self.book_club_repository.get_book_club(club_id)
+        # Тот же запрет, что и на исключение владельца: иначе клубом правил бы
+        # тот, кого нет в составе, а роль владельца выводится из владения и
+        # осталась бы при нём.
+        if club.owner_id is not None and user.id == club.owner_id:
+            raise Forbidden(_OWNER_STAYS_MESSAGE)
 
-        return ResponseModel.ok(club)
+        db_club: BookClub = await self.book_club_repository.remove_member(club_id, user.id)
+
+        return ResponseModel.ok(await self._to_response(db_club))
 
     # Роль пользователя в клубе, либо None - он не участник. Владелец в
     # club_members.role не хранится, его роль выводится из owner_id клуба.
@@ -439,7 +447,7 @@ class BookClubService:
         target_role = await self._role_of(club, user_id)
 
         if target_role is ClubRole.owner:
-            raise Forbidden("Владельца клуба нельзя исключить - сначала передайте клуб")
+            raise Forbidden(_OWNER_STAYS_MESSAGE)
 
         if actor_role is ClubRole.moderator and target_role is ClubRole.moderator:
             raise Forbidden("Модератор не может исключить другого модератора")

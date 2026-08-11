@@ -391,6 +391,11 @@ class BookClubRepository:
         return await self.get_book_club(club_id=club_id)
 
     async def create_invite(self, club_id: int, created_by: int, expires_at: datetime | None) -> ClubInvite:
+        # У клуба действует один код: новый гасит прежние. Это и есть отзыв -
+        # иначе исключённый участник возвращался бы по коду, который у него уже
+        # на руках, а отобрать код было бы нечем.
+        await self.db.execute(delete(ClubInvite).where(ClubInvite.club_id == club_id))
+
         invite = ClubInvite(
             club_id=club_id, code=secrets.token_urlsafe(16), created_by=created_by, expires_at=expires_at
         )
@@ -420,7 +425,14 @@ class BookClubRepository:
         await self.db.execute(
             statement.on_conflict_do_update(
                 constraint="uq_club_join_requests_club_id_user_id",
-                set_={"status": statement.excluded.status, "updated_at": func.now()},
+                # created_at переписываем вместе со статусом: строка та же, но
+                # заявка новая, и в очереди она должна стоять по времени подачи,
+                # а не по времени первой попытки полугодовой давности.
+                set_={
+                    "status": statement.excluded.status,
+                    "created_at": func.now(),
+                    "updated_at": func.now(),
+                },
             )
         )
         await self.db.flush()
@@ -457,7 +469,10 @@ class BookClubRepository:
         result = await self.db.execute(
             select(ClubJoinRequest)
             .where(*conditions)
-            .order_by(ClubJoinRequest.id)
+            # Очередь по времени подачи: id повторно поданной заявки остаётся
+            # старым, сортировка по нему поставила бы её впереди тех, кто ждёт
+            # дольше. id - тай-брейк при равном времени.
+            .order_by(ClubJoinRequest.created_at, ClubJoinRequest.id)
             .limit(limit)
             .offset(offset)
         )

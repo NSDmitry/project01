@@ -113,7 +113,17 @@ class TestClubMemberRemoval:
         response = api.remove_member(club_id, owner.user_id, headers=moderator.headers)
 
         assert_status_code(response, 403)
-        assert response.json()["message"] == "Владельца клуба нельзя исключить - сначала передайте клуб"
+        assert response.json()["message"] == "Владелец не может покинуть клуб - сначала передайте клуб"
+
+    def test_owner_leaves_only_after_transfer(self, api):
+        owner = AuthFlow.register(api)
+        club_id = BookclubFlow.create(api, auth=owner).json()["data"]["id"]
+        member = MemberFlow.join(api, club_id)
+
+        assert_status_code(api.leave_bookclub(club_id, headers=owner.headers), 403)
+
+        api.transfer_bookclub(club_id, member.user_id, headers=owner.headers)
+        assert_status_code(api.leave_bookclub(club_id, headers=owner.headers), 200)
 
     def test_plain_member_cannot_remove_anyone(self, api):
         owner = AuthFlow.register(api)
