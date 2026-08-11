@@ -199,10 +199,13 @@ class BookClubService:
     async def set_genres(
         self, owner: Principal, club_id: int, model: UpdateBookClubGenresRequest
     ) -> ResponseModel[BookClubResponse]:
+        club = await self.book_club_repository.get_book_club(club_id)
+        require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
+
         genres = await self._resolve_genres(model.genres)
 
         db_book_club: BookClub = await self.book_club_repository.set_genres(
-            owner, club_id, [genre.id for genre in genres]
+            club, [genre.id for genre in genres]
         )
 
         return ResponseModel.ok(await self._to_response(db_book_club))
@@ -213,7 +216,10 @@ class BookClubService:
             club_id: int,
             model: UpdateBookClubRequest
     ) -> ResponseModel[BookClubResponse]:
-        club = await self.book_club_repository.update_book_club(owner, club_id, model)
+        club = await self.book_club_repository.get_book_club(club_id)
+        require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
+
+        club = await self.book_club_repository.update_book_club(club, model)
         return ResponseModel.ok(await self._to_response(club))
 
     async def update_cover(
@@ -313,9 +319,12 @@ class BookClubService:
         return ResponseModel.ok(page)
 
     async def delete_book_club(self, owner: Principal, book_club_id: int) -> ResponseModel:
+        club = await self.book_club_repository.get_book_club(book_club_id)
+        require_permission(owner, club.owner_id, message="Пользователь не является владельцем книжного клуба")
+
         # Треды клуба уносит каскад БД (threads.club_id ON DELETE CASCADE) в той же
         # транзакции.
-        cover_key = await self.book_club_repository.delete_book_club(owner, book_club_id)
+        cover_key = await self.book_club_repository.delete_book_club(club)
         # Обложка живёт вне БД, каскад её не уносит.
         await media.delete_image(cover_key)
 

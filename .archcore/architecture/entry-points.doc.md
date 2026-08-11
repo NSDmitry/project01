@@ -26,7 +26,6 @@ HTTP-сервер: `uvicorn app.main:app` (Dockerfile CMD, `./run.sh`). 59 ро�
 ### Прочее
 - @app/main.py - HTTP. GET /metrics (Authorization: Bearer METRICS_TOKEN).
 - @app/main.py - HTTP. GET /media/{key} - раздача загруженных картинок из приватного бакета, без авторизации (@.archcore/architecture/core-media.spec.md).
-- @app/core/events.py - Worker. RabbitMQ consumer: одна очередь на домен, диспетчеризация по routing_key; старт в lifespan.
 - docker-compose `cleanup` - Cron. Ежедневно 03:00 `python -m app.iam.tasks`.
 - docker-compose `migrate` - Other. `alembic upgrade head` перед стартом app.
 - docker-compose `minio-init` - Other. Создание бакета картинок перед стартом app.

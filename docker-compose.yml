@@ -33,27 +33,6 @@ services:
       timeout: 5s
       retries: 5
 
-  rabbitmq:
-    image: rabbitmq:4-alpine
-    container_name: project1_rabbitmq
-    restart: always
-    # Дефолтный guest/guest в RabbitMQ работает только с localhost самого брокера -
-    # из контейнера app не подойдёт, поэтому своя учётка из .env.
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?set RABBITMQ_USER in .env}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
-    # Только loopback - как db и redis: наружу не торчит, локальный запуск на
-    # хосте (run.sh) ходит через проброшенный порт.
-    ports:
-      - "127.0.0.1:5672:5672"
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-
   minio:
     image: minio/minio
     container_name: project1_minio
@@ -108,8 +87,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
       minio-init:
@@ -162,7 +139,6 @@ services:
 
 volumes:
   postgres_data:
-  rabbitmq_data:
   minio_data:
   caddy_data:
   caddy_config:

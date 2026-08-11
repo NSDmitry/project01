@@ -20,9 +20,9 @@ def get_reading_repository(db: AsyncSession = Depends(get_db)) -> ReadingReposit
     return ReadingRepository(db)
 
 
-# Соседние домены подставляем их репозиториями (реализуют порты клубов). После
-# распила здесь окажутся HTTP-клиенты. threads больше нет: счётчик тредов клуб
-# ведёт сам по событиям, обратной зависимости на домен тредов не осталось.
+# Соседние домены подставляем их репозиториями напрямую - кросс-доменное
+# взаимодействие идёт прямыми вызовами. Зависимости на домен тредов нет:
+# счётчик тредов клубу правит сам домен тредов вызовом change_threads_count.
 def get_book_club_service(
         book_club_repository: BookClubRepository = Depends(get_club_repository),
         reading_repository: ReadingRepository = Depends(get_reading_repository),
