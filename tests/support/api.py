@@ -117,6 +117,46 @@ class ApiClient:
     def leave_bookclub(self, club_id: int, headers: dict[str, str] | None = None):
         return self._client.delete(f"/api/bookclubs/{club_id}/leave", headers=headers)
 
+    def create_invite(self, club_id: int, payload: dict[str, Any] | None = None, headers: dict[str, str] | None = None):
+        return self._client.post(f"/api/bookclubs/{club_id}/invites", json=payload, headers=headers)
+
+    def join_by_invite(self, code: str, headers: dict[str, str] | None = None):
+        return self._client.post("/api/bookclubs/join-by-invite", json={"code": code}, headers=headers)
+
+    def request_join(self, club_id: int, headers: dict[str, str] | None = None):
+        return self._client.post(f"/api/bookclubs/{club_id}/requests", headers=headers)
+
+    def join_requests(
+        self,
+        club_id: int,
+        headers: dict[str, str] | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        return self._client.get(f"/api/bookclubs/{club_id}/requests", params=params, headers=headers)
+
+    def approve_join_request(self, club_id: int, request_id: int, headers: dict[str, str] | None = None):
+        return self._client.post(
+            f"/api/bookclubs/{club_id}/requests/{request_id}/approve", headers=headers
+        )
+
+    def reject_join_request(self, club_id: int, request_id: int, headers: dict[str, str] | None = None):
+        return self._client.post(
+            f"/api/bookclubs/{club_id}/requests/{request_id}/reject", headers=headers
+        )
+
+    def set_member_role(self, club_id: int, user_id: int, role: str, headers: dict[str, str] | None = None):
+        return self._client.put(
+            f"/api/bookclubs/{club_id}/members/{user_id}/role", json={"role": role}, headers=headers
+        )
+
+    def remove_member(self, club_id: int, user_id: int, headers: dict[str, str] | None = None):
+        return self._client.delete(f"/api/bookclubs/{club_id}/members/{user_id}", headers=headers)
+
+    def transfer_bookclub(self, club_id: int, user_id: int, headers: dict[str, str] | None = None):
+        return self._client.post(
+            f"/api/bookclubs/{club_id}/transfer", json={"user_id": user_id}, headers=headers
+        )
+
     def set_bookclub_genres(self, club_id: int, payload: dict[str, Any], headers: dict[str, str] | None = None):
         return self._client.put(f"/api/bookclubs/{club_id}/genres", json=payload, headers=headers)
 

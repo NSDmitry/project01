@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     Computed,
     Date,
     DateTime,
@@ -25,6 +26,7 @@ class ClubMember(Base):
         # PK (club_id, user_id) обслуживает выборку по club_id (префикс), но не
         # по одному user_id: «мои клубы» и удаление пользователя.
         Index("ix_club_members_user_id", "user_id"),
+        CheckConstraint("role IN ('member', 'moderator')", name="ck_club_members_role"),
     )
 
     club_id: Mapped[int] = mapped_column(
@@ -32,6 +34,10 @@ class ClubMember(Base):
     )
     # id пользователя из iam - без FK, домены связаны только идентификатором
     user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    # Владельца здесь нет: он хранится в book_clubs.owner_id, и дублировать его
+    # ролью значило бы завести второй источник правды, который может разъехаться.
+    # Роль владельца в ответах выводится из owner_id.
+    role: Mapped[str] = mapped_column(String, nullable=False, server_default="member")
 
 
 class BookClubGenre(Base):
@@ -56,10 +62,17 @@ class BookClub(Base, DBLBase):
         Index("ix_book_clubs_owner_id", "owner_id"),
         # Полнотекстовый поиск по клубам идёт по search_vector.
         Index("ix_book_clubs_search_vector", "search_vector", postgresql_using="gin"),
+        CheckConstraint(
+            "privacy IN ('public', 'by_request', 'by_invite')", name="ck_book_clubs_privacy"
+        ),
     )
 
     name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     description: Mapped[str] = mapped_column(String, nullable=False)
+    # Как попасть в клуб: свободно, по одобренной заявке или по коду приглашения.
+    # На видимость клуба в каталоге и поиске не влияет - иначе клуб «по заявке»
+    # нельзя было бы найти, чтобы подать заявку.
+    privacy: Mapped[str] = mapped_column(String, nullable=False, server_default="public")
     # id пользователя из iam - без FK, обнуляется кодом при удалении владельца
     owner_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     # Денормализованный счётчик тредов клуба. Треды - в другом домене (без FK),
@@ -83,6 +96,50 @@ class BookClub(Base, DBLBase):
         ),
         deferred=True,
     )
+
+
+class ClubInvite(Base, DBLBase):
+    """Код-приглашение в клуб: по нему вступают, минуя режим приватности."""
+    __tablename__ = "club_invites"
+    __table_args__ = (
+        # FK не создаёт индекс на дочерней стороне: без него удаление клуба
+        # сканирует таблицу приглашений целиком.
+        Index("ix_club_invites_club_id", "club_id"),
+    )
+
+    club_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False
+    )
+    code: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    # id пользователя из iam - без FK, домены связаны только идентификатором.
+    # Уход создателя приглашение не отзывает: код выдан от имени клуба.
+    created_by: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # NULL - код бессрочный. Иначе утёкшая ссылка живёт вечно, а закрытый клуб
+    # перестаёт быть закрытым.
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ClubJoinRequest(Base, DBLBase):
+    """Заявка на вступление в клуб с режимом «по заявке»."""
+    __tablename__ = "club_join_requests"
+    __table_args__ = (
+        # Одна заявка на пару (клуб, пользователь): повторная подача переписывает
+        # её статус, а не плодит строки. Ключ обслуживает и очередь заявок клуба
+        # (club_id - префикс).
+        UniqueConstraint("club_id", "user_id", name="uq_club_join_requests_club_id_user_id"),
+        # Заявки удалённого пользователя чистятся по user_id.
+        Index("ix_club_join_requests_user_id", "user_id"),
+        CheckConstraint(
+            "status IN ('pending', 'approved', 'rejected')", name="ck_club_join_requests_status"
+        ),
+    )
+
+    club_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("book_clubs.id", ondelete="CASCADE"), nullable=False
+    )
+    # id пользователя из iam - без FK, домены связаны только идентификатором
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, server_default="pending")
 
 
 class Reading(Base, DBLBase):

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 from datetime import date, datetime
@@ -14,14 +14,46 @@ class BookClubRelation(str, Enum):
     owner = "owner"
     member = "member"
 
+class ClubPrivacy(str, Enum):
+    """Как попасть в клуб: свободно, по заявке или по коду приглашения."""
+    public = "public"
+    by_request = "by_request"
+    by_invite = "by_invite"
+
+class ClubRole(str, Enum):
+    owner = "owner"
+    moderator = "moderator"
+    member = "member"
+
+class JoinRequestStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
 class CreateBookClubRequest(BaseModel):
     name: str = Field(min_length=3, max_length=100)
     description: str = Field(min_length=3, max_length=500)
     genres: list[str] = Field(max_length=5)
+    privacy: ClubPrivacy = ClubPrivacy.public
 
 class UpdateBookClubRequest(BaseModel):
     name: Optional[str] = Field(default=None, min_length=3, max_length=100)
     description: Optional[str] = Field(default=None, min_length=3, max_length=500)
+    privacy: Optional[ClubPrivacy] = None
+
+class CreateInviteRequest(BaseModel):
+    # None - код бессрочный.
+    expires_in_days: Optional[int] = Field(default=None, ge=1, le=365)
+
+class JoinByInviteRequest(BaseModel):
+    code: str = Field(min_length=1, max_length=64)
+
+class UpdateMemberRoleRequest(BaseModel):
+    # Владение передаётся отдельной операцией - роль владельца здесь не назначается.
+    role: Literal[ClubRole.moderator, ClubRole.member]
+
+class TransferOwnershipRequest(BaseModel):
+    user_id: int = Field(ge=1)
 
 class UpdateBookClubGenresRequest(BaseModel):
     genres: list[str] = Field(max_length=5)
@@ -131,6 +163,24 @@ class ReadingProgressResponse(ResponseSchema):
     on_track: bool = False
     updated_at: datetime
 
+class ClubMemberResponse(UserSummary):
+    """Участник клуба - сводка пользователя плюс его роль в этом клубе."""
+    role: ClubRole = ClubRole.member
+
+class InviteResponse(ResponseSchema):
+    club_id: int
+    code: str
+    # None - код бессрочный.
+    expires_at: Optional[datetime] = None
+
+class JoinRequestResponse(ResponseSchema):
+    id: int
+    club_id: int
+    # None - пользователь удалил аккаунт, пока заявка ждала решения.
+    user: Optional[UserSummary] = None
+    status: JoinRequestStatus
+    created_at: datetime
+
 class NominationResponse(ResponseSchema):
     id: int
     club_id: int
@@ -143,6 +193,7 @@ class BookClubResponse(ResponseSchema):
     id: int
     name: str
     description: str
+    privacy: ClubPrivacy = ClubPrivacy.public
     created_at: datetime
     owner: Optional[UserSummary] = None
     members_count: int = 0

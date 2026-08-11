@@ -1,21 +1,31 @@
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
 
-from app.bookclubs.models import BookClub, BookNomination, Reading, ReadingStage
+from app.bookclubs.models import BookClub, BookNomination, ClubJoinRequest, Reading, ReadingStage
 from app.bookclubs.repository import BookClubRepository, NominationRepository, ReadingRepository
 from app.bookclubs.schemas import (
+    ClubMemberResponse,
+    ClubPrivacy,
+    ClubRole,
     CreateBookClubRequest,
+    CreateInviteRequest,
     CreateNominationRequest,
     CreateReadingRequest,
     CurrentReadingResponse,
     CurrentReadingSummary,
+    InviteResponse,
+    JoinByInviteRequest,
+    JoinRequestResponse,
+    JoinRequestStatus,
     NominationResponse,
     ReadingProgressResponse,
     ReadingProgressSummary,
     ReadingResponse,
     ReadingScheduleRequest,
     ReadingStageResponse,
+    TransferOwnershipRequest,
     UpdateBookClubGenresRequest,
+    UpdateMemberRoleRequest,
     SearchBookClubsRequest,
     UpdateBookClubRequest,
     UpdateReadingProgressRequest,
@@ -28,6 +38,13 @@ from app.core.contracts import BookResponse, GenreResponse, Principal, UserSumma
 from app.core.errors.errors import Conflict, Forbidden, NotFound, UnprocessableEntity
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
+
+_CLOSED_CLUB_MESSAGES = {
+    ClubPrivacy.by_request.value: "В этот клуб можно вступить только по заявке",
+    ClubPrivacy.by_invite.value: "В этот клуб можно вступить только по приглашению",
+}
+# Владелец всегда в составе клуба: и выход, и исключение упираются в один запрет.
+_OWNER_STAYS_MESSAGE = "Владелец не может покинуть клуб - сначала передайте клуб"
 
 
 async def _progress_summaries(
@@ -250,12 +267,21 @@ class BookClubService:
 
         return ResponseModel.ok(await self._to_response(db_club))
 
-    async def get_members(self, club_id: int, limit: int, offset: int) -> ResponseModel[Page[UserSummary]]:
+    async def get_members(self, club_id: int, limit: int, offset: int) -> ResponseModel[Page[ClubMemberResponse]]:
         club = await self.book_club_repository.get_book_club(club_id)
-        user_ids = await self.book_club_repository.get_members(club_id, limit=limit, offset=offset)
+        members = await self.book_club_repository.get_members(club_id, limit=limit, offset=offset)
+
+        roles = {member.user_id: ClubRole(member.role) for member in members}
+        summaries = await self.user_repository.get_summaries_by_ids(list(roles))
 
         page = Page(
-            items=await self.user_repository.get_summaries_by_ids(user_ids),
+            items=[
+                ClubMemberResponse(
+                    **summary.model_dump(),
+                    role=ClubRole.owner if summary.id == club.owner_id else roles[summary.id],
+                )
+                for summary in summaries
+            ],
             total=club.members_count,
             limit=limit,
             offset=offset,
@@ -272,16 +298,194 @@ class BookClubService:
         return ResponseModel.ok(message="Книжный клуб успешно удален")
 
     async def join(self, user: Principal, club_id: int) -> ResponseModel[BookClubResponse]:
-        db_club: BookClub = await self.book_club_repository.join_book_club(user=user, club_id=club_id)
-        club = await self._to_response(db_club)
+        club = await self.book_club_repository.get_book_club(club_id)
 
-        return ResponseModel.ok(club)
+        if club.privacy != ClubPrivacy.public.value:
+            raise Forbidden(_CLOSED_CLUB_MESSAGES[club.privacy])
+
+        db_club: BookClub = await self.book_club_repository.add_member(club_id, user.id)
+
+        return ResponseModel.ok(await self._to_response(db_club))
 
     async def leave(self, user: Principal, club_id: int) -> ResponseModel[BookClubResponse]:
-        db_club: BookClub = await self.book_club_repository.remove_member(user, club_id)
-        club = await self._to_response(db_club)
+        club = await self.book_club_repository.get_book_club(club_id)
+        # Тот же запрет, что и на исключение владельца: иначе клубом правил бы
+        # тот, кого нет в составе, а роль владельца выводится из владения и
+        # осталась бы при нём.
+        if club.owner_id is not None and user.id == club.owner_id:
+            raise Forbidden(_OWNER_STAYS_MESSAGE)
 
-        return ResponseModel.ok(club)
+        db_club: BookClub = await self.book_club_repository.remove_member(club_id, user.id)
+
+        return ResponseModel.ok(await self._to_response(db_club))
+
+    # Роль пользователя в клубе, либо None - он не участник. Владелец в
+    # club_members.role не хранится, его роль выводится из owner_id клуба.
+    async def _role_of(self, club: BookClub, user_id: int) -> Optional[ClubRole]:
+        if club.owner_id is not None and user_id == club.owner_id:
+            return ClubRole.owner
+
+        role = await self.book_club_repository.get_role(club.id, user_id)
+
+        return ClubRole(role) if role is not None else None
+
+    async def _require_manager(self, club: BookClub, user: Principal, message: str) -> ClubRole:
+        """Пропускает владельца, модератора и админа; возвращает роль действующего."""
+        if user.is_admin:
+            return ClubRole.owner
+
+        role = await self._role_of(club, user.id)
+        if role not in (ClubRole.owner, ClubRole.moderator):
+            raise Forbidden(message)
+
+        return role
+
+    async def create_invite(
+        self, user: Principal, club_id: int, model: CreateInviteRequest
+    ) -> ResponseModel[InviteResponse]:
+        club = await self.book_club_repository.get_book_club(club_id)
+        await self._require_manager(club, user, "Создавать приглашения может владелец или модератор клуба")
+
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(days=model.expires_in_days)
+            if model.expires_in_days is not None
+            else None
+        )
+        invite = await self.book_club_repository.create_invite(club_id, user.id, expires_at)
+
+        return ResponseModel.ok(InviteResponse.model_validate(invite))
+
+    async def join_by_invite(
+        self, user: Principal, model: JoinByInviteRequest
+    ) -> ResponseModel[BookClubResponse]:
+        invite = await self.book_club_repository.get_invite(model.code)
+
+        if invite.expires_at is not None and invite.expires_at <= datetime.now(timezone.utc):
+            raise Forbidden("Срок действия приглашения истёк")
+
+        # Приглашение - и есть разрешение войти: режим приватности клуба тут не
+        # проверяется, иначе код был бы бесполезен именно там, где он нужен.
+        db_club: BookClub = await self.book_club_repository.add_member(invite.club_id, user.id)
+
+        return ResponseModel.ok(await self._to_response(db_club))
+
+    async def request_join(self, user: Principal, club_id: int) -> ResponseModel[JoinRequestResponse]:
+        club = await self.book_club_repository.get_book_club(club_id)
+
+        if club.privacy != ClubPrivacy.by_request.value:
+            raise Conflict(errors=["Этот клуб не принимает заявки на вступление"])
+
+        if await self.book_club_repository.is_member(club_id, user.id):
+            raise Conflict(errors=["Пользователь уже является участником клуба"])
+
+        join_request = await self.book_club_repository.upsert_join_request(club_id, user.id)
+
+        return ResponseModel.ok((await self._to_request_responses([join_request]))[0])
+
+    async def get_join_requests(
+        self, user: Principal, club_id: int, limit: int, offset: int
+    ) -> ResponseModel[Page[JoinRequestResponse]]:
+        club = await self.book_club_repository.get_book_club(club_id)
+        await self._require_manager(club, user, "Смотреть заявки может владелец или модератор клуба")
+
+        requests, total = await self.book_club_repository.get_pending_join_requests(
+            club_id, limit=limit, offset=offset
+        )
+
+        page = Page(
+            items=await self._to_request_responses(requests),
+            total=total,
+            limit=limit,
+            offset=offset,
+        )
+
+        return ResponseModel.ok(page)
+
+    # Заявители - из iam, поэтому подтягиваем их батчем на всю страницу, как
+    # владельцев клубов.
+    async def _to_request_responses(self, requests: List[ClubJoinRequest]) -> List[JoinRequestResponse]:
+        summaries = await self.user_repository.get_summaries_by_ids(
+            list({request.user_id for request in requests})
+        )
+        users = {summary.id: summary for summary in summaries}
+
+        return [
+            JoinRequestResponse(
+                id=request.id,
+                club_id=request.club_id,
+                user=users.get(request.user_id),
+                status=JoinRequestStatus(request.status),
+                created_at=request.created_at,
+            )
+            for request in requests
+        ]
+
+    async def resolve_join_request(
+        self, user: Principal, club_id: int, request_id: int, status: JoinRequestStatus
+    ) -> ResponseModel[JoinRequestResponse]:
+        club = await self.book_club_repository.get_book_club(club_id)
+        await self._require_manager(club, user, "Рассматривать заявки может владелец или модератор клуба")
+
+        join_request = await self.book_club_repository.get_join_request(request_id)
+        # Заявка адресуется парой (клуб, id): чужой id из другого клуба - не «нет
+        # прав», а несуществующая в этом клубе заявка.
+        if join_request.club_id != club_id:
+            raise NotFound("Заявка с таким id не найдена")
+
+        join_request = await self.book_club_repository.resolve_join_request(join_request, status)
+
+        # Заявитель мог войти по приглашению, пока заявка ждала решения - тогда
+        # повторное добавление упало бы конфликтом и откатило рассмотрение.
+        if status is JoinRequestStatus.approved and not await self.book_club_repository.is_member(
+            club_id, join_request.user_id
+        ):
+            await self.book_club_repository.add_member(club_id, join_request.user_id)
+
+        return ResponseModel.ok((await self._to_request_responses([join_request]))[0])
+
+    async def set_member_role(
+        self, user: Principal, club_id: int, user_id: int, model: UpdateMemberRoleRequest
+    ) -> ResponseModel:
+        club = await self.book_club_repository.get_book_club(club_id)
+        # Модератора назначает только владелец: иначе модератор наплодит себе равных.
+        require_permission(user, club.owner_id, message="Назначать роли может только владелец клуба")
+
+        if user_id == club.owner_id:
+            raise UnprocessableEntity(
+                message="Роль владельца меняется передачей клуба",
+                errors=["field: user_id, message: это владелец клуба"],
+            )
+
+        await self.book_club_repository.set_role(club_id, user_id, model.role.value)
+
+        return ResponseModel.ok(message="Роль участника обновлена")
+
+    async def remove_member(self, user: Principal, club_id: int, user_id: int) -> ResponseModel[BookClubResponse]:
+        club = await self.book_club_repository.get_book_club(club_id)
+        actor_role = await self._require_manager(
+            club, user, "Исключать участников может владелец или модератор клуба"
+        )
+        target_role = await self._role_of(club, user_id)
+
+        if target_role is ClubRole.owner:
+            raise Forbidden(_OWNER_STAYS_MESSAGE)
+
+        if actor_role is ClubRole.moderator and target_role is ClubRole.moderator:
+            raise Forbidden("Модератор не может исключить другого модератора")
+
+        db_club: BookClub = await self.book_club_repository.remove_member(club_id, user_id)
+
+        return ResponseModel.ok(await self._to_response(db_club))
+
+    async def transfer_ownership(
+        self, user: Principal, club_id: int, model: TransferOwnershipRequest
+    ) -> ResponseModel[BookClubResponse]:
+        club = await self.book_club_repository.get_book_club(club_id)
+        require_permission(user, club.owner_id, message="Передавать клуб может только его владелец")
+
+        db_club: BookClub = await self.book_club_repository.transfer_ownership(club, model.user_id)
+
+        return ResponseModel.ok(await self._to_response(db_club))
 
 
 class ReadingService:

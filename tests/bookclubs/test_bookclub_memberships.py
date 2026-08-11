@@ -60,15 +60,17 @@ class TestBookclubMemberships:
 
         assert_status_code(api.leave_bookclub(created.json()["data"]["id"], headers=outsider.headers), 409)
 
-    def test_owner_can_leave_bookclub(self, api):
+    def test_owner_cannot_leave_bookclub(self, api):
         auth = AuthFlow.register(api)
         created = BookclubFlow.create(api, auth=auth)
         club_id = created.json()["data"]["id"]
 
-        assert_status_code(api.leave_bookclub(club_id, headers=auth.headers), 200)
+        response = api.leave_bookclub(club_id, headers=auth.headers)
 
+        assert_status_code(response, 403)
+        assert response.json()["message"] == "Владелец не может покинуть клуб - сначала передайте клуб"
         members = api.bookclub_members(club_id, headers=auth.headers)
-        assert auth.user_id not in [m["id"] for m in members.json()["data"]["items"]]
+        assert auth.user_id in [m["id"] for m in members.json()["data"]["items"]]
 
     def test_members_are_paginated_with_summary(self, api):
         owner = AuthFlow.register(api)
@@ -82,7 +84,7 @@ class TestBookclubMemberships:
         assert_status_code(page, 200)
         assert data["total"] == 2
         assert len(data["items"]) == 1
-        assert set(data["items"][0].keys()) == {"id", "name"}
+        assert set(data["items"][0].keys()) == {"id", "name", "role"}
 
     def test_join_bookclub_requires_authorization(self, api):
         created = BookclubFlow.create(api)

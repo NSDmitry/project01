@@ -2,22 +2,31 @@ from fastapi import APIRouter, Depends, Query
 
 from app.bookclubs.deps import get_book_club_service, get_nomination_service, get_reading_service
 from app.bookclubs.schemas import (
+    ClubMemberResponse,
     CreateBookClubRequest,
+    CreateInviteRequest,
     CreateNominationRequest,
     CreateReadingRequest,
     CurrentReadingResponse,
+    InviteResponse,
+    JoinByInviteRequest,
+    JoinRequestResponse,
+    JoinRequestStatus,
     NominationResponse,
     ReadingProgressResponse,
     ReadingResponse,
     ReadingScheduleRequest,
+    TransferOwnershipRequest,
     UpdateBookClubGenresRequest,
     UpdateBookClubRequest,
+    UpdateMemberRoleRequest,
     UpdateReadingProgressRequest,
     SearchBookClubsRequest,
     BookClubResponse,
 )
 from app.bookclubs.service import BookClubService, NominationService, ReadingService
-from app.core.contracts import Principal, UserSummary
+# UserSummary больше не нужен: список участников отдаёт ClubMemberResponse - с ролью.
+from app.core.contracts import Principal
 from app.core.models.page_model import Page
 from app.core.models.response_model import ResponseModel
 from app.core.params import PageOffset, PathId
@@ -139,9 +148,10 @@ async def get_book_club(
 
 @router.get(
     "/{club_id}/members",
-    response_model=ResponseModel[Page[UserSummary]],
+    response_model=ResponseModel[Page[ClubMemberResponse]],
     summary="Получение участников книжного клуба (постранично)",
     description=(
+            "Участники клуба с их ролью: `owner`, `moderator` или `member`.\n\n"
             "**Требуется авторизация** с заголовком:\n"
             "`X-Session-Id: <session_id>`\n\n"
     ),
@@ -158,7 +168,7 @@ async def get_book_club_members(
         offset: PageOffset = 0,
         _: Principal = Depends(get_current_user),
         service: BookClubService = Depends(get_book_club_service)
-) -> ResponseModel[Page[UserSummary]]:
+) -> ResponseModel[Page[ClubMemberResponse]]:
     return await service.get_members(club_id, limit=limit, offset=offset)
 
 
@@ -190,12 +200,17 @@ async def delete_book_club(
     response_model=ResponseModel[BookClubResponse],
     summary="Вступить в книжный клуб",
     description=(
+            "Доступно только для клубов с режимом `public`. Клуб `by_request` "
+            "принимает через заявку (`POST /api/bookclubs/{club_id}/requests`), "
+            "клуб `by_invite` - по коду приглашения "
+            "(`POST /api/bookclubs/join-by-invite`).\n\n"
             "**Требуется авторизация** с заголовком:\n"
             "`X-Session-Id: <session_id>`\n\n"
     ),
     responses={
         200: {"description": "Модель измененного книжного клуба"},
         401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Клуб закрыт - вступление по заявке или по приглашению"},
         404: {"description": "Книжный клуб с таким id не найден"},
         409: {"description": "Пользователь уже является участником клуба"},
         500: {"description": "Внутренняя ошибка сервера"},
@@ -230,6 +245,261 @@ async def leave(
         service: BookClubService = Depends(get_book_club_service)
 ) -> ResponseModel[BookClubResponse]:
     return await service.leave(user, club_id)
+
+
+@router.post(
+    "/{club_id}/invites",
+    response_model=ResponseModel[InviteResponse],
+    summary="Создать ссылку-приглашение в клуб",
+    description=(
+            "Выдаёт код приглашения: по нему вступают в клуб независимо от его "
+            "режима приватности. `expires_in_days` ограничивает срок жизни кода, "
+            "без него код бессрочный.\n\n"
+            "Доступно владельцу и модераторам клуба.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    status_code=201,
+    responses={
+        201: {"description": "Созданное приглашение с кодом"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не владелец и не модератор клуба"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        422: {"description": "Ошибка валидации срока жизни приглашения"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def create_invite(
+        club_id: PathId,
+        # Тело необязательно: бессрочное приглашение создаётся запросом без него.
+        model: CreateInviteRequest = CreateInviteRequest(),
+        user: Principal = Depends(get_current_user),
+        service: BookClubService = Depends(get_book_club_service)
+) -> ResponseModel[InviteResponse]:
+    return await service.create_invite(user, club_id, model)
+
+
+@router.post(
+    "/join-by-invite",
+    response_model=ResponseModel[BookClubResponse],
+    summary="Вступить в клуб по коду приглашения",
+    description=(
+            "Код приглашения и есть разрешение войти: режим приватности клуба "
+            "при этом не проверяется.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Модель книжного клуба, в который вступил пользователь"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Срок действия приглашения истёк"},
+        404: {"description": "Приглашение не найдено"},
+        409: {"description": "Пользователь уже является участником клуба"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def join_by_invite(
+        model: JoinByInviteRequest,
+        user: Principal = Depends(get_current_user),
+        service: BookClubService = Depends(get_book_club_service)
+) -> ResponseModel[BookClubResponse]:
+    return await service.join_by_invite(user, model)
+
+
+@router.post(
+    "/{club_id}/requests",
+    response_model=ResponseModel[JoinRequestResponse],
+    summary="Подать заявку на вступление в клуб",
+    description=(
+            "Только для клубов с режимом `by_request`. Повторная подача после "
+            "отказа возвращает заявку в очередь.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    status_code=201,
+    responses={
+        201: {"description": "Заявка в очереди на рассмотрение"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        409: {"description": "Клуб не принимает заявки или пользователь уже участник"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def request_join(
+        club_id: PathId,
+        user: Principal = Depends(get_current_user),
+        service: BookClubService = Depends(get_book_club_service)
+) -> ResponseModel[JoinRequestResponse]:
+    return await service.request_join(user, club_id)
+
+
+@router.get(
+    "/{club_id}/requests",
+    response_model=ResponseModel[Page[JoinRequestResponse]],
+    summary="Очередь заявок на вступление (постранично)",
+    description=(
+            "Только заявки в статусе `pending`. Доступно владельцу и модераторам клуба.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Страница заявок на вступление"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не владелец и не модератор клуба"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def get_join_requests(
+        club_id: PathId,
+        limit: int = Query(20, ge=1, le=100),
+        offset: PageOffset = 0,
+        user: Principal = Depends(get_current_user),
+        service: BookClubService = Depends(get_book_club_service)
+) -> ResponseModel[Page[JoinRequestResponse]]:
+    return await service.get_join_requests(user, club_id, limit=limit, offset=offset)
+
+
+@router.post(
+    "/{club_id}/requests/{request_id}/approve",
+    response_model=ResponseModel[JoinRequestResponse],
+    summary="Одобрить заявку на вступление",
+    description=(
+            "Заявитель становится участником клуба. Доступно владельцу и модераторам.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Одобренная заявка"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не владелец и не модератор клуба"},
+        404: {"description": "Книжный клуб или заявка с таким id не найдены"},
+        409: {"description": "Заявка уже рассмотрена"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def approve_join_request(
+        club_id: PathId,
+        request_id: PathId,
+        user: Principal = Depends(get_current_user),
+        service: BookClubService = Depends(get_book_club_service)
+) -> ResponseModel[JoinRequestResponse]:
+    return await service.resolve_join_request(user, club_id, request_id, JoinRequestStatus.approved)
+
+
+@router.post(
+    "/{club_id}/requests/{request_id}/reject",
+    response_model=ResponseModel[JoinRequestResponse],
+    summary="Отклонить заявку на вступление",
+    description=(
+            "Доступно владельцу и модераторам клуба.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Отклонённая заявка"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не владелец и не модератор клуба"},
+        404: {"description": "Книжный клуб или заявка с таким id не найдены"},
+        409: {"description": "Заявка уже рассмотрена"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def reject_join_request(
+        club_id: PathId,
+        request_id: PathId,
+        user: Principal = Depends(get_current_user),
+        service: BookClubService = Depends(get_book_club_service)
+) -> ResponseModel[JoinRequestResponse]:
+    return await service.resolve_join_request(user, club_id, request_id, JoinRequestStatus.rejected)
+
+
+@router.put(
+    "/{club_id}/members/{user_id}/role",
+    response_model=ResponseModel,
+    summary="Назначить роль участнику клуба",
+    description=(
+            "Роль `moderator` или `member`. Роль владельца этой операцией не "
+            "назначается - для этого есть передача клуба.\n\n"
+            "Доступно только владельцу клуба.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Успешный ответ с сообщением об обновлении роли"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не является владельцем книжного клуба"},
+        404: {"description": "Книжный клуб не найден или пользователь не состоит в клубе"},
+        422: {"description": "Некорректная роль или попытка сменить роль владельца"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def set_member_role(
+        club_id: PathId,
+        user_id: PathId,
+        model: UpdateMemberRoleRequest,
+        user: Principal = Depends(get_current_user),
+        service: BookClubService = Depends(get_book_club_service)
+) -> ResponseModel:
+    return await service.set_member_role(user, club_id, user_id, model)
+
+
+@router.delete(
+    "/{club_id}/members/{user_id}",
+    response_model=ResponseModel[BookClubResponse],
+    summary="Исключить участника из клуба",
+    description=(
+            "Доступно владельцу и модераторам клуба. Модератор не может исключить "
+            "другого модератора, а владельца исключить нельзя - клуб сначала "
+            "передают.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Модель измененного книжного клуба"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Недостаточно прав для исключения этого участника"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        409: {"description": "Пользователь не состоит в клубе"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def remove_member(
+        club_id: PathId,
+        user_id: PathId,
+        user: Principal = Depends(get_current_user),
+        service: BookClubService = Depends(get_book_club_service)
+) -> ResponseModel[BookClubResponse]:
+    return await service.remove_member(user, club_id, user_id)
+
+
+@router.post(
+    "/{club_id}/transfer",
+    response_model=ResponseModel[BookClubResponse],
+    summary="Передать владение клубом",
+    description=(
+            "Новым владельцем становится участник клуба. Прежний владелец остаётся "
+            "в клубе обычным участником.\n\n"
+            "Доступно только текущему владельцу.\n\n"
+            "**Требуется авторизация** с заголовком:\n"
+            "`X-Session-Id: <session_id>`\n\n"
+    ),
+    responses={
+        200: {"description": "Модель книжного клуба с новым владельцем"},
+        401: {"description": "Ошибка авторизации (неверный токен)"},
+        403: {"description": "Пользователь не является владельцем книжного клуба"},
+        404: {"description": "Книжный клуб с таким id не найден"},
+        422: {"description": "Новый владелец не состоит в клубе"},
+        500: {"description": "Внутренняя ошибка сервера"},
+    },
+)
+async def transfer_ownership(
+        club_id: PathId,
+        model: TransferOwnershipRequest,
+        user: Principal = Depends(get_current_user),
+        service: BookClubService = Depends(get_book_club_service)
+) -> ResponseModel[BookClubResponse]:
+    return await service.transfer_ownership(user, club_id, model)
 
 
 @router.put(
