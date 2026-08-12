@@ -6,19 +6,10 @@
 
 Требуется `Python 3.11`.
 
-Вариант с `pip` (так же ставит зависимости Docker и CI):
-
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-Либо через `Pipenv`:
-
-```bash
-pipenv --python 3.11 install --dev
-pipenv shell
 ```
 
 ### 2. Поднять PostgreSQL и Redis

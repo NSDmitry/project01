@@ -4,7 +4,8 @@ version = "0.1.0"
 description = "Доставка уведомлений: приём батчей от монолита, очередь deliveries, каналы"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi~=0.115.8",
+    "fastapi~=0.116.0",
+    "starlette~=0.47.2",
     "uvicorn~=0.34.0",
     "SQLAlchemy~=2.0.37",
     "asyncpg~=0.30.0",
