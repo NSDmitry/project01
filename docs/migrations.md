@@ -22,3 +22,5 @@ alembic upgrade head
 ```
 
 Это разрушительная операция. Использовать только для локальной разработки.
+
+У notification-service свои миграции и своя БД (`notification_service/migrations`) - те же команды, но запускаются из каталога `notification_service/`; в docker-compose их применяет контейнер `notification-migrate`.

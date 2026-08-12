@@ -19,6 +19,8 @@
 - `PUT /api/users` - обновление имени и номера телефона, в ответе - обновлённый профиль текущего пользователя
 - `PUT /api/users/avatar` - загрузить аватар: `multipart/form-data`, поле `file`. В ответе - профиль со ссылкой `avatar_url`
 - `PUT /api/users/password` - смена пароля (требует текущий пароль) с завершением всех активных сессий
+- `GET /api/users/notification-settings` - настройки уведомлений: `disabled` - список отключённых типов
+- `PUT /api/users/notification-settings` - заменить набор отключённых типов целиком (replace-set, пустой список включает всё обратно). Типы: `comment_in_thread`, `reading_started`, `stage_deadline`, `reading_deadline`
 - `DELETE /api/users/current` - удаление своего аккаунта; в теле передаётся `password` - подтверждение пароля (не нужно для Telegram-аккаунтов без пароля). Query-флаги `delete_clubs` / `delete_threads` / `delete_comments` (по умолчанию `false`): `false` - контент отвязывается от пользователя и сохраняется, `true` - удаляется вместе с вложенным содержимым
 
 ## Книжные клубы
