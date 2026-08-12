@@ -481,6 +481,36 @@
       "source": "architecture/architecture-overview.doc.md",
       "target": "notifications/notifications.spec.md",
       "type": "related"
+    },
+    {
+      "source": "notifications/notification-service-extraction.adr.md",
+      "target": "notifications/notifications.spec.md",
+      "type": "extends"
+    },
+    {
+      "source": "notifications/notification-service-extraction.adr.md",
+      "target": "conventions/cross-domain-events.rule.md",
+      "type": "related"
+    },
+    {
+      "source": "notifications/notification-service-extraction.adr.md",
+      "target": "architecture/architecture-overview.doc.md",
+      "type": "related"
+    },
+    {
+      "source": "notifications/notification-service.spec.md",
+      "target": "notifications/notification-service-extraction.adr.md",
+      "type": "implements"
+    },
+    {
+      "source": "notifications/notification-service-migration.plan.md",
+      "target": "notifications/notification-service.spec.md",
+      "type": "implements"
+    },
+    {
+      "source": "notifications/notification-service.spec.md",
+      "target": "notifications/notifications.spec.md",
+      "type": "related"
     }
   ]
 }

@@ -146,16 +146,87 @@ services:
     env_file:
       - .env
     working_dir: /app
-    # Доставка уведомлений раз в минуту: генерирует напоминания о дедлайнах
-    # и шлёт накопившееся из notifications (см. app/notifications/tasks.py).
+    # Relay уведомлений раз в минуту: генерирует напоминания о дедлайнах и
+    # передаёт накопившееся из notifications батчем в notification-service
+    # (см. app/notifications/tasks.py). Доставку выполняет notification-worker.
     command: >
       sh -c "while true; do
                python -m app.notifications.tasks;
                sleep 60;
              done"
 
+  # --- notification-service: отдельный сервис доставки со своей БД ---
+
+  notifications-db:
+    image: postgres:17
+    container_name: project1_notifications_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${NOTIFICATIONS_POSTGRES_USER:?set NOTIFICATIONS_POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${NOTIFICATIONS_POSTGRES_PASSWORD:?set NOTIFICATIONS_POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${NOTIFICATIONS_POSTGRES_DB:?set NOTIFICATIONS_POSTGRES_DB in .env}
+    # Порт наружу не публикуем: БД нужна только контейнерам сервиса по внутренней сети.
+    volumes:
+      - notifications_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${NOTIFICATIONS_POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  notification-migrate:
+    build: ./notification_service
+    container_name: project1_notification_migrate
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${NOTIFICATIONS_POSTGRES_USER}:${NOTIFICATIONS_POSTGRES_PASSWORD}@notifications-db:5432/${NOTIFICATIONS_POSTGRES_DB}
+    command: alembic upgrade head
+
+  # Приём батчей от relay монолита. Наружу не публикуется - только внутренняя сеть.
+  notification-service:
+    build: ./notification_service
+    container_name: project1_notification_service
+    restart: unless-stopped
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+      notification-migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://${NOTIFICATIONS_POSTGRES_USER}:${NOTIFICATIONS_POSTGRES_PASSWORD}@notifications-db:5432/${NOTIFICATIONS_POSTGRES_DB}
+      INTERNAL_TOKEN: ${INTERNAL_TOKEN:?set INTERNAL_TOKEN in .env}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Доставка по каналам раз в минуту (см. notification_service/service/worker.py).
+  # TELEGRAM_BOT_TOKEN для отправки живёт здесь; у монолита тот же токен остаётся
+  # только ради проверки подписи Telegram initData при логине (IAM).
+  notification-worker:
+    build: ./notification_service
+    container_name: project1_notification_worker
+    restart: always
+    depends_on:
+      notifications-db:
+        condition: service_healthy
+      notification-migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://${NOTIFICATIONS_POSTGRES_USER}:${NOTIFICATIONS_POSTGRES_PASSWORD}@notifications-db:5432/${NOTIFICATIONS_POSTGRES_DB}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+    command: >
+      sh -c "while true; do
+               python -m service.worker;
+               sleep 60;
+             done"
+
 volumes:
   postgres_data:
+  notifications_postgres_data:
   minio_data:
   caddy_data:
   caddy_config:

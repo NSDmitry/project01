@@ -1,6 +1,8 @@
+import functools
 import os
 from pathlib import Path
 
+import bcrypt
 import pytest
 from alembic import command
 from alembic.config import Config
@@ -65,6 +67,16 @@ def setup_test_db():
     command.upgrade(_alembic_cfg, "head")
     yield
     _reset_schema()
+
+@pytest.fixture(scope="session", autouse=True)
+def fast_bcrypt():
+    # 12 раундов bcrypt (~0.3s на хеш) - защита прода; тестам они дают только
+    # минуты прогона: каждый register через API хеширует пароль.
+    original = bcrypt.gensalt
+    bcrypt.gensalt = functools.partial(bcrypt.gensalt, rounds=4)
+    yield
+    bcrypt.gensalt = original
+
 
 @pytest.fixture()
 def db():

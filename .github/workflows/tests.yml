@@ -23,8 +23,11 @@ jobs:
           pip install -r requirements.txt
 
       # До Postgres и pytest: ошибка типов валит прогон за полминуты, а не за три.
+      # Проверяются оба проекта: монолит и notification_service (у каждого свой mypy.ini).
       - name: Check types
-        run: mypy
+        run: |
+          mypy
+          (cd notification_service && mypy)
 
       - name: Start Postgres with Docker Compose
         run: docker compose -f docker-compose.test.yml up -d
@@ -36,12 +39,19 @@ jobs:
             sleep 2
           done
 
-      - name: Run tests
+      - name: Run monolith tests
         env:
           IS_TEST: "true"
           TEST_DATABASE_URL: "postgresql://test_admin:test_password@localhost:5433/test_database"
         run: |
           pytest -v -s
+
+      # Тот же Postgres на 5433: отдельную БД test_notifications тесты создают сами.
+      - name: Run notification-service tests
+        working-directory: notification_service
+        env:
+          IS_TEST: "true"
+        run: pytest -v -s
 
       - name: Shutdown Docker Compose
         if: always()
