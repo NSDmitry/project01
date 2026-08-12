@@ -7,7 +7,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     database_url: str
     origin_urls: List[str] = Field(default_factory=list)
+    # Только проверка подписи Telegram initData при логине (IAM). Отправка
+    # уведомлений уехала в notification-service вместе со своим токеном.
     telegram_bot_token: str = ""
+    # Relay уведомлений: адрес notification-service и общий секрет приёма батчей.
+    notification_service_url: str = "http://notification-service:8000"
+    internal_token: str = ""
     # Пустой ключ = запросы к Google Books без ключа (меньшие квоты).
     google_books_api_key: str = ""
     redis_url: str = "redis://localhost:6379/0"
