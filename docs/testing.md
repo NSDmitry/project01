@@ -27,12 +27,6 @@ IS_TEST=true pytest -s -v
 
 `IS_TEST=true` переключает приложение на чтение настроек из `.env.test`. Схему тестовой базы фикстура `setup_test_db` поднимает сама через `alembic upgrade head` (тот же путь, что и в проде), отдельно мигрировать тестовую базу не нужно.
 
-Если зависимости установлены через `Pipenv`, отключите автозагрузку дев-`.env` - иначе `Pipenv` подставит `DATABASE_URL` из основного `.env` и тесты уйдут в дев-базу:
-
-```bash
-PIPENV_DONT_LOAD_ENV=1 IS_TEST=true pipenv run pytest -s -v
-```
-
 Тесты прогоняются в CI на каждый PR в `main` - см. `.github/workflows/tests.yml` (Python 3.11, та же тестовая база через `docker-compose.test.yml`).
 
 ## Тесты notification-service
